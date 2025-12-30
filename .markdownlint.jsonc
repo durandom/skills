@@ -1,0 +1,30 @@
+{
+  // Opinionated markdownlint config with common relaxations
+  // Rules reference: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+
+  // Line length - disabled (let editors/prettier handle wrapping)
+  "MD013": false,
+
+  // Inline HTML - allowed (useful for badges, details/summary, etc.)
+  "MD033": false,
+
+  // First line must be top-level heading - disabled (frontmatter, badges)
+  "MD041": false,
+
+  // Multiple headings with same content - allowed (changelogs, FAQs)
+  "MD024": false,
+
+  // Trailing punctuation in heading - allow ? for FAQ-style docs
+  "MD026": {
+    "punctuation": ".,;:!"
+  },
+
+  // Bare URLs - allowed (auto-linked by most renderers)
+  "MD034": false,
+
+  // Fenced code blocks without language - allowed (output examples, plain text)
+  "MD040": false,
+
+  // Table column alignment style - disabled (too strict)
+  "MD060": false
+}

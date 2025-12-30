@@ -5,6 +5,7 @@ A reusable pattern for secure credential storage using the system keyring with f
 ## Overview
 
 This recipe provides:
+
 - **Storage abstraction layer** with pluggable backends (keyring + file fallback)
 - **Multi-account support** for OAuth-based services
 - **Unified CLI command** (`credentials`) with actions: login, logout, status, import, list, migrate
@@ -37,7 +38,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from loguru import logger
+# Use loguru if available, fallback to standard logging
+try:
+    from loguru import logger
+except ImportError:
+    import logging
+    logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -442,10 +448,36 @@ settings = Settings()
 ```
 
 **Environment variables:**
+
 - `MYAPP_USE_KEYRING=false` - disable keyring
 - `MYAPP_KEYRING_SERVICE_NAME=custom-name` - change service name
 
 ## 3. CLI Commands (`cli/app.py`)
+
+### Default Subcommand Pattern
+
+Use `invoke_without_command=True` to default to `status` when no subcommand is provided:
+
+```python
+import os
+import typer
+
+# Credentials command group with default behavior
+credentials_app = typer.Typer(
+    help="Manage API credentials",
+    invoke_without_command=True,
+)
+app.add_typer(credentials_app, name="credentials")
+
+
+@credentials_app.callback()
+def credentials_callback(ctx: typer.Context):
+    """Shows status if no subcommand provided."""
+    if ctx.invoked_subcommand is None:
+        credentials_status()
+```
+
+This allows users to run `myapp credentials` to see status instead of requiring `myapp credentials status`.
 
 ### Option A: OAuth Credentials (Google-style)
 
@@ -731,6 +763,61 @@ def api_key(
             console.print(f"  API Key '{key_name}': [yellow]not set[/yellow]")
 ```
 
+### Import from Environment Variables
+
+Migrate from `.env` workflows to keyring with an `import` command:
+
+```python
+# Mapping of key names to environment variable names
+_ENV_VAR_MAP = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+    # Add your service-specific mappings
+}
+
+
+@credentials_app.command("import")
+def credentials_import():
+    """Import API keys from environment variables into keyring."""
+    from ..core.storage import ApiKeyStorage
+
+    storage = ApiKeyStorage()
+
+    if not storage.is_available():
+        console.print("[red]Keyring not available[/red]")
+        raise typer.Exit(1)
+
+    imported = 0
+    skipped = 0
+
+    for key_name, env_var in _ENV_VAR_MAP.items():
+        env_value = os.getenv(env_var)
+        keyring_value = storage.load_api_key(key_name)
+
+        if not env_value:
+            continue  # No env var set, skip
+
+        if keyring_value:
+            console.print(f"  {key_name:<20} [skip] already in keyring")
+            skipped += 1
+            continue
+
+        if storage.save_api_key(env_value, key_name):
+            console.print(f"  {key_name:<20} [imported] from {env_var}")
+            imported += 1
+        else:
+            console.print(f"  {key_name:<20} [error] failed to import", err=True)
+
+    console.print()
+    if imported > 0:
+        console.print(f"[green]Imported {imported} key(s) to keyring[/green]")
+    if skipped > 0:
+        console.print(f"  Skipped {skipped} key(s) already in keyring")
+    if imported == 0 and skipped == 0:
+        console.print("No environment variables found to import")
+```
+
 ## 4. pyproject.toml
 
 Add keyring as an optional dependency:
@@ -749,6 +836,7 @@ all = [
 ```
 
 **Install with:**
+
 ```bash
 pip install my-package[keyring]
 # or
@@ -910,6 +998,9 @@ myapp credentials logout -a user@example.com
 ### Simple API Key
 
 ```bash
+# Show status (default when no subcommand)
+myapp credentials
+
 # Set API key (will prompt for value)
 myapp api-key set
 
@@ -921,6 +1012,14 @@ myapp api-key get -n openai
 
 # Delete
 myapp api-key delete -n openai
+
+# Import from environment variables
+myapp credentials import
+# Output:
+#   openai               [imported] from OPENAI_API_KEY
+#   anthropic            [skip] already in keyring
+#   openrouter           [imported] from OPENROUTER_API_KEY
+# ✓ Imported 2 key(s) to keyring
 ```
 
 ## Customization Points
@@ -929,6 +1028,45 @@ myapp api-key delete -n openai
 2. **Stored fields**: Modify `StoredCredentials` dataclass for your needs
 3. **Default paths**: Adjust `token_path` defaults in settings/CLI
 4. **Environment prefix**: Change `env_prefix` in pydantic settings
+
+## Environment Variable Mapping
+
+For API key storage, centralize the mapping between key names and environment variables:
+
+```python
+# In your CLI or credentials module
+_ENV_VAR_MAP = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+    # Add your service-specific mappings
+}
+
+
+def get_api_key(name: str) -> str | None:
+    """Get API key from keyring or environment variable.
+
+    Tries keyring first, falls back to environment variable.
+    """
+    from .storage import ApiKeyStorage
+
+    storage = ApiKeyStorage()
+    value = storage.load_api_key(name)
+    if value:
+        return value
+
+    env_var = _ENV_VAR_MAP.get(name)
+    if env_var:
+        return os.getenv(env_var)
+
+    return None
+```
+
+This pattern enables:
+
+- `credentials import` - migrate from .env to keyring
+- `credentials status` - show source (keyring vs env)
+- Backward compatibility with existing env var workflows
 
 ## Security Notes
 
