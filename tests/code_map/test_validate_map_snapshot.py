@@ -30,8 +30,14 @@ VALID_MAP = FIXTURES_DIR / "calculator" / "docs" / "map"
 
 
 def normalize_paths(output: str, tmp_path: Path) -> str:
-    """Replace temp paths with <TMP> for deterministic snapshots."""
-    return output.replace(str(tmp_path), "<TMP>")
+    """Replace temp paths with <TMP> for deterministic snapshots.
+
+    Also strips trailing whitespace from lines to match pre-commit hooks.
+    """
+    normalized = output.replace(str(tmp_path), "<TMP>")
+    # Strip trailing whitespace from each line (matching pre-commit behavior)
+    lines = [line.rstrip() for line in normalized.split("\n")]
+    return "\n".join(lines).rstrip() + "\n"
 
 
 class TestValidMapSnapshot:

@@ -28,7 +28,7 @@ def render_template(name: str, **kwargs: str) -> str:
         **kwargs: Variables to substitute
 
     Returns:
-        Rendered template string
+        Rendered template string with exactly one trailing newline.
     """
     template = load_template(name)
-    return template.substitute(**kwargs)
+    return template.substitute(**kwargs).rstrip() + "\n"

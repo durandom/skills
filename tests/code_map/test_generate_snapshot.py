@@ -32,8 +32,14 @@ def run_code_map(*args: str, cwd: Path | None = None) -> tuple[str, str, int]:
 
 
 def normalize_paths(output: str, tmp_path: Path) -> str:
-    """Replace temp paths with <TMP> for deterministic snapshots."""
-    return output.replace(str(tmp_path), "<TMP>")
+    """Replace temp paths with <TMP> for deterministic snapshots.
+
+    Also strips trailing whitespace from lines to match pre-commit hooks.
+    """
+    normalized = output.replace(str(tmp_path), "<TMP>")
+    # Strip trailing whitespace from each line (matching pre-commit behavior)
+    lines = [line.rstrip() for line in normalized.split("\n")]
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def compare_to_fixture(generated_dir: Path, fixture_dir: Path) -> None:
