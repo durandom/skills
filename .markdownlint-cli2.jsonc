@@ -5,6 +5,8 @@
   // Ignore patterns
   "ignores": [
     ".planning/**",
-    ".claude/**"
+    ".claude/**",
+    "fixtures/**",
+    "skills/code-map/scripts/generate/templates/**"
   ]
 }

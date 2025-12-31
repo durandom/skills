@@ -38,15 +38,8 @@ What would you like to do?
 |----------|----------|
 | 1, "explore", "read", "understand", "navigate" | `workflows/explore.md` |
 | 2, "create", "generate", "new", "build" | `workflows/create-map.md` |
-| 3, "validate", "check", "verify", "lint" | Run validation script (see below) |
-
-**For validation (option 3):**
-
-```bash
-uv run python .claude/skills/code-map/scripts/__main__.py <map-dir>
-# Example:
-uv run python .claude/skills/code-map/scripts/__main__.py docs/map
-```
+| 3, "validate", "check", "verify", "lint" | Run validation script (see CLI below) |
+| 4, "scaffold", "skeleton", "init" | Run generate script (see CLI below) |
 
 **After reading the workflow, follow it exactly.**
 </routing>
@@ -82,6 +75,31 @@ docs/map/
 
 </reference_index>
 
+<cli>
+
+## Running the Scripts
+
+The scripts use Python 3.11+ stdlib only (no external dependencies).
+
+```bash
+# Validate an existing map
+uv run python <skill-path>/scripts/code_map.py validate <map-dir>
+
+# Generate map skeletons from source
+uv run python <skill-path>/scripts/code_map.py generate <src-dir> <map-dir>
+```
+
+Where `<skill-path>` is wherever this skill is installed (e.g., `.claude/skills/code-map`).
+
+**Generate command features:**
+
+- Creates one `.md` file per source file (1:1 mapping)
+- Uses `<!-- TODO: description -->` placeholders
+- Preserves filled descriptions on subsequent runs
+- Reports new sections, removed sections, and unfilled placeholders
+
+</cli>
+
 <workflows_index>
 
 **Workflows** (`workflows/`):
@@ -95,9 +113,9 @@ docs/map/
 
 | Script | Purpose | Status |
 |--------|---------|--------|
-| lsp_client.py | Python AST-based symbol validation | Ready |
-| validate_map.py | Check links, sizes, anchors | Ready |
-| **main**.py | CLI entry point for validation | Ready |
+| code_map.py | CLI entry point (validate, generate) | Ready |
+| generate/ | Map skeleton generation from source | Ready |
+| validate/ | Map validation (links, sizes, symbols) | Ready |
 
 </workflows_index>
 

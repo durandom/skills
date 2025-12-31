@@ -1,0 +1,21 @@
+[project]
+name = "durandom-skills"
+version = "0.1.0"
+description = "Claude Code skills collection"
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+dev = ["pytest", "syrupy", "ruff"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

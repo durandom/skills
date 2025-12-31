@@ -1,0 +1,61 @@
+"""Data models for code map generation."""
+
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+
+
+class SymbolKind(Enum):
+    """Type of code symbol."""
+
+    CLASS = "class"
+    FUNCTION = "function"
+    METHOD = "method"
+
+
+@dataclass
+class ExtractedSymbol:
+    """Symbol extracted from source code via AST."""
+
+    name: str
+    kind: SymbolKind
+    line: int
+    parent: str | None = None  # For methods: parent class name
+
+
+@dataclass
+class Section:
+    """A section in a map file documenting a symbol."""
+
+    symbol_name: str
+    symbol_kind: SymbolKind
+    line_number: int
+    description: str
+    is_placeholder: bool
+
+
+@dataclass
+class MapFile:
+    """Represents a single map markdown file."""
+
+    source_path: Path  # Relative path to source file
+    map_path: Path  # Relative path to map file
+    file_description: str
+    file_description_is_placeholder: bool
+    sections: list[Section] = field(default_factory=list)
+
+
+@dataclass
+class ChangeReport:
+    """Report of changes made during map generation."""
+
+    created_files: list[Path] = field(default_factory=list)
+    updated_files: list[Path] = field(default_factory=list)
+    deleted_files: list[Path] = field(default_factory=list)
+    new_sections: list[tuple[Path, str]] = field(default_factory=list)  # (file, symbol)
+    removed_sections: list[tuple[Path, str]] = field(
+        default_factory=list
+    )  # (file, symbol)
+    unfilled_placeholders: list[tuple[Path, str]] = field(
+        default_factory=list
+    )  # (file, symbol or "file")

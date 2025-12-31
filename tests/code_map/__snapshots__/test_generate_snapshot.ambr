@@ -1,0 +1,141 @@
+# serializer version: 1
+# name: TestGenerateDetectsChanges.test_detects_new_symbol
+  '''
+  Generating maps: <TMP>/src/calculator -> <TMP>/docs/map
+
+  Created: 0 files
+  Updated: 0 files
+  Orphaned: 0 files
+  Unfilled: 17 placeholders
+
+  New sections:
+    domains/calculator.md: Calculator
+    domains/calculator.md: __init__
+    domains/calculator.md: add
+    domains/calculator.md: add
+    domains/calculator.md: clear
+    domains/calculator.md: divide
+    domains/calculator.md: divide
+    domains/calculator.md: history
+    domains/calculator.md: modulo
+    domains/calculator.md: multiply
+    domains/calculator.md: multiply
+    domains/calculator.md: subtract
+    domains/calculator.md: subtract
+    domains/calculator.md: value
+
+
+  '''
+# ---
+# name: TestGenerateDetectsChanges.test_detects_removed_symbol
+  '''
+  Generating maps: <TMP>/src/calculator -> <TMP>/docs/map
+
+  Created: 0 files
+  Updated: 0 files
+  Orphaned: 0 files
+  Unfilled: 15 placeholders
+
+  New sections:
+    domains/calculator.md: Calculator
+    domains/calculator.md: __init__
+    domains/calculator.md: add
+    domains/calculator.md: add
+    domains/calculator.md: clear
+    domains/calculator.md: divide
+    domains/calculator.md: history
+    domains/calculator.md: multiply
+    domains/calculator.md: multiply
+    domains/calculator.md: subtract
+    domains/calculator.md: subtract
+    domains/calculator.md: value
+
+
+  '''
+# ---
+# name: TestGenerateDetectsChanges.test_preserves_filled_description
+  '''
+  Generating maps: <TMP>/src/calculator -> <TMP>/docs/map
+
+  Created: 0 files
+  Updated: 0 files
+  Orphaned: 0 files
+  Unfilled: 14 placeholders
+
+  New sections:
+    domains/calculator.md: Calculator
+    domains/calculator.md: __init__
+    domains/calculator.md: add
+    domains/calculator.md: add
+    domains/calculator.md: clear
+    domains/calculator.md: divide
+    domains/calculator.md: divide
+    domains/calculator.md: history
+    domains/calculator.md: multiply
+    domains/calculator.md: multiply
+    domains/calculator.md: subtract
+    domains/calculator.md: subtract
+    domains/calculator.md: value
+
+
+  '''
+# ---
+# name: TestGenerateIdempotent.test_second_run_no_changes
+  '''
+  Generating maps: <TMP>/src/calculator -> <TMP>/docs/map
+
+  Created: 0 files
+  Updated: 0 files
+  Orphaned: 0 files
+  Unfilled: 16 placeholders
+
+  New sections:
+    domains/calculator.md: Calculator
+    domains/calculator.md: __init__
+    domains/calculator.md: add
+    domains/calculator.md: add
+    domains/calculator.md: clear
+    domains/calculator.md: divide
+    domains/calculator.md: divide
+    domains/calculator.md: history
+    domains/calculator.md: multiply
+    domains/calculator.md: multiply
+    domains/calculator.md: subtract
+    domains/calculator.md: subtract
+    domains/calculator.md: value
+
+
+  '''
+# ---
+# name: TestGenerateNewMap.test_generate_calculator_fixture
+  '''
+  Generating maps: <TMP>/src/calculator -> <TMP>/docs/map
+
+  Created: 3 files
+  Updated: 0 files
+  Orphaned: 0 files
+  Unfilled: 16 placeholders
+
+  Created files:
+    MAP.md
+    ARCHITECTURE.md
+    domains/calculator.md
+
+  New sections:
+    domains/calculator.md: Calculator
+    domains/calculator.md: __init__
+    domains/calculator.md: add
+    domains/calculator.md: add
+    domains/calculator.md: clear
+    domains/calculator.md: divide
+    domains/calculator.md: divide
+    domains/calculator.md: history
+    domains/calculator.md: multiply
+    domains/calculator.md: multiply
+    domains/calculator.md: subtract
+    domains/calculator.md: subtract
+    domains/calculator.md: value
+
+
+  '''
+# ---

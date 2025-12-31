@@ -234,11 +234,15 @@ def check_code_links(map_dir: Path) -> list[ValidationError]:
                 target = (md_file.parent / file_path).resolve()
 
                 if not target.exists():
+                    msg = (
+                        f"[`{symbol_name}`]({file_path}#L{line_number}) "
+                        f"-> file not found"
+                    )
                     errors.append(
                         ValidationError(
                             file=str(md_file.relative_to(map_dir)),
                             line=line_num,
-                            message=f"[`{symbol_name}`]({file_path}#L{line_number}) -> file not found",
+                            message=msg,
                             error_type="broken_symbol",
                         )
                     )
@@ -246,11 +250,15 @@ def check_code_links(map_dir: Path) -> list[ValidationError]:
 
                 # Check if symbol exists anywhere in file
                 if not symbol_exists(target, symbol_name):
+                    msg = (
+                        f"[`{symbol_name}`]({file_path}#L{line_number}) "
+                        f"-> symbol not found"
+                    )
                     errors.append(
                         ValidationError(
                             file=str(md_file.relative_to(map_dir)),
                             line=line_num,
-                            message=f"[`{symbol_name}`]({file_path}#L{line_number}) -> symbol not found",
+                            message=msg,
                             error_type="broken_symbol",
                         )
                     )
@@ -258,11 +266,15 @@ def check_code_links(map_dir: Path) -> list[ValidationError]:
 
                 # Check if symbol is at the right line (with tolerance)
                 if not symbol_at_line(target, symbol_name, line_number, tolerance=5):
+                    msg = (
+                        f"[`{symbol_name}`]({file_path}#L{line_number}) "
+                        f"-> symbol not at line {line_number}"
+                    )
                     errors.append(
                         ValidationError(
                             file=str(md_file.relative_to(map_dir)),
                             line=line_num,
-                            message=f"[`{symbol_name}`]({file_path}#L{line_number}) -> symbol not at line {line_number}",
+                            message=msg,
                             error_type="broken_symbol",
                         )
                     )
@@ -285,12 +297,13 @@ def check_size_limits(map_dir: Path) -> list[ValidationError]:
     arch_md = map_dir / "ARCHITECTURE.md"
     if arch_md.exists():
         line_count = len(arch_md.read_text().split("\n"))
-        if line_count > SIZE_LIMITS["L0"]:
+        limit = SIZE_LIMITS["L0"]
+        if line_count > limit:
             errors.append(
                 ValidationError(
                     file="ARCHITECTURE.md",
                     line=0,
-                    message=f"Exceeds L0 limit: {line_count} lines > {SIZE_LIMITS['L0']}",
+                    message=f"Exceeds L0 limit: {line_count} lines > {limit}",
                     error_type="size_limit",
                 )
             )
@@ -298,14 +311,15 @@ def check_size_limits(map_dir: Path) -> list[ValidationError]:
     # Check L1 (domains/*.md)
     domains_dir = map_dir / "domains"
     if domains_dir.exists():
+        limit = SIZE_LIMITS["L1"]
         for domain_file in domains_dir.glob("*.md"):
             line_count = len(domain_file.read_text().split("\n"))
-            if line_count > SIZE_LIMITS["L1"]:
+            if line_count > limit:
                 errors.append(
                     ValidationError(
                         file=f"domains/{domain_file.name}",
                         line=0,
-                        message=f"Exceeds L1 limit: {line_count} lines > {SIZE_LIMITS['L1']}",
+                        message=f"Exceeds L1 limit: {line_count} lines > {limit}",
                         error_type="size_limit",
                     )
                 )
@@ -313,15 +327,16 @@ def check_size_limits(map_dir: Path) -> list[ValidationError]:
     # Check L2 (modules/**/*.md)
     modules_dir = map_dir / "modules"
     if modules_dir.exists():
+        limit = SIZE_LIMITS["L2"]
         for module_file in modules_dir.rglob("*.md"):
             line_count = len(module_file.read_text().split("\n"))
-            if line_count > SIZE_LIMITS["L2"]:
+            if line_count > limit:
                 relative_path = module_file.relative_to(map_dir)
                 errors.append(
                     ValidationError(
                         file=str(relative_path),
                         line=0,
-                        message=f"Exceeds L2 limit: {line_count} lines > {SIZE_LIMITS['L2']}",
+                        message=f"Exceeds L2 limit: {line_count} lines > {limit}",
                         error_type="size_limit",
                     )
                 )

@@ -1,0 +1,73 @@
+# serializer version: 1
+# name: TestBrokenMapSnapshots.test_broken_code_link
+  '''
+  Validating <TMP>...
+
+  Structure: OK
+  File links: OK (1 checked)
+  Code links: FAIL
+    ARCHITECTURE.md:3 - [`fake_function`](code.py#L1) -> symbol not found
+  Size limits: OK
+
+  1 errors found.
+
+  '''
+# ---
+# name: TestBrokenMapSnapshots.test_broken_file_link
+  '''
+  Validating <TMP>...
+
+  Structure: OK
+  File links: FAIL
+    MAP.md:3 - [Missing Link](does-not-exist.md) -> file not found
+  Code links: OK (0 checked, AST)
+  Size limits: OK
+
+  1 errors found.
+
+  '''
+# ---
+# name: TestBrokenMapSnapshots.test_missing_structure
+  '''
+  Validating <TMP>...
+
+  Structure: FAIL
+    <TMP>/MAP.md: MAP.md not found
+    <TMP>/ARCHITECTURE.md: ARCHITECTURE.md not found
+    <TMP>/domains: domains/ directory not found
+  File links: OK (0 checked)
+  Code links: OK (0 checked, AST)
+  Size limits: OK
+
+  3 errors found.
+
+  '''
+# ---
+# name: TestBrokenMapSnapshots.test_size_limit_exceeded
+  '''
+  Validating <TMP>...
+
+  Structure: OK
+  File links: OK (0 checked)
+  Code links: OK (0 checked, AST)
+  Size limits: FAIL
+    ARCHITECTURE.md: Exceeds L0 limit: 512 lines > 500
+    domains/big.md: Exceeds L1 limit: 312 lines > 300
+
+  2 errors found.
+
+  '''
+# ---
+# name: TestValidMapSnapshot.test_valid_map_validation
+  '''
+  Validating /Users/mhild/src/durandom/skills/durandom/fixtures/calculator/docs/map...
+
+  Structure: OK
+  File links: OK (26 checked)
+  Code links: OK (23 checked, AST)
+  Size limits: OK
+
+  All checks passed.
+
+  '''
+# ---
