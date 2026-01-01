@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Path to code_map.py CLI
 CODE_MAP_CLI = (
-    Path(__file__).parent.parent.parent / "skills/code-map/scripts/code_map.py"
+    Path(__file__).parent.parent.parent / "skills/code-mapping/scripts/code_map.py"
 )
 
 # Get the path to our test fixtures
@@ -156,8 +156,8 @@ class TestGenerateDetectsChanges:
         normalized_stdout = normalize_paths(stdout, tmp_path)
         assert normalized_stdout == snapshot
 
-    def test_preserves_filled_description(self, snapshot, tmp_path):
-        """Filled descriptions are preserved on subsequent runs."""
+    def test_docstring_changes_update_map(self, snapshot, tmp_path):
+        """Changing docstrings in source updates the map."""
         src_dir = tmp_path / "src" / "calculator"
         map_dir = tmp_path / "docs" / "map"
         shutil.copytree(CALCULATOR_SRC, src_dir)
@@ -165,14 +165,19 @@ class TestGenerateDetectsChanges:
         # First run
         run_code_map("generate", str(src_dir), str(map_dir))
 
-        # Fill in a description in the domain file
-        domain_file = map_dir / "domains" / "calculator.md"
-        content = domain_file.read_text()
-        content = content.replace(
-            "<!-- TODO: Describe add -->",
-            "Add two numbers together",
+        # Verify initial docstring is used (now in module files)
+        module_file = map_dir / "modules" / "calculator" / "operations.md"
+        content = module_file.read_text()
+        assert "Add two numbers." in content  # Original docstring
+
+        # Update the docstring in source
+        ops_file = src_dir / "operations.py"
+        ops_content = ops_file.read_text()
+        ops_content = ops_content.replace(
+            '"""Add two numbers."""',
+            '"""Sum two numeric values together."""',
         )
-        domain_file.write_text(content)
+        ops_file.write_text(ops_content)
 
         # Second run
         stdout, _stderr, code = run_code_map("generate", str(src_dir), str(map_dir))
@@ -181,9 +186,9 @@ class TestGenerateDetectsChanges:
         normalized_stdout = normalize_paths(stdout, tmp_path)
         assert normalized_stdout == snapshot
 
-        # Verify the filled description is preserved
-        final_content = domain_file.read_text()
-        assert "Add two numbers together" in final_content
+        # Verify the updated docstring is now in the map
+        final_content = module_file.read_text()
+        assert "Sum two numeric values together." in final_content
 
     def test_detects_removed_symbol(self, snapshot, tmp_path):
         """Removing a function is detected and reported."""

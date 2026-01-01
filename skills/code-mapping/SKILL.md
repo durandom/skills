@@ -1,6 +1,6 @@
 ---
-name: code-map
-description: Create and navigate hierarchical code maps for AI agent orientation. Use when bootstrapping understanding of a codebase, creating documentation for agent navigation, or validating map integrity.
+name: code-mapping
+description: Creates and navigates hierarchical code maps for AI agent and human orientation. Use when bootstrapping understanding of a codebase, creating documentation for navigation, or validating map integrity.
 ---
 
 <essential_principles>
@@ -19,7 +19,7 @@ If a doc exceeds its limit, split it into the next level down.
 
 **Code is truth, map is derivative**: When code and map conflict, the code wins. Update the map to reflect reality.
 
-**Bootstrap pattern**: Agents read MAP.md first, then ARCHITECTURE.md, then relevant domain docs based on task.
+**Bootstrap pattern**: Agents read README.md first, then ARCHITECTURE.md, then relevant domain docs based on task.
 
 </essential_principles>
 
@@ -37,7 +37,7 @@ What would you like to do?
 | Response | Workflow |
 |----------|----------|
 | 1, "explore", "read", "understand", "navigate" | `workflows/explore.md` |
-| 2, "create", "generate", "new", "build" | `workflows/create-map.md` |
+| 2, "create", "generate", "new", "build" | `workflows/create.md` |
 | 3, "validate", "check", "verify", "lint" | Run validation script (see CLI below) |
 | 4, "scaffold", "skeleton", "init" | Run generate script (see CLI below) |
 
@@ -50,11 +50,11 @@ What would you like to do?
 
 ```
 docs/map/
-├── MAP.md              # Entry point
+├── README.md           # Entry point + domains index
 ├── ARCHITECTURE.md     # L0: System overview
 └── domains/            # L1: Domain docs
-    ├── domain-a.md
-    └── domain-b.md
+    ├── auth.md
+    └── api.md
 ```
 
 **Anchor format**: `## [L1:identifier] Heading Text`
@@ -89,7 +89,7 @@ uv run python <skill-path>/scripts/code_map.py validate <map-dir>
 uv run python <skill-path>/scripts/code_map.py generate <src-dir> <map-dir>
 ```
 
-Where `<skill-path>` is wherever this skill is installed (e.g., `.claude/skills/code-map`).
+Where `<skill-path>` is wherever this skill is installed (e.g., `.claude/skills/code-mapping`).
 
 **Generate command features:**
 
@@ -107,7 +107,7 @@ Where `<skill-path>` is wherever this skill is installed (e.g., `.claude/skills/
 | Workflow | Purpose | Status |
 |----------|---------|--------|
 | explore.md | Navigate existing map to understand codebase | Ready |
-| create-map.md | Generate new map for a codebase | Ready |
+| create.md | Generate new map for a codebase | Ready |
 
 **Scripts** (`scripts/`):
 

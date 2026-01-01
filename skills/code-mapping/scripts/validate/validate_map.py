@@ -59,13 +59,13 @@ def check_structure(map_dir: Path) -> list[ValidationError]:
     """
     errors = []
 
-    map_md = map_dir / "MAP.md"
-    if not map_md.exists():
+    readme = map_dir / "README.md"
+    if not readme.exists():
         errors.append(
             ValidationError(
-                file=str(map_md),
+                file=str(readme),
                 line=0,
-                message="MAP.md not found",
+                message="README.md not found",
                 error_type="structure",
             )
         )
@@ -100,6 +100,8 @@ def check_structure(map_dir: Path) -> list[ValidationError]:
 FILE_LINK_PATTERN = re.compile(r"\[([^\]]+)\]\(([^)#]+)(?:#[^)]+)?\)")
 # Code link: [`symbol`](path.py#L42)
 CODE_LINK_PATTERN = re.compile(r"\[`([^`]+)`\]\(([^)#]+)#L(\d+)\)")
+# Source link: [Source](path.py#L42) - links to a file line without symbol name
+SOURCE_LINK_PATTERN = re.compile(r"\[Source\]\(([^)#]+)#L(\d+)\)")
 
 
 def _is_in_code_context(line: str, match_start: int) -> bool:
@@ -197,6 +199,7 @@ def check_code_links(map_dir: Path) -> list[ValidationError]:
     """Validate all code links in map documents.
 
     Code links have format: [`symbol`](path/to/file.py#L42)
+    Source links have format: [Source](path/to/file.py#L42)
 
     Args:
         map_dir: Path to the map directory.
@@ -221,6 +224,7 @@ def check_code_links(map_dir: Path) -> list[ValidationError]:
             if in_code_block:
                 continue
 
+            # Check symbol code links: [`symbol`](path.py#L42)
             for match in CODE_LINK_PATTERN.finditer(line):
                 # Skip if within inline code backticks
                 if _is_in_code_context(line, match.start()):
@@ -278,6 +282,48 @@ def check_code_links(map_dir: Path) -> list[ValidationError]:
                             error_type="broken_symbol",
                         )
                     )
+
+            # Check source links: [Source](path.py#L42)
+            for match in SOURCE_LINK_PATTERN.finditer(line):
+                if _is_in_code_context(line, match.start()):
+                    continue
+
+                file_path = match.group(1)
+                line_number = int(match.group(2))
+
+                target = (md_file.parent / file_path).resolve()
+
+                if not target.exists():
+                    msg = f"[Source]({file_path}#L{line_number}) -> file not found"
+                    errors.append(
+                        ValidationError(
+                            file=str(md_file.relative_to(map_dir)),
+                            line=line_num,
+                            message=msg,
+                            error_type="broken_symbol",
+                        )
+                    )
+                    continue
+
+                # Check line number is within file bounds
+                try:
+                    file_lines = target.read_text().split("\n")
+                    if line_number > len(file_lines):
+                        msg = (
+                            f"[Source]({file_path}#L{line_number}) "
+                            f"-> line {line_number} exceeds file length "
+                            f"({len(file_lines)} lines)"
+                        )
+                        errors.append(
+                            ValidationError(
+                                file=str(md_file.relative_to(map_dir)),
+                                line=line_num,
+                                message=msg,
+                                error_type="broken_symbol",
+                            )
+                        )
+                except (OSError, UnicodeDecodeError):
+                    pass  # File read error, already caught by file exists check
 
     return errors
 

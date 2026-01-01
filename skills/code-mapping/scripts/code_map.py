@@ -78,7 +78,9 @@ def cmd_validate(args: list[str]) -> int:
         code_link_count = 0
         for md_file in map_dir.rglob("*.md"):
             content = md_file.read_text()
+            # Count symbol links [`sym`](path#L42) and [Source](path#L42)
             code_link_count += len(re.findall(r"\[`[^`]+`\]\([^)]+#L\d+\)", content))
+            code_link_count += len(re.findall(r"\[Source\]\([^)]+#L\d+\)", content))
         print(f"Code links: OK ({code_link_count} checked, AST)")
 
     # Size limits check

@@ -7,6 +7,6 @@
     ".planning/**",
     ".claude/**",
     "fixtures/**",
-    "skills/code-map/scripts/generate/templates/**"
+    "skills/code-mapping/scripts/generate/templates/**"
   ]
 }

@@ -1,4 +1,4 @@
-# [L0:architecture] Calculator
+# [L0:architecture] $project_name
 
 ## [L0:overview] System Overview
 
@@ -8,7 +8,7 @@
 
 | Domain | Purpose |
 |--------|---------|
-| [Calculator](domains/calculator.md) | Describe this domain |
+$domains_table
 
 ## [L0:design-decisions] Key Design Decisions
 

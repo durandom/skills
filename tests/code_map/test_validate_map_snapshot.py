@@ -9,7 +9,7 @@ from pathlib import Path
 
 # Path to code_map.py CLI
 CODE_MAP_CLI = (
-    Path(__file__).parent.parent.parent / "skills/code-map/scripts/code_map.py"
+    Path(__file__).parent.parent.parent / "skills/code-mapping/scripts/code_map.py"
 )
 
 

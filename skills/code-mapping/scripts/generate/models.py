@@ -21,6 +21,10 @@ class ExtractedSymbol:
     kind: SymbolKind
     line: int
     parent: str | None = None  # For methods: parent class name
+    docstring: str | None = None  # Extracted docstring
+    signature: str | None = (
+        None  # Formatted signature (e.g., "(a: float, b: float) -> float")
+    )
 
 
 @dataclass

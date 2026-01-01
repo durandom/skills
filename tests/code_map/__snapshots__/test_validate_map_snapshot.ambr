@@ -3,13 +3,14 @@
   '''
   Validating <TMP>...
   
-  Structure: OK
+  Structure: FAIL
+    <TMP>/README.md: README.md not found
   File links: OK (1 checked)
   Code links: FAIL
     ARCHITECTURE.md:3 - [`fake_function`](code.py#L1) -> symbol not found
   Size limits: OK
   
-  1 errors found.
+  2 errors found.
   
   '''
 # ---
@@ -17,13 +18,14 @@
   '''
   Validating <TMP>...
   
-  Structure: OK
+  Structure: FAIL
+    <TMP>/README.md: README.md not found
   File links: FAIL
     MAP.md:3 - [Missing Link](does-not-exist.md) -> file not found
   Code links: OK (0 checked, AST)
   Size limits: OK
   
-  1 errors found.
+  2 errors found.
   
   '''
 # ---
@@ -32,7 +34,7 @@
   Validating <TMP>...
   
   Structure: FAIL
-    <TMP>/MAP.md: MAP.md not found
+    <TMP>/README.md: README.md not found
     <TMP>/ARCHITECTURE.md: ARCHITECTURE.md not found
     <TMP>/domains: domains/ directory not found
   File links: OK (0 checked)
@@ -47,14 +49,15 @@
   '''
   Validating <TMP>...
   
-  Structure: OK
+  Structure: FAIL
+    <TMP>/README.md: README.md not found
   File links: OK (0 checked)
   Code links: OK (0 checked, AST)
   Size limits: FAIL
     ARCHITECTURE.md: Exceeds L0 limit: 512 lines > 500
     domains/big.md: Exceeds L1 limit: 312 lines > 300
   
-  2 errors found.
+  3 errors found.
   
   '''
 # ---
@@ -63,8 +66,8 @@
   Validating /Users/mhild/src/durandom/skills/durandom/fixtures/calculator/docs/map...
   
   Structure: OK
-  File links: OK (26 checked)
-  Code links: OK (23 checked, AST)
+  File links: OK (17 checked)
+  Code links: OK (12 checked, AST)
   Size limits: OK
   
   All checks passed.
