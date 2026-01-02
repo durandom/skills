@@ -3,26 +3,32 @@
   '''
   Generating maps: <TMP>/src/calculator -> <TMP>/docs/map
   
-  Created: 0 files
-  Updated: 0 files
-  Orphaned: 0 files
-  Unfilled: 4 placeholders
+  Summary:
+    Created: 0 files
+    Updated: 0 files
   
-  New sections:
-    modules/calculator/core.md: Calculator
-    modules/calculator/core.md: __init__
-    modules/calculator/core.md: add
-    modules/calculator/core.md: clear
-    modules/calculator/core.md: divide
-    modules/calculator/core.md: history
-    modules/calculator/core.md: multiply
-    modules/calculator/core.md: subtract
-    modules/calculator/core.md: value
-    modules/calculator/operations.md: add
-    modules/calculator/operations.md: divide
-    modules/calculator/operations.md: modulo
-    modules/calculator/operations.md: multiply
-    modules/calculator/operations.md: subtract
+  Missing docstrings (3 total):
+    Add docstrings to source, then re-run generator.
+  
+    <TMP>/src/calculator/core.py:48 - clear
+    <TMP>/src/calculator/core.py:14 - multiply
+    <TMP>/src/calculator/operations.py:29 - modulo
+  
+  Missing descriptions (2 total):
+    Edit these files directly (they're not auto-generated).
+  
+    <TMP>/docs/map/README.md
+    <TMP>/docs/map/ARCHITECTURE.md
+  
+  Next steps:
+    1. Add docstrings to source files listed above
+    2. Re-run generator to update map
+    3. Create domain files by analyzing module docs
+         Cluster modules into semantic groupings (not 1:1 with directories)
+         See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/references/domains.md
+    4. Write ARCHITECTURE.md (synthesize from domains)
+  
+  See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/workflows/create.md for detailed guidance
   
   '''
 # ---
@@ -30,24 +36,30 @@
   '''
   Generating maps: <TMP>/src/calculator -> <TMP>/docs/map
   
-  Created: 0 files
-  Updated: 0 files
-  Orphaned: 0 files
-  Unfilled: 3 placeholders
+  Summary:
+    Created: 0 files
+    Updated: 0 files
   
-  New sections:
-    modules/calculator/core.md: Calculator
-    modules/calculator/core.md: __init__
-    modules/calculator/core.md: add
-    modules/calculator/core.md: clear
-    modules/calculator/core.md: divide
-    modules/calculator/core.md: history
-    modules/calculator/core.md: multiply
-    modules/calculator/core.md: subtract
-    modules/calculator/core.md: value
-    modules/calculator/operations.md: add
-    modules/calculator/operations.md: multiply
-    modules/calculator/operations.md: subtract
+  Missing docstrings (1 total):
+    Add docstrings to source, then re-run generator.
+  
+    <TMP>/src/calculator/core.py:48 - clear
+  
+  Missing descriptions (2 total):
+    Edit these files directly (they're not auto-generated).
+  
+    <TMP>/docs/map/README.md
+    <TMP>/docs/map/ARCHITECTURE.md
+  
+  Next steps:
+    1. Add docstrings to source files listed above
+    2. Re-run generator to update map
+    3. Create domain files by analyzing module docs
+         Cluster modules into semantic groupings (not 1:1 with directories)
+         See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/references/domains.md
+    4. Write ARCHITECTURE.md (synthesize from domains)
+  
+  See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/workflows/create.md for detailed guidance
   
   '''
 # ---
@@ -55,25 +67,31 @@
   '''
   Generating maps: <TMP>/src/calculator -> <TMP>/docs/map
   
-  Created: 0 files
-  Updated: 0 files
-  Orphaned: 0 files
-  Unfilled: 3 placeholders
+  Summary:
+    Created: 0 files
+    Updated: 0 files
   
-  New sections:
-    modules/calculator/core.md: Calculator
-    modules/calculator/core.md: __init__
-    modules/calculator/core.md: add
-    modules/calculator/core.md: clear
-    modules/calculator/core.md: divide
-    modules/calculator/core.md: history
-    modules/calculator/core.md: multiply
-    modules/calculator/core.md: subtract
-    modules/calculator/core.md: value
-    modules/calculator/operations.md: add
-    modules/calculator/operations.md: divide
-    modules/calculator/operations.md: multiply
-    modules/calculator/operations.md: subtract
+  Missing docstrings (2 total):
+    Add docstrings to source, then re-run generator.
+  
+    <TMP>/src/calculator/core.py:48 - clear
+    <TMP>/src/calculator/core.py:14 - multiply
+  
+  Missing descriptions (2 total):
+    Edit these files directly (they're not auto-generated).
+  
+    <TMP>/docs/map/README.md
+    <TMP>/docs/map/ARCHITECTURE.md
+  
+  Next steps:
+    1. Add docstrings to source files listed above
+    2. Re-run generator to update map
+    3. Create domain files by analyzing module docs
+         Cluster modules into semantic groupings (not 1:1 with directories)
+         See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/references/domains.md
+    4. Write ARCHITECTURE.md (synthesize from domains)
+  
+  See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/workflows/create.md for detailed guidance
   
   '''
 # ---
@@ -81,25 +99,31 @@
   '''
   Generating maps: <TMP>/src/calculator -> <TMP>/docs/map
   
-  Created: 0 files
-  Updated: 0 files
-  Orphaned: 0 files
-  Unfilled: 3 placeholders
+  Summary:
+    Created: 0 files
+    Updated: 0 files
   
-  New sections:
-    modules/calculator/core.md: Calculator
-    modules/calculator/core.md: __init__
-    modules/calculator/core.md: add
-    modules/calculator/core.md: clear
-    modules/calculator/core.md: divide
-    modules/calculator/core.md: history
-    modules/calculator/core.md: multiply
-    modules/calculator/core.md: subtract
-    modules/calculator/core.md: value
-    modules/calculator/operations.md: add
-    modules/calculator/operations.md: divide
-    modules/calculator/operations.md: multiply
-    modules/calculator/operations.md: subtract
+  Missing docstrings (2 total):
+    Add docstrings to source, then re-run generator.
+  
+    <TMP>/src/calculator/core.py:48 - clear
+    <TMP>/src/calculator/core.py:14 - multiply
+  
+  Missing descriptions (2 total):
+    Edit these files directly (they're not auto-generated).
+  
+    <TMP>/docs/map/README.md
+    <TMP>/docs/map/ARCHITECTURE.md
+  
+  Next steps:
+    1. Add docstrings to source files listed above
+    2. Re-run generator to update map
+    3. Create domain files by analyzing module docs
+         Cluster modules into semantic groupings (not 1:1 with directories)
+         See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/references/domains.md
+    4. Write ARCHITECTURE.md (synthesize from domains)
+  
+  See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/workflows/create.md for detailed guidance
   
   '''
 # ---
@@ -107,32 +131,31 @@
   '''
   Generating maps: <TMP>/src/calculator -> <TMP>/docs/map
   
-  Created: 5 files
-  Updated: 0 files
-  Orphaned: 0 files
-  Unfilled: 3 placeholders
+  Summary:
+    Created: 5 files
+    Updated: 0 files
   
-  Created files:
-    README.md
-    ARCHITECTURE.md
-    modules/calculator/core.md
-    modules/calculator/operations.md
-    domains/calculator.md
+  Missing docstrings (2 total):
+    Add docstrings to source, then re-run generator.
   
-  New sections:
-    modules/calculator/core.md: Calculator
-    modules/calculator/core.md: __init__
-    modules/calculator/core.md: add
-    modules/calculator/core.md: clear
-    modules/calculator/core.md: divide
-    modules/calculator/core.md: history
-    modules/calculator/core.md: multiply
-    modules/calculator/core.md: subtract
-    modules/calculator/core.md: value
-    modules/calculator/operations.md: add
-    modules/calculator/operations.md: divide
-    modules/calculator/operations.md: multiply
-    modules/calculator/operations.md: subtract
+    <TMP>/src/calculator/core.py:48 - clear
+    <TMP>/src/calculator/core.py:14 - multiply
+  
+  Missing descriptions (2 total):
+    Edit these files directly (they're not auto-generated).
+  
+    <TMP>/docs/map/README.md
+    <TMP>/docs/map/ARCHITECTURE.md
+  
+  Next steps:
+    1. Add docstrings to source files listed above
+    2. Re-run generator to update map
+    3. Create domain files by analyzing module docs
+         Cluster modules into semantic groupings (not 1:1 with directories)
+         See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/references/domains.md
+    4. Write ARCHITECTURE.md (synthesize from domains)
+  
+  See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/workflows/create.md for detailed guidance
   
   '''
 # ---

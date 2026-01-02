@@ -66,8 +66,8 @@
   Validating /Users/mhild/src/durandom/skills/durandom/fixtures/calculator/docs/map...
   
   Structure: OK
-  File links: OK (17 checked)
-  Code links: OK (12 checked, AST)
+  File links: OK (15 checked)
+  Code links: OK (14 checked, AST)
   Size limits: OK
   
   All checks passed.

@@ -6,7 +6,7 @@
 
 | Domain | Path | Purpose |
 |--------|------|---------|
-| Calculator | [domains/calculator.md](domains/calculator.md) | Describe this domain |
+| *Create domains by analyzing modules* | | |
 
 ## Navigation
 

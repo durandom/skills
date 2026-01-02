@@ -54,6 +54,6 @@ Divide current value by x.
 
 #### `clear(self) -> 'Calculator'`
 
-Reset calculator to zero.
+<!-- TODO: Add docstring to Calculator.clear -->
 
 [Source](../../../../src/calculator/core.py#L48)

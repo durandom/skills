@@ -50,6 +50,15 @@ class MapFile:
 
 
 @dataclass
+class MissingDocstring:
+    """A symbol missing a docstring in source code."""
+
+    source_path: Path  # Relative to src_dir
+    line: int
+    symbol_name: str
+
+
+@dataclass
 class ChangeReport:
     """Report of changes made during map generation."""
 
@@ -60,6 +69,9 @@ class ChangeReport:
     removed_sections: list[tuple[Path, str]] = field(
         default_factory=list
     )  # (file, symbol)
-    unfilled_placeholders: list[tuple[Path, str]] = field(
+    missing_docstrings: list[MissingDocstring] = field(
         default_factory=list
-    )  # (file, symbol or "file")
+    )  # Source symbols without docstrings
+    missing_descriptions: list[Path] = field(
+        default_factory=list
+    )  # Map files needing manual descriptions (project, domain)

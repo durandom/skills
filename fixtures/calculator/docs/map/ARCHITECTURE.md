@@ -8,7 +8,7 @@
 
 | Domain | Purpose |
 |--------|---------|
-| [Calculator](domains/calculator.md) | Describe this domain |
+| *Analyze modules and create semantic domain groupings* | |
 
 ## [L0:design-decisions] Key Design Decisions
 

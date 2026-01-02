@@ -45,9 +45,9 @@ cat docs/map/ARCHITECTURE.md
 Look for:
 
 - **System Overview** — What does this system do?
-- **Key Components** — What are the major parts?
+- **Domains** — What are the major subsystems?
 - **Data Flow** — How does information move?
-- **Entry Points** — Where does execution start?
+- **Cross-Cutting Concerns** — Shared infrastructure (logging, config, etc.)
 
 ### Step 4: Identify Relevant Domains
 
@@ -79,27 +79,31 @@ cat docs/map/domains/auth.md
 Look for:
 
 - **Purpose** — What does this domain do?
-- **Key Files** — Important source files
-- **Public Interface** — What can other code call?
+- **Modules** — Links to L2 module docs
 - **Depends On** — What other domains does this use?
+- **Data Flow** — How data moves through the domain
 
-### Step 6: Follow Code Links
+### Step 6: Read Module Docs (L2)
 
-Domain docs contain links to actual source files:
+Domain docs link to L2 module docs (not source directly):
 
 ```markdown
-Entry point: [`handle_login`](../../src/auth/login.py#L42)
+| Module | Purpose |
+|--------|---------|
+| [OAuth](modules/oauth.md) | Third-party authentication |
+```
+
+Read the relevant module doc for detailed symbol information.
+
+### Step 7: Follow Source Links
+
+L2 module docs contain links to actual source files with line numbers:
+
+```markdown
+| [`authorize`](../../../src/auth/oauth.py#L19) | Generate authorization URL |
 ```
 
 Read the linked file at the specified line to understand the implementation.
-
-### Step 7: Navigate Deeper (if needed)
-
-If the domain has L2 module docs, follow links to get more detail:
-
-```markdown
-See also: [OAuth Module](../modules/auth/oauth.md)
-```
 
 ## Quick Navigation Commands
 
@@ -109,8 +113,8 @@ grep -r "\[L0:" docs/map/
 grep -r "\[L1:" docs/map/
 grep -r "\[L2:" docs/map/
 
-# Find code links in a file
-grep -E "\[\`.+\`\]\(.+#L[0-9]+\)" docs/map/domains/auth.md
+# Find code links in L2 module docs
+grep -E "\[\`.+\`\]\(.+#L[0-9]+\)" docs/map/modules/
 
 # Search for a symbol across the map
 grep -r "handle_login" docs/map/

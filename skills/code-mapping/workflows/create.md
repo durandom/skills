@@ -7,6 +7,21 @@ Use this workflow to generate a code map for a codebase.
 - Python 3.11+ available
 - Source code to document (currently Python only)
 
+## Progress Checklist
+
+Copy this checklist and update as you work:
+
+```
+Map Creation Progress:
+- [ ] Step 1: Run generator
+- [ ] Step 2: Add source docstrings (L2)
+- [ ] Step 3: Fill domain docs (L1)
+- [ ] Step 4: Write architecture (L0)
+- [ ] Step 5: Fill README
+- [ ] Step 6: Validate
+- [ ] Step 7: Fix errors (repeat until clean)
+```
+
 ## Steps
 
 ### Step 1: Run the Generator
@@ -14,56 +29,40 @@ Use this workflow to generate a code map for a codebase.
 Generate map skeletons from source:
 
 ```bash
-uv run python <skill-path>/scripts/code_map.py generate <src-dir> <map-dir>
+uv run python $SKILL_PATH/scripts/code_map.py generate <src-dir> <map-dir>
 ```
 
-Example:
+Example (if skill is at `.claude/skills/code-mapping`):
 
 ```bash
 uv run python .claude/skills/code-mapping/scripts/code_map.py generate src/ docs/map/
 ```
 
-The generator:
+The generator output tells you exactly what to do next:
 
-- Creates L2 module docs with symbols extracted via AST
-- Creates L1 domain docs linking to modules
-- Adds `<!-- TODO: description -->` placeholders
-- Preserves existing descriptions on subsequent runs
+- **Missing docstrings** — Add docstrings to source files, then re-run
+- **Missing descriptions** — Edit domain/architecture docs directly
+- **Orphaned files** — Source was deleted, clean up the map files
 
-### Step 2: Review Generated Structure
+In brownfield codebases, the output is limited to 10 items per category. Fix the first batch, re-run, and repeat until clean.
 
-Check what was created:
+### Step 2: Improve Source Docstrings (L2) — Bottom Up
 
-```bash
-ls -la docs/map/
-ls -la docs/map/domains/
-ls -la docs/map/modules/
-```
+Module docs are **projections** of source code—they're auto-generated from docstrings.
 
-Expected structure:
+If a module doc has missing descriptions:
 
-```
-docs/map/
-├── README.md           # Entry point (needs project description)
-├── ARCHITECTURE.md     # L0 skeleton (needs overview)
-├── domains/            # L1 docs (need descriptions)
-│   └── {domain}.md
-└── modules/            # L2 docs (symbols extracted, need context)
-    └── {domain}/
-        └── {module}.md
-```
+1. Open the source file (follow the `[Source]` link)
+2. Add or improve the docstring in the code
+3. Re-run the generator to update the markdown
 
-### Step 3: Fill Module Docs (L2) — Bottom Up
+Do NOT edit the module markdown directly. The source code is the single source of truth.
 
-For each module doc in `docs/map/modules/`:
+Stay under 200 lines per module. If exceeded, the code itself may need refactoring.
 
-1. Replace `<!-- TODO: description -->` placeholders
-2. Explain *why* each symbol exists (not what it does)
-3. Note any non-obvious patterns or decisions
+See [references/examples/l2-module.md](../references/examples/l2-module.md) for example.
 
-Stay under 200 lines per module. These are closest to code—be precise.
-
-### Step 4: Fill Domain Docs (L1)
+### Step 3: Fill Domain Docs (L1)
 
 For each domain doc in `docs/map/domains/`:
 
@@ -73,7 +72,10 @@ For each domain doc in `docs/map/domains/`:
 
 Synthesize from L2 content. Stay under 300 lines.
 
-### Step 5: Write the Architecture (L0)
+See [references/examples/l1-domain.md](../references/examples/l1-domain.md) for example.
+See [references/domains.md](../references/domains.md) for what domains should capture.
+
+### Step 4: Write the Architecture (L0)
 
 Edit `docs/map/ARCHITECTURE.md`:
 
@@ -84,7 +86,9 @@ Edit `docs/map/ARCHITECTURE.md`:
 
 Synthesize from L1 content. Stay under 500 lines.
 
-### Step 6: Fill the README
+See [references/examples/l0-architecture.md](../references/examples/l0-architecture.md) for example.
+
+### Step 5: Fill the README
 
 Edit `docs/map/README.md`:
 
@@ -92,15 +96,17 @@ Edit `docs/map/README.md`:
 2. Review domains table (auto-generated)
 3. Add navigation hints for common tasks
 
-### Step 7: Validate the Map
+See [references/examples/readme.md](../references/examples/readme.md) for example.
+
+### Step 6: Validate the Map
 
 Run validation to check for errors:
 
 ```bash
-uv run python <skill-path>/scripts/code_map.py validate <map-dir>
+uv run python $SKILL_PATH/scripts/code_map.py validate <map-dir>
 ```
 
-Example:
+Example (if skill is at `.claude/skills/code-mapping`):
 
 ```bash
 uv run python .claude/skills/code-mapping/scripts/code_map.py validate docs/map/
@@ -113,7 +119,7 @@ The validator checks:
 - **Code links** — Symbols exist at specified lines (AST)
 - **Size limits** — Docs stay under line limits
 
-### Step 8: Fix Validation Errors
+### Step 7: Fix Validation Errors
 
 Common fixes:
 

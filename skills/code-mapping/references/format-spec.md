@@ -47,9 +47,9 @@ System-wide overview. Must stay under 500 lines.
 Required sections:
 
 1. **System Overview** — What the system does
-2. **Key Components** — Major subsystems with links to L1 docs
+2. **Domains** — Major subsystems with links to L1 domain docs
 3. **Data Flow** — How data moves through the system
-4. **Entry Points** — Where execution starts
+4. **Cross-Cutting Concerns** — Shared infrastructure (optional)
 
 ### Domain Docs (L1)
 
@@ -58,9 +58,9 @@ Each domain doc describes one subsystem. Must stay under 300 lines.
 Required sections:
 
 1. **Purpose** — What this domain does
-2. **Key Files** — Important files with code links
-3. **Public Interface** — Exported functions/classes
-4. **Depends On** — Other domains this depends on
+2. **Modules** — Links to L2 module docs (not source files)
+3. **Depends On** — Other domains this depends on
+4. **Data Flow** — How data moves through the domain (optional)
 
 ## Anchor Format
 
@@ -96,7 +96,7 @@ grep "\[L1:auth\]" docs/map/
 
 ## Code Link Format
 
-Code links point to specific symbols in source files.
+Code links point to specific symbols in source files. **Only used in L2 module docs.**
 
 **Format**: `` [`symbol`](path/to/file.py#L42) ``
 
@@ -106,6 +106,7 @@ Code links point to specific symbols in source files.
 - Relative path from the markdown file
 - Line number with `#L` prefix
 - Symbol must exist at or near that line (±5 lines tolerance)
+- Only use in L2 docs (see [Linking Hierarchy](#linking-hierarchy))
 
 **Examples**:
 
@@ -137,15 +138,51 @@ Depends on: [Database Domain](domains/database.md)
 Parent: [Architecture](../ARCHITECTURE.md)
 ```
 
+## Linking Hierarchy
+
+**Only L2 links to source code.** Higher levels link down through the map hierarchy.
+
+| Level | Links To | Contains |
+|-------|----------|----------|
+| L0 (Architecture) | L1 domain docs only | Domain names, data flow diagrams |
+| L1 (Domain) | L2 module docs only | Module names, purposes |
+| L2 (Module) | Source files with line numbers | Symbol names, line numbers |
+
+**Rationale**: Symbol names and line numbers break when code changes. By isolating them to L2:
+
+- L0 and L1 docs stay valid longer
+- Only L2 needs updating when code changes
+- Navigation follows the hierarchy (L0 → L1 → L2 → source)
+
+**Bad** (L1 naming symbols):
+
+```markdown
+## Public Interface
+| Symbol | Module |
+|--------|--------|
+| `authenticate` | [oauth](modules/oauth.md) |
+```
+
+**Good** (L1 describing modules):
+
+```markdown
+## Modules
+| Module | Purpose |
+|--------|---------|
+| [OAuth](modules/oauth.md) | Third-party authentication |
+```
+
 ## Size Limits
 
-| Level | Max Lines | Enforcement |
-|-------|-----------|-------------|
-| L0 | 500 | Split into more L1 domains |
-| L1 | 300 | Add L2 module docs |
-| L2 | 200 | Code itself is too complex |
+| Level | Max Lines | Action | Enforced |
+|-------|-----------|--------|----------|
+| L0 | 500 | Split into more L1 domains | Yes |
+| L1 | 300 | Summarize, link to L2 for details | Yes |
+| L2 | 200 | *Consider refactoring the source code* | Warning only |
 
-Size limits are checked by the validator. Exceeding a limit means you're at the wrong abstraction level.
+L0 and L1 limits are enforced—these are human-written docs you control.
+
+L2 limits are advisory. Since L2 is auto-generated from source, a large L2 doc indicates the underlying code may be doing too much. The fix is refactoring the source, not the documentation.
 
 ## Content Guidelines
 

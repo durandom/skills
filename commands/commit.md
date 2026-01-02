@@ -1,162 +1,133 @@
-# Claude Command: Commit
+---
+description: Stage all changes, run pre-commit hooks, fix failures, and create conventional commit with emoji
+allowed-tools: Read, Edit, Write, Bash, Grep, Glob, AskUserQuestion
+model: haiku
+---
 
-This command helps you create well-formatted commits with conventional commit messages and emoji.
+<objective>
+Create a well-formatted git commit with conventional commit messages and emoji.
 
-## Usage
+The workflow stages all changes, runs pre-commit hooks if available, fixes any failures,
+gets user approval for agent-made changes, and generates a commit message that matches
+the project's existing style.
+</objective>
 
-To create a commit, just type:
+<context>
+Git status: !`git status --short`
+Recent commits (for style matching): !`git log --oneline -5`
+Pre-commit config exists: !`test -f .pre-commit-config.yaml && echo "yes" || echo "no"`
+Staged files: !`git diff --cached --name-only`
+</context>
 
-```
-/commit
-```
+<process>
 
-Or to analyze staged changes instead of session summary:
+1. **Stage all changes**
+   - Run `git add -A` to stage all modified, new, and deleted files
 
-```
-/commit --staged
-```
+2. **Check for pre-commit hooks**
+   - If `.pre-commit-config.yaml` exists, run `pre-commit run --all-files`
+   - If pre-commit is not installed, skip this step
 
-## What This Command Does
+3. **Handle pre-commit failures**
+   - If pre-commit fails, analyze the errors
+   - Fix linting, formatting, and other auto-fixable issues
+   - For non-auto-fixable issues, make the necessary code changes
+   - After fixing, do NOT stage the fixes yet
 
-1. Automatically runs pre-commit checks:
-   - `pre-commit run --files $$(git diff --cached --name-only --diff-filter=ACM)`
-2. Checks which files are staged with `git status`
-3. If 0 files are staged, automatically adds all modified and new files with `git add`
-4. Creates a commit message using emoji conventional commit format based on:
-   - **Default behavior**: Summarizes the current session's work and changes
-   - **With `--staged` flag**: Performs a `git diff` to analyze staged changes and determine if multiple commits are needed
+4. **User approval for agent changes**
+   - If any files were modified by pre-commit or by fixing failures:
+     - Run `git diff` to show unstaged changes (these are the agent's fixes)
+     - Use AskUserQuestion to ask user to review the diff
+     - Options: "Approve changes" or "Reject and abort"
+   - If rejected, run `git checkout -- .` to discard fixes and abort
 
-## Best Practices for Commits
+5. **Stage fixes and analyze changes**
+   - Run `git add -A` to stage all fixes
+   - Use `git diff --stat --cached` for overview
+   - For large diffs (>500 lines), use grep strategy (see below) instead of reading full diff
+   - Use grep to quickly assess impact before reading files in detail
+   - Only read full files when grep indicates significant changes
 
-- **Verify before committing**: Ensure code is linted, builds correctly, and documentation is updated
-- **Atomic commits**: Each commit should contain related changes that serve a single purpose
-- **Split large changes**: If changes touch multiple concerns, split them into separate commits
-- **Conventional commit format**: Use the format `<type>: <description>` where type is one of:
-  - `feat`: A new feature
-  - `fix`: A bug fix
-  - `docs`: Documentation changes
-  - `style`: Code style changes (formatting, etc)
-  - `refactor`: Code changes that neither fix bugs nor add features
-  - `perf`: Performance improvements
-  - `test`: Adding or fixing tests
-  - `chore`: Changes to the build process, tools, etc.
-- **Present tense, imperative mood**: Write commit messages as commands (e.g., "add feature" not "added feature")
-- **Concise first line**: Keep the first line under 72 characters
-- **Emoji**: Each commit type is paired with an appropriate emoji:
-  - ✨ `feat`: New feature
-  - 🐛 `fix`: Bug fix
-  - 📝 `docs`: Documentation
-  - 💄 `style`: Formatting/style
-  - ♻️ `refactor`: Code refactoring
-  - ⚡️ `perf`: Performance improvements
-  - ✅ `test`: Tests
-  - 🔧 `chore`: Tooling, configuration
-  - 🚀 `ci`: CI/CD improvements
-  - 🗑️ `revert`: Reverting changes
-  - 🧪 `test`: Add a failing test
-  - 🚨 `fix`: Fix compiler/linter warnings
-  - 🔒️ `fix`: Fix security issues
-  - 👥 `chore`: Add or update contributors
-  - 🚚 `refactor`: Move or rename resources
-  - 🏗️ `refactor`: Make architectural changes
-  - 🔀 `chore`: Merge branches
-  - 📦️ `chore`: Add or update compiled files or packages
-  - ➕ `chore`: Add a dependency
-  - ➖ `chore`: Remove a dependency
-  - 🌱 `chore`: Add or update seed files
-  - 🧑‍💻 `chore`: Improve developer experience
-  - 🧵 `feat`: Add or update code related to multithreading or concurrency
-  - 🔍️ `feat`: Improve SEO
-  - 🏷️ `feat`: Add or update types
-  - 💬 `feat`: Add or update text and literals
-  - 🌐 `feat`: Internationalization and localization
-  - 👔 `feat`: Add or update business logic
-  - 📱 `feat`: Work on responsive design
-  - 🚸 `feat`: Improve user experience / usability
-  - 🩹 `fix`: Simple fix for a non-critical issue
-  - 🥅 `fix`: Catch errors
-  - 👽️ `fix`: Update code due to external API changes
-  - 🔥 `fix`: Remove code or files
-  - 🎨 `style`: Improve structure/format of the code
-  - 🚑️ `fix`: Critical hotfix
-  - 🎉 `chore`: Begin a project
-  - 🔖 `chore`: Release/Version tags
-  - 🚧 `wip`: Work in progress
-  - 💚 `fix`: Fix CI build
-  - 📌 `chore`: Pin dependencies to specific versions
-  - 👷 `ci`: Add or update CI build system
-  - 📈 `feat`: Add or update analytics or tracking code
-  - ✏️ `fix`: Fix typos
-  - ⏪️ `revert`: Revert changes
-  - 📄 `chore`: Add or update license
-  - 💥 `feat`: Introduce breaking changes
-  - 🍱 `assets`: Add or update assets
-  - ♿️ `feat`: Improve accessibility
-  - 💡 `docs`: Add or update comments in source code
-  - 🗃️ `db`: Perform database related changes
-  - 🔊 `feat`: Add or update logs
-  - 🔇 `fix`: Remove logs
-  - 🤡 `test`: Mock things
-  - 🥚 `feat`: Add or update an easter egg
-  - 🙈 `chore`: Add or update .gitignore file
-  - 📸 `test`: Add or update snapshots
-  - ⚗️ `experiment`: Perform experiments
-  - 🚩 `feat`: Add, update, or remove feature flags
-  - 💫 `ui`: Add or update animations and transitions
-  - ⚰️ `refactor`: Remove dead code
-  - 🦺 `feat`: Add or update code related to validation
-  - ✈️ `feat`: Improve offline support
+6. **Match project commit style**
+   - Analyze recent commits for: language, emoji usage, format conventions
+   - Follow the existing style (don't impose a standard)
 
-## Guidelines for Splitting Commits
+7. **Generate commit message**
+   - Use emoji conventional commit format: `<emoji> <type>: <description>`
+   - First line < 72 characters, imperative mood, present tense
+   - Focus on WHAT changed and WHY, not HOW
+   - For complex changes, use multi-line format with bullet points
+   - Consider if changes should be split into multiple commits
 
-When analyzing the diff, consider splitting commits based on these criteria:
+8. **Create the commit**
+   - Run `git commit -m "<message>"` using HEREDOC for proper formatting
+   - Verify commit was created successfully with `git log -1`
 
-1. **Different concerns**: Changes to unrelated parts of the codebase
-2. **Different types of changes**: Mixing features, fixes, refactoring, etc.
-3. **File patterns**: Changes to different types of files (e.g., source code vs documentation)
-4. **Logical grouping**: Changes that would be easier to understand or review separately
-5. **Size**: Very large changes that would be clearer if broken down
+</process>
 
-## Examples
+<commit_types>
 
-Good commit messages:
+- ✨ `feat`: New feature
+- 🐛 `fix`: Bug fix
+- 📝 `docs`: Documentation
+- 💄 `style`: Formatting/style
+- ♻️ `refactor`: Code refactoring
+- ⚡️ `perf`: Performance improvements
+- ✅ `test`: Tests
+- 🔧 `chore`: Tooling, configuration
+- 🚀 `ci`: CI/CD improvements
+- 🚨 `fix`: Fix compiler/linter warnings
+- 🔒️ `fix`: Fix security issues
+- 🏗️ `refactor`: Architectural changes
+- 🔥 `fix`: Remove code or files
+- 🎨 `style`: Improve structure/format
+- 💚 `fix`: Fix CI build
+- ✏️ `fix`: Fix typos
+</commit_types>
 
-- ✨ feat: add user authentication system
-- 🐛 fix: resolve memory leak in rendering process
-- 📝 docs: update API documentation with new endpoints
-- ♻️ refactor: simplify error handling logic in parser
-- 🚨 fix: resolve linter warnings in component files
-- 🧑‍💻 chore: improve developer tooling setup process
-- 👔 feat: implement business logic for transaction validation
-- 🩹 fix: address minor styling inconsistency in header
-- 🚑️ fix: patch critical security vulnerability in auth flow
-- 🎨 style: reorganize component structure for better readability
-- 🔥 fix: remove deprecated legacy code
-- 🦺 feat: add input validation for user registration form
-- 💚 fix: resolve failing CI pipeline tests
-- 📈 feat: implement analytics tracking for user engagement
-- 🔒️ fix: strengthen authentication password requirements
-- ♿️ feat: improve form accessibility for screen readers
+<splitting_guidance>
+Consider splitting commits when changes touch:
 
-Example of splitting commits:
+- Different concerns (unrelated parts of codebase)
+- Different types (mixing features, fixes, refactoring)
+- Different file patterns (source vs docs vs config)
+- Large changes that would be clearer if broken down
 
-- First commit: ✨ feat: add new solc version type definitions
-- Second commit: 📝 docs: update documentation for new solc versions
-- Third commit: 🔧 chore: update package.json dependencies
-- Fourth commit: 🏷️ feat: add type definitions for new API endpoints
-- Fifth commit: 🧵 feat: improve concurrency handling in worker threads
-- Sixth commit: 🚨 fix: resolve linting issues in new code
-- Seventh commit: ✅ test: add unit tests for new solc version features
-- Eighth commit: 🔒️ fix: update dependencies with security vulnerabilities
+If splitting is needed, guide the user through selective staging with `git add -p` or file-by-file staging.
+</splitting_guidance>
 
-## Command Options
+<grep_strategy>
+Grep is faster than reading entire files. Use it to quickly assess impact before deciding which files to read in detail.
 
-- `--staged`: Analyze staged changes with git diff instead of summarizing the current session
+**Patterns for analyzing changes:**
 
-## Important Notes
+- Find function/method calls: `grep -n "function_name("`
+- Count occurrences to gauge scope: `grep -c "pattern" file`
+- Get context around matches: `grep -C 3 "function_name"`
+- Find all files with pattern: `grep -l "pattern" --include="*.py"`
 
-- The commit message will be constructed based on:
-  - **Default**: Current session summary and context
-  - **With `--staged`**: Git diff analysis of staged changes
-- With `--staged` flag, the command will review the diff to identify if multiple commits would be more appropriate
-- If suggesting multiple commits, it will help you stage and commit the changes separately
+**When to use grep vs full read:**
+
+- Use grep first to identify which files have significant changes
+- Read full file only when grep shows complex modifications
+- For simple additions/deletions, grep context is often sufficient
+- Prioritize reading files with highest match counts (most impactful)
+</grep_strategy>
+
+<success_criteria>
+
+- All files staged appropriately
+- Pre-commit hooks pass (if present)
+- User approved any agent-made changes
+- Commit message follows project conventions
+- Commit message uses emoji conventional commit format
+- Commit created successfully
+- No uncommitted changes remain (unless intentionally excluded)
+</success_criteria>
+
+<verification>
+After commit, verify:
+- `git status` shows clean working directory
+- `git log -1 --stat` shows expected changes
+- Commit message is properly formatted
+</verification>

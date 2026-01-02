@@ -20,7 +20,7 @@ Subtract b from a.
 
 ### `multiply(a: float, b: float) -> float`
 
-Multiply two numbers.
+<!-- TODO: Add docstring to multiply -->
 
 [Source](../../../../src/calculator/operations.py#L14)
 
@@ -34,4 +34,4 @@ Divide a by b.
 |-----------|-------------|
 | ZeroDivisionError | If b is zero. |
 
-[Source](../../../../src/calculator/operations.py#L19)
+[Source](../../../../src/calculator/operations.py#L18)

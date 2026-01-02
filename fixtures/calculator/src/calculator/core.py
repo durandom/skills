@@ -46,7 +46,6 @@ class Calculator:
         return self
 
     def clear(self) -> "Calculator":
-        """Reset calculator to zero."""
         self._value = 0.0
         self._history.clear()
         return self

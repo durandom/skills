@@ -33,6 +33,8 @@ Humans face the same challenge. Onboarding to a new codebase means reading rando
 | **Generate** | `code_map.py generate <src> <map>` | Create map skeletons from source AST |
 | **Validate** | `code_map.py validate <map>` | Check links, sizes, anchors |
 
+**The generator output is your guide.** It tells you exactly what to do next: which source files need docstrings, which docs need descriptions, and when to re-run. In large codebases, output is limited to 10 items per category—fix the first batch, re-run, repeat. See `workflows/create.md` for the full workflow.
+
 ## The Commenting Philosophy
 
 Code maps and code comments serve the same purpose at different scales:

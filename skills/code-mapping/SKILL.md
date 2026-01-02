@@ -23,26 +23,24 @@ If a doc exceeds its limit, split it into the next level down.
 
 </essential_principles>
 
-<intake>
-What would you like to do?
+<auto_routing>
 
-1. **Explore** - Read existing map to understand a codebase
-2. **Create** - Generate a code map for a codebase
-3. **Validate** - Check map integrity (links, sizes, anchors)
+**Route based on user intent** (match first):
 
-**Wait for response before proceeding.**
-</intake>
+| User says | Action |
+|-----------|--------|
+| "explore", "read", "understand", "navigate", "find", "where is" | Read `workflows/explore.md`, then follow it |
+| "create", "generate", "new", "build", "document", "map" | Read `workflows/create.md`, then follow it |
+| "validate", "check", "verify", "lint" | Run: `uv run python $SKILL_PATH/scripts/code_map.py validate <map-dir>` |
 
-<routing>
-| Response | Workflow |
-|----------|----------|
-| 1, "explore", "read", "understand", "navigate" | `workflows/explore.md` |
-| 2, "create", "generate", "new", "build" | `workflows/create.md` |
-| 3, "validate", "check", "verify", "lint" | Run validation script (see CLI below) |
-| 4, "scaffold", "skeleton", "init" | Run generate script (see CLI below) |
+**If intent is ambiguous**, ask:
+> What would you like to do?
+>
+> 1. **Explore** - Navigate existing map to understand codebase
+> 2. **Create** - Generate a new code map
+> 3. **Validate** - Check map integrity
 
-**After reading the workflow, follow it exactly.**
-</routing>
+</auto_routing>
 
 <quick_reference>
 
@@ -71,7 +69,9 @@ docs/map/
 
 | Reference | Purpose |
 |-----------|---------|
-| format-spec.md | Complete format specification with all rules and examples |
+| format-spec.md | Format rules for anchors, links, and size limits |
+| examples/ | Input/output examples (l0-architecture.md, l1-domain.md, l2-module.md, readme.md) |
+| domains.md | What domain docs should capture |
 
 </reference_index>
 
@@ -81,15 +81,15 @@ docs/map/
 
 The scripts use Python 3.11+ stdlib only (no external dependencies).
 
+`$SKILL_PATH` is the base directory shown at skill load (e.g., `.claude/skills/code-mapping`).
+
 ```bash
 # Validate an existing map
-uv run python <skill-path>/scripts/code_map.py validate <map-dir>
+uv run python $SKILL_PATH/scripts/code_map.py validate <map-dir>
 
 # Generate map skeletons from source
-uv run python <skill-path>/scripts/code_map.py generate <src-dir> <map-dir>
+uv run python $SKILL_PATH/scripts/code_map.py generate <src-dir> <map-dir>
 ```
-
-Where `<skill-path>` is wherever this skill is installed (e.g., `.claude/skills/code-mapping`).
 
 **Generate command features:**
 
