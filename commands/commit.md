@@ -1,15 +1,30 @@
 ---
 description: Stage all changes, run pre-commit hooks, fix failures, and create conventional commit with emoji
-allowed-tools: Read, Edit, Write, Bash, Grep, Glob, AskUserQuestion
-model: haiku
+argument-hint: [all | staged | amend | split | dry-run] [message]
+allowed-tools: Read, Edit, Write, Bash, Grep, Glob, AskUserQuestion, Task
+model: sonnet
 ---
 
 <objective>
 Create a well-formatted git commit with conventional commit messages and emoji.
 
-The workflow stages all changes, runs pre-commit hooks if available, fixes any failures,
-gets user approval for agent-made changes, and generates a commit message that matches
-the project's existing style.
+**Modes:**
+
+- *(no args)* or `all` - Stage all changes and commit (default)
+- `staged` - Commit only already-staged files (skip `git add -A`)
+- `amend` - Amend the previous commit (with safety checks)
+- `split` - Interactive mode to split changes into multiple commits
+- `dry-run` - Preview what would be committed without committing
+
+**Optional message:** Provide a commit message to skip auto-generation.
+
+**Examples:**
+
+- `/commit` - Stage all, generate message, commit
+- `/commit staged` - Commit only staged files
+- `/commit staged "fix: typo"` - Commit staged with custom message
+- `/commit dry-run` - Preview without committing
+- `/commit split` - Guide through splitting changes
 </objective>
 
 <context>
@@ -21,17 +36,74 @@ Staged files: !`git diff --cached --name-only`
 
 <process>
 
+## Mode Detection
+
+Parse `$ARGUMENTS` to determine mode and optional message:
+
+1. **If empty or "all"**: Default mode - stage all, commit
+2. **If "staged"**: Skip staging, commit only what's already staged
+3. **If "amend"**: Amend previous commit (go to Amend Mode)
+4. **If "split"**: Interactive splitting (go to Split Mode)
+5. **If "dry-run"**: Preview only, no commit (go to Dry-Run Mode)
+6. **Remaining args**: Treat as custom commit message
+
+---
+
+## Default Mode (all)
+
 1. **Stage all changes**
    - Run `git add -A` to stage all modified, new, and deleted files
+
+## Staged Mode
+
+1. **Verify staged files exist**
+   - Run `git diff --cached --name-only`
+   - If empty, report "No staged files" and exit
+   - Do NOT run `git add -A` - use existing staged files only
 
 2. **Check for pre-commit hooks**
    - If `.pre-commit-config.yaml` exists, run `pre-commit run --all-files`
    - If pre-commit is not installed, skip this step
 
 3. **Handle pre-commit failures**
-   - If pre-commit fails, analyze the errors
-   - Fix linting, formatting, and other auto-fixable issues
-   - For non-auto-fixable issues, make the necessary code changes
+   - If pre-commit fails, spawn a **Haiku subagent** to fix simple issues:
+
+   ```
+   Task tool with:
+   - subagent_type: "general-purpose"
+   - model: "haiku"
+   - prompt: "Fix pre-commit failures.
+
+     **Errors:**
+     {paste pre-commit error output}
+
+     **Instructions:**
+     1. Read failing files
+     2. Fix formatting, linting, markdown, whitespace issues
+     3. For security/architectural issues: return as 'escalated'
+
+     **Return JSON:**
+     {\"fixed\": [\"file1.md\", ...], \"escalated\": [\"security issue in X\", ...]}"
+   ```
+
+   - If subagent returns escalated issues, spawn **Sonnet subagent**:
+
+   ```
+   Task tool with:
+   - subagent_type: "general-purpose"
+   - model: "sonnet"
+   - prompt: "Fix complex pre-commit issues requiring reasoning.
+
+     **Escalated issues:**
+     {paste escalated issues}
+
+     **Instructions:**
+     1. Analyze root cause
+     2. Implement fix with explanation
+
+     **Return:** Summary of changes and reasoning"
+   ```
+
    - After fixing, do NOT stage the fixes yet
 
 4. **User approval for agent changes**
@@ -43,16 +115,41 @@ Staged files: !`git diff --cached --name-only`
 
 5. **Stage fixes and analyze changes**
    - Run `git add -A` to stage all fixes
-   - Use `git diff --stat --cached` for overview
-   - For large diffs (>500 lines), use grep strategy (see below) instead of reading full diff
-   - Use grep to quickly assess impact before reading files in detail
-   - Only read full files when grep indicates significant changes
+   - Run `git diff --stat --cached` for overview
+   - **For large diffs (>300 lines)**, spawn Haiku subagent to analyze:
+
+   ```
+   Task tool with:
+   - subagent_type: "general-purpose"
+   - model: "haiku"
+   - prompt: "Analyze staged changes and recommend commit message.
+
+     **Staged files:**
+     {paste git diff --stat --cached output}
+
+     **Recent commits (for style):**
+     {paste git log --oneline -5 output}
+
+     **Instructions:**
+     1. Read key changed files to understand scope
+     2. Summarize the nature of changes (feature, fix, refactor, etc.)
+     3. Match project commit style from recent commits
+     4. Consider if changes should be split
+
+     **Return:**
+     - Recommended commit message: <emoji> <type>: <description>
+     - Summary of changes (2-3 bullet points)
+     - Split recommendation: yes/no with reasoning"
+   ```
+
+   - For small diffs: analyze directly without subagent
 
 6. **Match project commit style**
-   - Analyze recent commits for: language, emoji usage, format conventions
+   - Use subagent's analysis or analyze recent commits for: language, emoji usage, format conventions
    - Follow the existing style (don't impose a standard)
 
 7. **Generate commit message**
+   - Use subagent's recommendation or generate based on analysis
    - Use emoji conventional commit format: `<emoji> <type>: <description>`
    - First line < 72 characters, imperative mood, present tense
    - Focus on WHAT changed and WHY, not HOW
@@ -62,6 +159,82 @@ Staged files: !`git diff --cached --name-only`
 8. **Create the commit**
    - Run `git commit -m "<message>"` using HEREDOC for proper formatting
    - Verify commit was created successfully with `git log -1`
+
+---
+
+## Amend Mode
+
+**Safety checks before amending:**
+
+1. Verify HEAD commit was made by user (not a merge commit)
+2. Verify commit has NOT been pushed to remote: `git status` shows "Your branch is ahead"
+3. If pushed, WARN and ask for confirmation (requires force push)
+
+**Process:**
+
+1. Stage changes (all or staged-only based on additional args)
+2. Run pre-commit hooks
+3. Show diff of what will be amended
+4. Use `AskUserQuestion` for confirmation
+5. Run `git commit --amend` (with `-m` if message provided, otherwise keep existing)
+6. Verify with `git log -1`
+
+---
+
+## Split Mode
+
+Guide user through splitting changes into multiple logical commits.
+
+1. **Analyze changes**
+   - Run `git status` to see all changes
+   - Categorize by: file type, concern area, change type (feat/fix/refactor)
+
+2. **Propose split strategy**
+   - Suggest how to group changes into separate commits
+   - Example: "I see 3 logical groups: config changes, new feature, test updates"
+
+3. **Interactive staging**
+   - For each group, guide user through:
+     - `git add <specific-files>` or `git add -p` for partial staging
+     - Generate commit message for that group
+     - Create commit
+   - Repeat until all changes committed
+
+4. **Verify**
+   - Show `git log --oneline -n` for the new commits
+   - Confirm all changes are committed
+
+---
+
+## Dry-Run Mode
+
+Preview what would be committed without actually committing.
+
+1. **Stage changes** (unless `staged` also specified)
+   - Run `git add -A` to stage all
+
+2. **Run pre-commit hooks**
+   - Show what would pass/fail
+   - Do NOT fix failures (just report)
+
+3. **Show preview**
+
+   ```
+   ## Dry-Run Preview
+
+   **Files to commit:**
+   {git diff --stat --cached}
+
+   **Proposed commit message:**
+   <emoji> <type>: <description>
+
+   **Pre-commit status:** PASS / FAIL (details)
+
+   Run `/commit` to actually commit these changes.
+   ```
+
+4. **Unstage if we staged**
+   - If mode was `dry-run` (not `staged dry-run`), run `git reset HEAD` to unstage
 
 </process>
 
