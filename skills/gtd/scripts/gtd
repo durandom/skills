@@ -428,7 +428,7 @@ def cmd_setup(args) -> int:
         return 0
 
     print(f"{BLUE}Setting up GTD storage...{NC}\n")
-    storage.setup(verbose=True)
+    storage.setup(verbose=True, fix_drift=args.force)
     return 0
 
 

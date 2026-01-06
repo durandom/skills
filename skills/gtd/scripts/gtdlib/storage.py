@@ -134,11 +134,12 @@ class GTDStorage(ABC):
         ...
 
     @abstractmethod
-    def setup(self, verbose: bool = False) -> None:
+    def setup(self, verbose: bool = False, fix_drift: bool = False) -> None:
         """Set up the storage backend (create labels, etc.).
 
         Args:
             verbose: If True, print progress messages.
+            fix_drift: If True, also fix labels with incorrect color/description.
 
         Raises:
             RuntimeError: If setup fails.

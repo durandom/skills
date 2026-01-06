@@ -148,12 +148,21 @@ class GitHubStorage(GTDStorage):
         required = self.get_required_labels()
         return required.issubset(existing)
 
-    def setup(self, verbose: bool = False) -> None:
-        """Create all GTD labels in the repo."""
+    def setup(self, verbose: bool = False, fix_drift: bool = False) -> None:
+        """Create all GTD labels in the repo.
+
+        Args:
+            verbose: If True, print progress messages.
+            fix_drift: If True, also fix labels with incorrect color/description.
+        """
         existing = self._get_existing_labels()
+        existing_full = {
+            label["name"]: label for label in self._get_existing_labels_full()
+        }
 
         created = 0
         skipped = 0
+        fixed = 0
 
         for category, items in self.LABELS.items():
             if verbose:
@@ -163,6 +172,26 @@ class GitHubStorage(GTDStorage):
                 label_name = f"{category}/{name}"
 
                 if label_name in existing:
+                    # Check if we need to fix drift
+                    if fix_drift and label_name in existing_full:
+                        actual = existing_full[label_name]
+                        expected_color = config["color"].lower()
+                        actual_color = actual.get("color", "").lower()
+                        expected_desc = config["description"]
+                        actual_desc = actual.get("description", "")
+
+                        if (
+                            expected_color != actual_color
+                            or expected_desc != actual_desc
+                        ):
+                            if self.fix_label(
+                                label_name, config["color"], config["description"]
+                            ):
+                                fixed += 1
+                                if verbose:
+                                    print(f"  Fixed: {label_name}")
+                            continue
+
                     skipped += 1
                     continue
 
@@ -185,9 +214,11 @@ class GitHubStorage(GTDStorage):
                         print(f"  Warning: Could not create {label_name}: {e}")
 
         if verbose:
-            print(
-                f"✓ Setup complete: {created} labels created, {skipped} already existed"
-            )
+            msg = f"✓ Setup complete: {created} created"
+            if fixed:
+                msg += f", {fixed} fixed"
+            msg += f", {skipped} unchanged"
+            print(msg)
             print(f"  Total GTD labels: {len(self.get_all_labels())}")
 
     def _parse_issue(self, data: dict) -> GTDItem:
