@@ -35,16 +35,112 @@ class GitHubStorage(GTDStorage):
 
     def _get_existing_labels(self) -> set[str]:
         """Get set of existing label names in the repo."""
+        labels = self._get_existing_labels_full()
+        return {label["name"] for label in labels}
+
+    def _get_existing_labels_full(self) -> list[dict]:
+        """Get full label data (name, color, description) from the repo."""
         output = self._run_gh(
-            ["label", "list", "--json", "name", "--limit", "200"], check=False
+            ["label", "list", "--json", "name,color,description", "--limit", "200"],
+            check=False,
         )
         if not output:
-            return set()
+            return []
         try:
-            data = json.loads(output)
-            return {label["name"] for label in data}
+            return json.loads(output)
         except json.JSONDecodeError:
-            return set()
+            return []
+
+    # GTD label prefixes we manage
+    GTD_PREFIXES = ("context/", "energy/", "status/", "horizon/")
+
+    def get_stale_labels(self) -> list[str]:
+        """Find labels with GTD prefixes that aren't in the current taxonomy.
+
+        Returns list of label names that should be cleaned up.
+        """
+        existing = self._get_existing_labels()
+        required = self.get_required_labels()
+
+        stale = []
+        for label in existing:
+            # Only consider labels with GTD prefixes
+            if any(label.startswith(prefix) for prefix in self.GTD_PREFIXES):
+                if label not in required:
+                    stale.append(label)
+        return sorted(stale)
+
+    def get_label_drift(self) -> list[dict]:
+        """Find GTD labels with incorrect color or description.
+
+        Returns list of dicts with: name, field, expected, actual
+        """
+        existing_full = self._get_existing_labels_full()
+        existing_by_name = {label["name"]: label for label in existing_full}
+
+        drift = []
+        for category, items in self.LABELS.items():
+            for name, config in items.items():
+                label_name = f"{category}/{name}"
+                if label_name in existing_by_name:
+                    actual = existing_by_name[label_name]
+                    # Check color (GitHub returns without #, lowercase)
+                    expected_color = config["color"].lower()
+                    actual_color = actual.get("color", "").lower()
+                    if expected_color != actual_color:
+                        drift.append(
+                            {
+                                "name": label_name,
+                                "field": "color",
+                                "expected": expected_color,
+                                "actual": actual_color,
+                            }
+                        )
+                    # Check description
+                    expected_desc = config["description"]
+                    actual_desc = actual.get("description", "")
+                    if expected_desc != actual_desc:
+                        drift.append(
+                            {
+                                "name": label_name,
+                                "field": "description",
+                                "expected": expected_desc,
+                                "actual": actual_desc,
+                            }
+                        )
+        return drift
+
+    def delete_label(self, name: str) -> bool:
+        """Delete a label by name.
+
+        Returns True if deleted, False if failed.
+        """
+        try:
+            self._run_gh(["label", "delete", name, "--yes"])
+            return True
+        except RuntimeError:
+            return False
+
+    def fix_label(self, name: str, color: str, description: str) -> bool:
+        """Fix a label's color and description.
+
+        Returns True if fixed, False if failed.
+        """
+        try:
+            self._run_gh(
+                [
+                    "label",
+                    "edit",
+                    name,
+                    "--color",
+                    color,
+                    "--description",
+                    description,
+                ]
+            )
+            return True
+        except RuntimeError:
+            return False
 
     def is_setup(self) -> bool:
         """Check if GTD labels exist in the repo."""
