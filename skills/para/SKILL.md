@@ -48,6 +48,30 @@ PARA projects (`1 Projects/` folders) stay in sync with GTD projects (GitHub mil
 
 </essential_principles>
 
+<initialization_check>
+
+**IMPORTANT: Before showing the intake menu, run this check:**
+
+```bash
+./.claude/skills/para/scripts/para status 2>/dev/null
+```
+
+If it exits non-zero or shows "Error: PARA root not configured", the user needs to initialize PARA first.
+
+**Do NOT proceed to intake.** Instead:
+
+1. Use `AskUserQuestion` to ask: "Where would you like to store your PARA files?"
+   - Offer sensible options like `~/Notes`, `~/Documents/PARA`, or let them specify a custom path
+2. After getting the path, run:
+
+   ```bash
+   ./.claude/skills/para/scripts/para init --path <user-specified-path> --save-config
+   ```
+
+3. Then proceed to the intake menu.
+
+</initialization_check>
+
 <intake>
 What would you like to do?
 

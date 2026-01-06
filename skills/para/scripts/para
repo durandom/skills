@@ -282,7 +282,12 @@ def cmd_init(args) -> int:
 
 def cmd_status(args) -> int:
     """Show PARA structure status."""
-    root = get_para_root()
+    # Use find_para_root() directly to avoid interactive prompt
+    root = find_para_root()
+    if not root:
+        print(f"{RED}Error:{NC} PARA root not configured.")
+        print(f"Run {BOLD}para init --path /path/to/para --save-config{NC} to set up.")
+        return 1
 
     print(f"\n{BLUE}📁 PARA Status{NC}")
     print(f"Root: {root}")
