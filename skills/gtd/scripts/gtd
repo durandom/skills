@@ -932,17 +932,22 @@ def main() -> int:
 
     # setup
     p = subparsers.add_parser("setup", help="Set up storage backend (create labels)")
-    p.add_argument("--check", action="store_true", help="Detailed status check")
+    # --check and --cleanup are mutually exclusive modes
+    mode_group = p.add_mutually_exclusive_group()
+    mode_group.add_argument(
+        "--check", action="store_true", help="Detailed status check"
+    )
+    mode_group.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="Preview stale label removal (use --force to execute)",
+    )
+    # --force modifies behavior (fix drift in setup mode, execute in cleanup mode)
     p.add_argument(
         "--force",
         "-f",
         action="store_true",
-        help="Force recreate/fix labels or execute cleanup",
-    )
-    p.add_argument(
-        "--cleanup",
-        action="store_true",
-        help="Preview stale label removal (use --force to execute)",
+        help="Fix label drift or execute cleanup",
     )
     p.set_defaults(func=cmd_setup)
 
