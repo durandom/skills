@@ -111,6 +111,14 @@ class GTDStorage(ABC):
     }
 
     @classmethod
+    def get_label_prefixes(cls) -> tuple[str, ...]:
+        """Get GTD label prefixes (e.g., 'context/', 'energy/').
+
+        These are the prefixes that identify GTD-managed labels.
+        """
+        return tuple(f"{category}/" for category in cls.LABELS.keys())
+
+    @classmethod
     def get_all_labels(cls) -> list[str]:
         """Get flat list of all label names (e.g., 'context/focus')."""
         labels = []
@@ -134,11 +142,12 @@ class GTDStorage(ABC):
         ...
 
     @abstractmethod
-    def setup(self, verbose: bool = False) -> None:
+    def setup(self, verbose: bool = False, fix_drift: bool = False) -> None:
         """Set up the storage backend (create labels, etc.).
 
         Args:
             verbose: If True, print progress messages.
+            fix_drift: If True, also fix labels with incorrect color/description.
 
         Raises:
             RuntimeError: If setup fails.

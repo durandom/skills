@@ -412,24 +412,116 @@ def cmd_setup(args) -> int:
     """Run setup for the storage backend."""
     storage = get_storage(args.repo, ensure_setup=False)
 
+    # Cleanup mode - preview by default, --force to execute
+    if args.cleanup:
+        return _do_cleanup(storage, execute=args.force)
+
+    # Check mode - detailed status report
     if args.check:
-        # Just check status
-        if storage.is_setup():
-            print(f"{GREEN}✓{NC} GTD storage is set up and ready.")
-            return 0
-        else:
-            print(f"{YELLOW}⚠{NC} GTD storage needs setup. Run {BOLD}./gtd setup{NC}")
-            return 1
+        return _do_check(storage)
 
     # Run setup
     if storage.is_setup() and not args.force:
         print(f"{GREEN}✓{NC} GTD storage is already set up.")
+        print(f"  Use {BOLD}--check{NC} for detailed status.")
         print(f"  Use {BOLD}--force{NC} to recreate labels.")
         return 0
 
     print(f"{BLUE}Setting up GTD storage...{NC}\n")
-    storage.setup(verbose=True)
+    storage.setup(verbose=True, fix_drift=args.force)
     return 0
+
+
+def _do_check(storage) -> int:
+    """Detailed setup status check."""
+    print(f"\n{BLUE}GTD Setup Status{NC}")
+    print("=" * 40)
+
+    # 1. Check required labels
+    existing = storage.get_existing_labels()
+    required = storage.get_required_labels()
+    missing = required - existing
+    present = required & existing
+
+    print(f"\n{BOLD}Required Labels ({len(required)}):{NC}")
+    if len(present) == len(required):
+        print(f"  {GREEN}✓{NC} {len(present)}/{len(required)} present")
+    else:
+        print(f"  {YELLOW}⚠{NC} {len(present)}/{len(required)} present")
+        for label in sorted(missing):
+            print(f"    {RED}✗{NC} {label}")
+
+    # 2. Check for drift (wrong color/description)
+    drift = storage.get_label_drift()
+    if drift:
+        print(f"\n{BOLD}Label Drift ({len(drift)}):{NC}")
+        for d in drift:
+            print(f"  {YELLOW}⚠{NC} {d['name']}: {d['field']}")
+            print(f"      expected: {d['expected']}")
+            print(f"      actual:   {d['actual']}")
+        print(f"\n  Run {BOLD}gtd setup --force{NC} to fix drift.")
+    else:
+        print(f"\n{BOLD}Label Drift:{NC}")
+        print(f"  {GREEN}✓{NC} All labels have correct colors/descriptions")
+
+    # 3. Check for stale labels
+    stale = storage.get_stale_labels()
+    if stale:
+        print(f"\n{BOLD}Stale Labels ({len(stale)}):{NC}")
+        print(
+            f"  {YELLOW}⚠{NC} Found labels with GTD prefixes not in current taxonomy:"
+        )
+        for label in stale:
+            print(f"    - {label}")
+        print(f"\n  Run {BOLD}gtd setup --cleanup{NC} to preview removal.")
+        print(f"  Run {BOLD}gtd setup --cleanup --force{NC} to remove them.")
+    else:
+        print(f"\n{BOLD}Stale Labels:{NC}")
+        print(f"  {GREEN}✓{NC} No stale GTD labels found")
+
+    # Summary
+    print()
+    if missing or drift or stale:
+        return 1
+    return 0
+
+
+def _do_cleanup(storage, execute: bool = False) -> int:
+    """Clean up stale GTD labels.
+
+    Args:
+        execute: If True, actually delete labels. If False (default), preview only.
+
+    Returns:
+        0 on success, 1 if any deletions failed.
+    """
+    stale = storage.get_stale_labels()
+
+    if not stale:
+        print(f"{GREEN}✓{NC} No stale labels to clean up.")
+        return 0
+
+    if execute:
+        print(f"\n{BLUE}Cleaning up stale labels{NC}")
+    else:
+        print(f"\n{BLUE}[PREVIEW] Stale labels to clean up{NC}")
+    print("=" * 40)
+
+    failed = 0
+    for label in stale:
+        if execute:
+            if storage.delete_label(label):
+                print(f"  {GREEN}✓{NC} deleted: {label}")
+            else:
+                print(f"  {RED}✗{NC} failed to delete: {label}")
+                failed += 1
+        else:
+            print(f"  {YELLOW}would delete:{NC} {label}")
+
+    if not execute:
+        print(f"\n{YELLOW}This was a preview.{NC} Run with --force to delete.")
+
+    return 1 if failed else 0
 
 
 def cmd_projects(args) -> int:
@@ -845,8 +937,23 @@ def main() -> int:
 
     # setup
     p = subparsers.add_parser("setup", help="Set up storage backend (create labels)")
-    p.add_argument("--check", action="store_true", help="Check if setup is needed")
-    p.add_argument("--force", "-f", action="store_true", help="Force recreate labels")
+    # --check and --cleanup are mutually exclusive modes
+    mode_group = p.add_mutually_exclusive_group()
+    mode_group.add_argument(
+        "--check", action="store_true", help="Detailed status check"
+    )
+    mode_group.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="Preview stale label removal (use --force to execute)",
+    )
+    # --force modifies behavior (fix drift in setup mode, execute in cleanup mode)
+    p.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Fix label drift or execute cleanup",
+    )
     p.set_defaults(func=cmd_setup)
 
     # projects
