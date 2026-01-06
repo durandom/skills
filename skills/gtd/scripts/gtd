@@ -412,9 +412,9 @@ def cmd_setup(args) -> int:
     """Run setup for the storage backend."""
     storage = get_storage(args.repo, ensure_setup=False)
 
-    # Cleanup mode
+    # Cleanup mode - preview by default, --force to execute
     if args.cleanup:
-        return _do_cleanup(storage, dry_run=args.dry_run)
+        return _do_cleanup(storage, execute=args.force)
 
     # Check mode - detailed status report
     if args.check:
@@ -473,8 +473,8 @@ def _do_check(storage) -> int:
         )
         for label in stale:
             print(f"    - {label}")
-        print(f"\n  Run {BOLD}gtd setup --cleanup --dry-run{NC} to preview removal.")
-        print(f"  Run {BOLD}gtd setup --cleanup{NC} to remove them.")
+        print(f"\n  Run {BOLD}gtd setup --cleanup{NC} to preview removal.")
+        print(f"  Run {BOLD}gtd setup --cleanup --force{NC} to remove them.")
     else:
         print(f"\n{BOLD}Stale Labels:{NC}")
         print(f"  {GREEN}✓{NC} No stale GTD labels found")
@@ -486,28 +486,35 @@ def _do_check(storage) -> int:
     return 0
 
 
-def _do_cleanup(storage, dry_run: bool = False) -> int:
-    """Clean up stale GTD labels."""
+def _do_cleanup(storage, execute: bool = False) -> int:
+    """Clean up stale GTD labels.
+
+    Args:
+        execute: If True, actually delete labels. If False (default), preview only.
+    """
     stale = storage.get_stale_labels()
 
     if not stale:
         print(f"{GREEN}✓{NC} No stale labels to clean up.")
         return 0
 
-    print(f"\n{BLUE}{'[DRY RUN] ' if dry_run else ''}Cleaning up stale labels{NC}")
+    if execute:
+        print(f"\n{BLUE}Cleaning up stale labels{NC}")
+    else:
+        print(f"\n{BLUE}[PREVIEW] Stale labels to clean up{NC}")
     print("=" * 40)
 
     for label in stale:
-        if dry_run:
-            print(f"  {YELLOW}would delete:{NC} {label}")
-        else:
+        if execute:
             if storage.delete_label(label):
                 print(f"  {GREEN}✓{NC} deleted: {label}")
             else:
                 print(f"  {RED}✗{NC} failed to delete: {label}")
+        else:
+            print(f"  {YELLOW}would delete:{NC} {label}")
 
-    if dry_run:
-        print(f"\n{YELLOW}This was a dry run.{NC} Run without --dry-run to delete.")
+    if not execute:
+        print(f"\n{YELLOW}This was a preview.{NC} Run with --force to delete.")
 
     return 0
 
@@ -926,10 +933,16 @@ def main() -> int:
     # setup
     p = subparsers.add_parser("setup", help="Set up storage backend (create labels)")
     p.add_argument("--check", action="store_true", help="Detailed status check")
-    p.add_argument("--force", "-f", action="store_true", help="Force recreate labels")
-    p.add_argument("--cleanup", action="store_true", help="Remove stale GTD labels")
     p.add_argument(
-        "--dry-run", action="store_true", help="Preview cleanup without deleting"
+        "--force",
+        "-f",
+        action="store_true",
+        help="Force recreate/fix labels or execute cleanup",
+    )
+    p.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="Preview stale label removal (use --force to execute)",
     )
     p.set_defaults(func=cmd_setup)
 
