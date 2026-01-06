@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(/var/home/goern/Source/skills/skills/para/scripts/para status:*)",
+      "Bash(/var/home/goern/Source/skills/skills/para/scripts/para init:*)",
+      "Bash(python:*)"
     ]
   }
 }
