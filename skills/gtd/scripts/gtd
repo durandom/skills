@@ -438,7 +438,7 @@ def _do_check(storage) -> int:
     print("=" * 40)
 
     # 1. Check required labels
-    existing = storage._get_existing_labels()
+    existing = storage.get_existing_labels()
     required = storage.get_required_labels()
     missing = required - existing
     present = required & existing

@@ -33,12 +33,12 @@ class GitHubStorage(GTDStorage):
             return ""
         return result.stdout
 
-    def _get_existing_labels(self) -> set[str]:
+    def get_existing_labels(self) -> set[str]:
         """Get set of existing label names in the repo."""
-        labels = self._get_existing_labels_full()
+        labels = self.get_existing_labels_full()
         return {label["name"] for label in labels}
 
-    def _get_existing_labels_full(self) -> list[dict]:
+    def get_existing_labels_full(self) -> list[dict]:
         """Get full label data (name, color, description) from the repo."""
         output = self._run_gh(
             ["label", "list", "--json", "name,color,description", "--limit", "200"],
@@ -56,7 +56,7 @@ class GitHubStorage(GTDStorage):
 
         Returns list of label names that should be cleaned up.
         """
-        existing = self._get_existing_labels()
+        existing = self.get_existing_labels()
         required = self.get_required_labels()
         prefixes = self.get_label_prefixes()
 
@@ -73,7 +73,7 @@ class GitHubStorage(GTDStorage):
 
         Returns list of dicts with: name, field, expected, actual
         """
-        existing_full = self._get_existing_labels_full()
+        existing_full = self.get_existing_labels_full()
         existing_by_name = {label["name"]: label for label in existing_full}
 
         drift = []
@@ -142,7 +142,7 @@ class GitHubStorage(GTDStorage):
 
     def is_setup(self) -> bool:
         """Check if GTD labels exist in the repo."""
-        existing = self._get_existing_labels()
+        existing = self.get_existing_labels()
         required = self.get_required_labels()
         return required.issubset(existing)
 
@@ -153,9 +153,9 @@ class GitHubStorage(GTDStorage):
             verbose: If True, print progress messages.
             fix_drift: If True, also fix labels with incorrect color/description.
         """
-        existing = self._get_existing_labels()
+        existing = self.get_existing_labels()
         existing_full = {
-            label["name"]: label for label in self._get_existing_labels_full()
+            label["name"]: label for label in self.get_existing_labels_full()
         }
 
         created = 0
