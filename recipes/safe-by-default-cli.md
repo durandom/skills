@@ -2,7 +2,6 @@
 
 **Target Audience:** AI Coding Agents (Claude, Gemini, Copilot)
 **Goal:** Design CLI tools where destructive operations require explicit discovery, preventing AI agents from skipping safety steps.
-**Tools:** `argparse` (Python), any CLI framework
 
 ## The Philosophy: "Capability Gradient"
 
@@ -19,22 +18,12 @@ This forces agents (and humans) to run the safe version first, see what would ha
 
 ### Level 1: Hide Destructive Flags from Help
 
-Use `argparse.SUPPRESS` to make a flag functional but invisible in `--help`:
+Define a `--force` flag that works but doesn't appear in `--help` output:
 
-```python
-import argparse
-
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--cleanup",
-    action="store_true",
-    help="Find and remove stale items",  # Visible, sounds safe
-)
-parser.add_argument(
-    "--force",
-    action="store_true",
-    help=argparse.SUPPRESS,  # Hidden from --help
-)
+```
+CLI Definition:
+  --cleanup   "Find and remove stale items"    # Visible in help
+  --force     HIDDEN                           # Functional but invisible
 ```
 
 **Result of `--help`:**
@@ -50,86 +39,66 @@ No `--force` visible. An AI agent will naturally try `--cleanup` first.
 
 Make the safe behavior the default. When `--cleanup` runs without `--force`:
 
-```python
-def do_cleanup(items, execute=False):
-    if not items:
-        print("✓ Nothing to clean up.")
-        return 0
+```
+function do_cleanup(items, execute):
+    if items is empty:
+        print "✓ Nothing to clean up."
+        return
 
-    print("Cleanup Preview" if not execute else "Executing Cleanup")
-    print("=" * 40)
-
-    for item in items:
+    for each item in items:
         if execute:
             delete(item)
-            print(f"  ✓ deleted: {item}")
+            print "  ✓ deleted: {item}"
         else:
-            print(f"  would delete: {item}")
+            print "  would delete: {item}"
 
     if not execute:
-        # Discovery path: tell them about --force HERE
-        print("\nThis was a preview. Run with --force to delete.")
-
-    return 0
+        # Discovery path: reveal --force HERE
+        print "This was a preview. Run with --force to delete."
 ```
 
 ### Level 3: Discovery Through Output
 
 The key insight: **reveal capabilities contextually**. Different commands guide to different uses of `--force`:
 
-```python
+```
 # In check mode - guides to fixing drift
 if drift_found:
-    print("Run `cmd --force` to fix drift.")
+    print "Run `cmd --force` to fix drift."
 
 # In cleanup mode - guides to actual deletion
 if stale_found:
-    print("Run `cmd --cleanup --force` to remove them.")
+    print "Run `cmd --cleanup --force` to remove them."
 ```
 
 ## Complete Example
 
-```python
-import argparse
+```
+command setup:
+    options:
+        --cleanup   "Find and remove stale items"   # Visible
+        --force     HIDDEN                          # Invisible
 
-def cmd_setup(args):
-    storage = get_storage()
+    if cleanup flag set:
+        stale_items = storage.get_stale_items()
 
-    # Cleanup mode - preview by default
-    if args.cleanup:
-        stale = storage.get_stale_items()
-        if not stale:
-            print("✓ No stale items.")
-            return 0
+        if stale_items is empty:
+            print "✓ No stale items."
+            return
 
-        for item in stale:
-            if args.force:
+        for each item in stale_items:
+            if force flag set:
                 storage.delete(item)
-                print(f"  ✓ deleted: {item}")
+                print "  ✓ deleted: {item}"
             else:
-                print(f"  would delete: {item}")
+                print "  would delete: {item}"
 
-        if not args.force:
-            print("\nThis was a preview. Run with --force to delete.")
-        return 0
+        if force flag not set:
+            print "This was a preview. Run with --force to delete."
+        return
 
     # Default: safe setup
     storage.setup()
-    return 0
-
-def main():
-    parser = argparse.ArgumentParser()
-    sub = parser.add_subparsers()
-
-    p = sub.add_parser("setup", help="Set up the system")
-    p.add_argument("--cleanup", action="store_true",
-                   help="Find and remove stale items")
-    p.add_argument("--force", action="store_true",
-                   help=argparse.SUPPRESS)  # Hidden!
-    p.set_defaults(func=cmd_setup)
-
-    args = parser.parse_args()
-    return args.func(args)
 ```
 
 ## Why This Works for AI Agents
@@ -143,36 +112,63 @@ def main():
 
 ## Anti-Patterns to Avoid
 
-**Don't:** Document `--force` in the help text of other flags
+❌ **Don't:** Document `--force` in the help text of other flags
 
-```python
+```
 # BAD: Reveals --force in help
-help="Preview removal (use --force to execute)"
+--cleanup   "Preview removal (use --force to execute)"
 ```
 
-**Don't:** Make destructive the default
+❌ **Don't:** Make destructive the default
 
-```python
+```
 # BAD: Deletes by default, --dry-run to preview
-if not args.dry_run:
+if not dry_run:
     delete(item)
 ```
 
-**Do:** Safe by default, hidden escape hatch
+✅ **Do:** Safe by default, hidden escape hatch
 
-```python
+```
 # GOOD: Preview by default, --force hidden
-if args.force:
+if force:
     delete(item)
 else:
-    print(f"would delete: {item}")
+    print "would delete: {item}"
 ```
 
 ## Summary
 
 | Principle | Implementation |
 |-----------|----------------|
-| Hide destructive flags | `help=argparse.SUPPRESS` |
+| Hide destructive flags | Mark flag as hidden/suppressed |
 | Safe by default | Preview/dry-run without flags |
 | Contextual discovery | Print `--force` hint in command output |
 | Explicit opt-in | Require running safe version first |
+
+---
+
+## Python Implementation Notes
+
+Using `argparse`, hide a flag with `help=argparse.SUPPRESS`:
+
+```python
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--cleanup", action="store_true",
+                    help="Find and remove stale items")
+parser.add_argument("--force", action="store_true",
+                    help=argparse.SUPPRESS)  # Hidden from --help
+```
+
+For subcommands, handle missing subcommand gracefully:
+
+```python
+args = parser.parse_args()
+if hasattr(args, "func"):
+    return args.func(args)
+else:
+    parser.print_help()
+    return 1
+```
