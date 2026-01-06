@@ -491,6 +491,9 @@ def _do_cleanup(storage, execute: bool = False) -> int:
 
     Args:
         execute: If True, actually delete labels. If False (default), preview only.
+
+    Returns:
+        0 on success, 1 if any deletions failed.
     """
     stale = storage.get_stale_labels()
 
@@ -504,19 +507,21 @@ def _do_cleanup(storage, execute: bool = False) -> int:
         print(f"\n{BLUE}[PREVIEW] Stale labels to clean up{NC}")
     print("=" * 40)
 
+    failed = 0
     for label in stale:
         if execute:
             if storage.delete_label(label):
                 print(f"  {GREEN}✓{NC} deleted: {label}")
             else:
                 print(f"  {RED}✗{NC} failed to delete: {label}")
+                failed += 1
         else:
             print(f"  {YELLOW}would delete:{NC} {label}")
 
     if not execute:
         print(f"\n{YELLOW}This was a preview.{NC} Run with --force to delete.")
 
-    return 0
+    return 1 if failed else 0
 
 
 def cmd_projects(args) -> int:
