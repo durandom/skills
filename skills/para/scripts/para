@@ -253,7 +253,7 @@ def cmd_config(args) -> int:
 
 def cmd_init(args) -> int:
     """Initialize PARA folder structure."""
-    root = Path(args.path) if args.path else Path.cwd()
+    root = Path(args.path).expanduser().resolve() if args.path else Path.cwd()
 
     print(f"{BLUE}Initializing PARA structure in {root}{NC}")
     print("=" * 40)
@@ -272,7 +272,7 @@ def cmd_init(args) -> int:
     # Save to config if requested
     if args.save_config:
         config = load_config()
-        config["para_root"] = str(root.resolve())
+        config["para_root"] = str(root)
         save_config(config)
         print(f"{GREEN}✓{NC} Saved to {CONFIG_FILE}")
 
