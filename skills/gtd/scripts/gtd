@@ -1,0 +1,930 @@
+#!/usr/bin/env python3
+"""GTD CLI - Getting Things Done task management."""
+
+import argparse
+import sys
+
+from gtdlib.backends.github import GitHubStorage
+from gtdlib.storage import GTDItem, GTDStorage
+
+# ANSI colors
+BLUE = "\033[0;34m"
+GREEN = "\033[0;32m"
+YELLOW = "\033[0;33m"
+RED = "\033[0;31m"
+BOLD = "\033[1m"
+NC = "\033[0m"  # No Color
+
+# Derive valid labels from the storage layer (single source of truth)
+CONTEXTS = list(GTDStorage.LABELS["context"].keys())
+ENERGIES = list(GTDStorage.LABELS["energy"].keys())
+STATUSES = list(GTDStorage.LABELS["status"].keys())
+HORIZONS = list(GTDStorage.LABELS["horizon"].keys())
+
+
+def get_storage(repo: str | None = None, ensure_setup: bool = True) -> GitHubStorage:
+    """Get the storage backend.
+
+    Args:
+        repo: Optional repo in "owner/repo" format.
+        ensure_setup: If True, automatically run setup if needed.
+    """
+    storage = GitHubStorage(repo=repo)
+    if ensure_setup and not storage.is_setup():
+        print(f"{YELLOW}GTD labels not found. Running setup...{NC}\n")
+        storage.setup(verbose=True)
+        print()
+    return storage
+
+
+def format_item(item: GTDItem, show_labels: bool = False) -> str:
+    """Format a single item for display."""
+    line = f"  #{item.id} {item.title}"
+
+    if show_labels:
+        label_parts = []
+        if item.context:
+            label_parts.append(f"@{item.context}")
+        if item.energy:
+            label_parts.append(f"E:{item.energy}")
+        if item.status:
+            label_parts.append(f"S:{item.status}")
+        if item.horizon:
+            label_parts.append(f"H:{item.horizon}")
+        if item.project:
+            label_parts.append(f"P:{item.project}")
+        if label_parts:
+            line += f" {BLUE}[{' '.join(label_parts)}]{NC}"
+
+    return line
+
+
+def cmd_capture(args) -> int:
+    """Quick capture to inbox."""
+    storage = get_storage(args.repo)
+    text = " ".join(args.text)
+
+    item = storage.capture(title=text, body=args.body)
+    print(f"{GREEN}✓{NC} Captured to inbox: #{item.id}")
+    print(f"  {item.title}")
+    print(f"\n  Run {BOLD}gtd clarify {item.id}{NC} to process this item.")
+    return 0
+
+
+def cmd_inbox(args) -> int:
+    """List inbox items needing clarification."""
+    storage = get_storage(args.repo)
+    items = storage.list_inbox()
+
+    if not items:
+        print(f"{GREEN}✓{NC} Inbox is empty! Nothing to clarify.")
+        return 0
+
+    print(f"{BLUE}📥 Inbox ({len(items)} items){NC}")
+    print("=" * 40)
+    print()
+    for item in items:
+        print(f"  #{item.id} {item.title}")
+    print()
+    print(f"Run {BOLD}gtd clarify <id>{NC} to process each item.")
+    return 0
+
+
+def cmd_clarify(args) -> int:
+    """Interactive clarification workflow."""
+    storage = get_storage(args.repo)
+    item = storage.get_item(args.id)
+
+    if not item:
+        print(f"{RED}Error:{NC} Item #{args.id} not found.")
+        return 1
+
+    print(f"\n{BLUE}Clarifying:{NC} #{item.id} {item.title}")
+    if item.body:
+        print(f"  {item.body[:100]}...")
+    print()
+
+    # Step 1: Is it actionable?
+    actionable = input("Is this actionable? (y/n): ").strip().lower()
+    if actionable != "y":
+        # Move to someday/maybe or delete
+        action = input("(d)elete, (s)omeday/maybe, or (r)eference? ").strip().lower()
+        if action == "d":
+            storage.close_item(args.id)
+            print(f"{GREEN}✓{NC} Deleted (closed).")
+        elif action == "s":
+            # Keep as someday (already status/someday from capture)
+            print(f"{GREEN}✓{NC} Staying in someday/maybe.")
+        else:
+            print("Reference items should be moved to your notes system.")
+        return 0
+
+    # Step 2: What's the outcome?
+    print("\nWhat does 'done' look like? (press Enter to skip)")
+    outcome = input("Outcome: ").strip()
+
+    # Step 3: What's the next action?
+    print("\nWhat's the very next physical action?")
+    next_action = input("Next action: ").strip()
+    if next_action and next_action != item.title:
+        # Update title to be the next action
+        storage.update_item(args.id, title=next_action)
+
+    labels_to_add = []
+    labels_to_remove = ["status/someday"]  # Remove inbox status
+
+    # Step 4: Horizon (altitude) - what level is this?
+    print(f"\nWhat level? ({', '.join(HORIZONS)}) [action]")
+    horizon = input("Horizon: ").strip().lower() or "action"
+    if horizon in HORIZONS:
+        labels_to_add.append(f"horizon/{horizon}")
+
+    # Step 5: Context
+    print(f"\nContext? ({', '.join(CONTEXTS)})")
+    context = input("Context: ").strip().lower()
+    if context in CONTEXTS:
+        labels_to_add.append(f"context/{context}")
+
+    # Step 6: Energy
+    print(f"\nEnergy required? ({', '.join(ENERGIES)})")
+    energy = input("Energy: ").strip().lower()
+    if energy in ENERGIES:
+        labels_to_add.append(f"energy/{energy}")
+
+    # Step 7: Status (timing)
+    print(f"\nStatus? ({', '.join(STATUSES)}) [active]")
+    status = input("Status: ").strip().lower() or "active"
+    if status in STATUSES:
+        labels_to_add.append(f"status/{status}")
+
+    # Step 8: Project (optional, for actions)
+    if horizon == "action":
+        print("\nBelongs to a project? (leave blank to skip)")
+        project_name = input("Project: ").strip()
+        if project_name:
+            # Ensure project exists
+            storage.ensure_project(project_name)
+            storage.update_item(args.id, project=project_name)
+
+    # Remove inbox label and apply new labels
+    storage.remove_labels(args.id, labels_to_remove)
+    if labels_to_add:
+        storage.add_labels(args.id, labels_to_add)
+
+    # Update body with outcome if provided
+    if outcome:
+        new_body = f"**Outcome:** {outcome}\n\n{item.body or ''}"
+        storage.update_item(args.id, body=new_body)
+
+    print(f"\n{GREEN}✓{NC} Item clarified and organized!")
+    return 0
+
+
+def cmd_add(args) -> int:
+    """Add a new clarified task."""
+    storage = get_storage(args.repo)
+    title = " ".join(args.title)
+    labels = []
+
+    # Context
+    if args.context and args.context in CONTEXTS:
+        labels.append(f"context/{args.context}")
+
+    # Energy
+    if args.energy and args.energy in ENERGIES:
+        labels.append(f"energy/{args.energy}")
+
+    # Status (timing) - default to active
+    if args.status and args.status in STATUSES:
+        labels.append(f"status/{args.status}")
+    else:
+        labels.append("status/active")
+
+    # Horizon (altitude) - default to action
+    if args.horizon and args.horizon in HORIZONS:
+        labels.append(f"horizon/{args.horizon}")
+    else:
+        labels.append("horizon/action")
+
+    # Handle project
+    project = args.project
+    if args.horizon == "project" and not project:
+        # Auto-create project for horizon/project items
+        project = title
+        storage.ensure_project(title)
+
+    item = storage.create_item(
+        title=title, labels=labels, body=args.body, project=project
+    )
+    print(f"{GREEN}✓{NC} Created: #{item.id} {item.title}")
+    if args.horizon == "project":
+        print(f"  Project '{title}' created.")
+    return 0
+
+
+def cmd_list(args) -> int:
+    """List tasks with filters."""
+    storage = get_storage(args.repo)
+    labels = []
+
+    if args.context and args.context in CONTEXTS:
+        labels.append(f"context/{args.context}")
+    if args.energy and args.energy in ENERGIES:
+        labels.append(f"energy/{args.energy}")
+    if args.status and args.status in STATUSES:
+        labels.append(f"status/{args.status}")
+    if args.horizon and args.horizon in HORIZONS:
+        labels.append(f"horizon/{args.horizon}")
+
+    verbose = getattr(args, "verbose", False)
+
+    if verbose:
+        print(f"{BLUE}[DEBUG] Filters:{NC}")
+        print(f"  labels: {labels if labels else '(none)'}")
+        print(f"  state: {args.state}")
+        print(f"  limit: {args.limit}")
+        print()
+
+    items = storage.list_items(
+        labels=labels if labels else None,
+        state=args.state,
+        project=args.project,
+        limit=args.limit,
+        verbose=verbose,
+    )
+
+    if not items:
+        print("No items found matching criteria.")
+        return 0
+
+    # Group by context if no specific context filter
+    if not args.context and not args.raw:
+        by_context: dict[str, list[GTDItem]] = {}
+        for item in items:
+            ctx = item.context or "none"
+            if ctx not in by_context:
+                by_context[ctx] = []
+            by_context[ctx].append(item)
+
+        for ctx, ctx_items in by_context.items():
+            print(f"\n{BLUE}@{ctx}{NC} ({len(ctx_items)} items)")
+            for item in ctx_items:
+                print(format_item(item, show_labels=True))
+    else:
+        for item in items:
+            print(format_item(item, show_labels=True))
+
+    return 0
+
+
+def cmd_done(args) -> int:
+    """Mark task as complete."""
+    storage = get_storage(args.repo)
+    item = storage.get_item(args.id)
+
+    if not item:
+        print(f"{RED}Error:{NC} Item #{args.id} not found.")
+        return 1
+
+    storage.close_item(args.id)
+    print(f"{GREEN}✓{NC} Completed: #{item.id} {item.title}")
+    return 0
+
+
+def cmd_daily(args) -> int:
+    """Daily review workflow."""
+    storage = get_storage(args.repo)
+
+    print(f"\n{BLUE}🌅 Daily Review{NC}")
+    print("=" * 40)
+
+    # 1. High energy focus work
+    print(f"\n{BOLD}🧠 High Energy Focus Work (morning){NC}")
+    items = storage.list_items(
+        labels=["context/focus", "energy/high", "status/active"], limit=10
+    )
+    if items:
+        for item in items:
+            print(format_item(item))
+    else:
+        print("  (none)")
+
+    # 2. Light focus work
+    print(f"\n{BOLD}📝 Light Focus Work{NC}")
+    items = storage.list_items(
+        labels=["context/focus", "energy/low", "status/active"], limit=10
+    )
+    if items:
+        for item in items:
+            print(format_item(item))
+    else:
+        print("  (none)")
+
+    # 3. Async work
+    print(f"\n{BOLD}📱 Async Work (anytime){NC}")
+    items = storage.list_items(labels=["context/async", "status/active"], limit=10)
+    if items:
+        for item in items:
+            print(format_item(item))
+    else:
+        print("  (none)")
+
+    # 4. Waiting
+    print(f"\n{BOLD}⏳ Waiting on Others{NC}")
+    items = storage.list_items(labels=["status/waiting"], limit=10)
+    if items:
+        for item in items:
+            print(format_item(item))
+    else:
+        print("  (none)")
+
+    # 5. Inbox check
+    inbox = storage.list_inbox()
+    if inbox:
+        print(f"\n{YELLOW}📥 Inbox has {len(inbox)} items to clarify{NC}")
+
+    print()
+    return 0
+
+
+def cmd_weekly(args) -> int:
+    """Weekly review workflow."""
+    storage = get_storage(args.repo)
+
+    print(f"\n{BLUE}📅 Weekly Review{NC}")
+    print("=" * 40)
+
+    # 1. Process inbox
+    inbox = storage.list_inbox()
+    print(f"\n{BOLD}1. Process Inbox ({len(inbox)} items){NC}")
+    if inbox:
+        for item in inbox:
+            print(f"  #{item.id} {item.title}")
+        print(f"\n  Run {BOLD}gtd clarify <id>{NC} for each item.")
+    else:
+        print(f"  {GREEN}✓{NC} Inbox is empty!")
+
+    # 2. Review active items
+    print(f"\n{BOLD}2. Active Items (status/active){NC}")
+    items = storage.list_items(labels=["status/active"], limit=20)
+    if items:
+        for item in items:
+            print(format_item(item, show_labels=True))
+    else:
+        print("  (none)")
+
+    # 3. Review waiting items
+    print(f"\n{BOLD}3. Waiting For (status/waiting){NC}")
+    items = storage.list_items(labels=["status/waiting"], limit=10)
+    if items:
+        for item in items:
+            print(format_item(item))
+    else:
+        print("  (none)")
+
+    # 4. Review projects
+    print(f"\n{BOLD}4. Projects (horizon/project){NC}")
+    items = storage.list_items(labels=["horizon/project"], limit=10)
+    if items:
+        for item in items:
+            print(format_item(item))
+        print("\n  Ensure each project has at least one active action!")
+    else:
+        print("  (none)")
+
+    # 5. Review someday/maybe
+    print(f"\n{BOLD}5. Someday/Maybe (status/someday){NC}")
+    items = storage.list_items(labels=["status/someday"], limit=5)
+    # Exclude inbox items
+    items = [item for item in items if not item.is_inbox]
+    if items:
+        for item in items:
+            print(format_item(item))
+        print(f"  ... run {BOLD}gtd list --status someday{NC} for full list")
+    else:
+        print("  (none)")
+
+    print()
+    return 0
+
+
+def cmd_setup(args) -> int:
+    """Run setup for the storage backend."""
+    storage = get_storage(args.repo, ensure_setup=False)
+
+    if args.check:
+        # Just check status
+        if storage.is_setup():
+            print(f"{GREEN}✓{NC} GTD storage is set up and ready.")
+            return 0
+        else:
+            print(f"{YELLOW}⚠{NC} GTD storage needs setup. Run {BOLD}./gtd setup{NC}")
+            return 1
+
+    # Run setup
+    if storage.is_setup() and not args.force:
+        print(f"{GREEN}✓{NC} GTD storage is already set up.")
+        print(f"  Use {BOLD}--force{NC} to recreate labels.")
+        return 0
+
+    print(f"{BLUE}Setting up GTD storage...{NC}\n")
+    storage.setup(verbose=True)
+    return 0
+
+
+def cmd_projects(args) -> int:
+    """List all projects with progress."""
+    storage = get_storage(args.repo)
+
+    print(f"\n{BLUE}📊 Projects{NC}")
+    print("=" * 40)
+
+    # Get milestones (projects)
+    milestones = storage.list_milestones(state=args.state)
+
+    if not milestones:
+        print("\nNo projects found.")
+        print(f"\nCreate one with: {BOLD}gtd add 'Project Name' --horizon project{NC}")
+        return 0
+
+    for m in milestones:
+        title = m.get("title", "Untitled")
+        open_issues = m.get("open_issues", 0)
+        closed_issues = m.get("closed_issues", 0)
+        total = open_issues + closed_issues
+
+        if total > 0:
+            pct = int((closed_issues / total) * 100)
+            bar_len = 20
+            filled = int(bar_len * closed_issues / total)
+            bar = "█" * filled + "░" * (bar_len - filled)
+            print(f"\n  {BOLD}{title}{NC}")
+            print(f"    [{bar}] {pct}% ({closed_issues}/{total})")
+        else:
+            print(f"\n  {BOLD}{title}{NC}")
+            print("    No actions yet")
+
+        if m.get("due_on"):
+            due = m["due_on"][:10]  # Just the date part
+            print(f"    Due: {due}")
+
+    print()
+    return 0
+
+
+def cmd_quarterly(args) -> int:
+    """Quarterly review workflow."""
+    storage = get_storage(args.repo)
+
+    print(f"\n{BLUE}🗓️  Quarterly Review{NC}")
+    print("=" * 40)
+
+    # 1. Review goals
+    print(f"\n{BOLD}1. Goals (horizon/goal){NC}")
+    goals = storage.list_items(labels=["horizon/goal"], limit=20)
+    if goals:
+        for item in goals:
+            print(format_item(item, show_labels=True))
+        print("\n  Are these still relevant? Any progress?")
+    else:
+        print("  No goals defined.")
+        print(f"  Create goals with: {BOLD}gtd add 'Goal' --horizon goal{NC}")
+
+    # 2. Review projects
+    print(f"\n{BOLD}2. Projects (horizon/project){NC}")
+    projects = storage.list_items(labels=["horizon/project"], limit=20)
+    if projects:
+        for item in projects:
+            print(format_item(item, show_labels=True))
+        print("\n  Which projects should continue? Close completed ones.")
+    else:
+        print("  No active projects.")
+
+    # 3. Project progress
+    print(f"\n{BOLD}3. Project Progress{NC}")
+    milestones = storage.list_milestones()
+    if milestones:
+        for m in milestones:
+            title = m.get("title", "Untitled")
+            open_issues = m.get("open_issues", 0)
+            closed_issues = m.get("closed_issues", 0)
+            total = open_issues + closed_issues
+            if total > 0:
+                pct = int((closed_issues / total) * 100)
+                print(f"  {title}: {pct}% ({closed_issues}/{total})")
+            else:
+                print(f"  {title}: No actions")
+    else:
+        print("  No milestones/projects to review.")
+
+    # 4. Someday/Maybe items
+    print(f"\n{BOLD}4. Someday/Maybe Review{NC}")
+    someday = storage.list_items(labels=["status/someday"], limit=10)
+    someday = [item for item in someday if not item.is_inbox]
+    if someday:
+        for item in someday:
+            print(format_item(item))
+        print("\n  Move any to active? Delete stale items?")
+    else:
+        print("  (none)")
+
+    # 5. Prompts
+    print(f"\n{BOLD}5. Reflection Questions{NC}")
+    print("  • What did I accomplish this quarter?")
+    print("  • What didn't get done? Why?")
+    print("  • What do I want to focus on next quarter?")
+    print("  • Are my goals still aligned with my vision?")
+
+    print()
+    return 0
+
+
+def cmd_yearly(args) -> int:
+    """Yearly review workflow."""
+    storage = get_storage(args.repo)
+
+    print(f"\n{BLUE}🎯 Yearly Review{NC}")
+    print("=" * 40)
+
+    # 1. Review goals
+    print(f"\n{BOLD}1. Goals (horizon/goal){NC}")
+    goals = storage.list_items(labels=["horizon/goal"], state="all", limit=30)
+    open_goals = [g for g in goals if g.state == "open"]
+    closed_goals = [g for g in goals if g.state == "closed"]
+
+    if closed_goals:
+        print(f"\n  {GREEN}Completed goals:{NC}")
+        for item in closed_goals:
+            print(f"    ✓ #{item.id} {item.title}")
+
+    if open_goals:
+        print("\n  Open goals:")
+        for item in open_goals:
+            print(format_item(item))
+
+    # 2. Projects completed
+    print(f"\n{BOLD}2. Projects Completed{NC}")
+    milestones = storage.list_milestones(state="closed")
+    if milestones:
+        for m in milestones:
+            title = m.get("title", "Untitled")
+            closed_issues = m.get("closed_issues", 0)
+            print(f"  ✓ {title} ({closed_issues} actions completed)")
+    else:
+        print("  No closed milestones this year.")
+
+    # 3. Higher horizons prompts
+    print(f"\n{BOLD}3. Higher Horizons Review{NC}")
+    print(f"  See {BOLD}references/horizons.md{NC} for your:")
+    print("  • Areas of Focus (H2)")
+    print("  • Vision (H4)")
+    print("  • Purpose & Principles (H5)")
+
+    # 4. Reflection questions
+    print(f"\n{BOLD}4. Yearly Reflection Questions{NC}")
+    print("  • What were my biggest wins this year?")
+    print("  • What lessons did I learn?")
+    print("  • What do I want to accomplish next year?")
+    print("  • Is my vision still inspiring?")
+    print("  • Are my areas of focus balanced?")
+
+    # 5. Next year setup
+    print(f"\n{BOLD}5. Set Up Next Year{NC}")
+    print("  1. Archive or close completed goals")
+    print("  2. Create new goals for next year")
+    print("  3. Define projects to achieve those goals")
+    print(f"  Example: {BOLD}gtd add 'Achieve Python mastery' --horizon goal{NC}")
+
+    print()
+    return 0
+
+
+# Project management commands
+
+
+def cmd_project_list(args) -> int:
+    """List all projects with progress."""
+    # Reuse existing projects command logic
+    return cmd_projects(args)
+
+
+def cmd_project_show(args) -> int:
+    """Show project details and its actions."""
+    storage = get_storage(args.repo)
+    title = " ".join(args.title) if isinstance(args.title, list) else args.title
+
+    milestone = storage.get_milestone(title)
+    if not milestone:
+        print(f"{RED}Error:{NC} Project '{title}' not found.")
+        return 1
+
+    # Display project info
+    print(f"\n{BLUE}📊 Project: {BOLD}{milestone.get('title')}{NC}")
+    print("=" * 40)
+
+    if milestone.get("description"):
+        print(f"\n{milestone.get('description')}")
+
+    if milestone.get("due_on"):
+        due = milestone["due_on"][:10]
+        print(f"\nDue: {due}")
+
+    # Progress
+    open_issues = milestone.get("open_issues", 0)
+    closed_issues = milestone.get("closed_issues", 0)
+    total = open_issues + closed_issues
+
+    if total > 0:
+        pct = int((closed_issues / total) * 100)
+        bar_len = 20
+        filled = int(bar_len * closed_issues / total)
+        bar = "█" * filled + "░" * (bar_len - filled)
+        print(f"\nProgress: [{bar}] {pct}% ({closed_issues}/{total})")
+    else:
+        print("\nNo actions yet")
+
+    # List actions in this project
+    print(f"\n{BOLD}Actions:{NC}")
+    items = storage.list_items(project=title, state="all", limit=50)
+    if items:
+        open_items = [i for i in items if i.state == "open"]
+        closed_items = [i for i in items if i.state == "closed"]
+
+        if open_items:
+            print(f"\n  {YELLOW}Open ({len(open_items)}):{NC}")
+            for item in open_items:
+                print(format_item(item, show_labels=True))
+
+        if closed_items:
+            print(f"\n  {GREEN}Completed ({len(closed_items)}):{NC}")
+            for item in closed_items[:5]:  # Show last 5 completed
+                print(f"    ✓ #{item.id} {item.title}")
+            if len(closed_items) > 5:
+                print(f"    ... and {len(closed_items) - 5} more")
+    else:
+        print("  (none)")
+
+    print()
+    return 0
+
+
+def cmd_project_create(args) -> int:
+    """Create a new project."""
+    storage = get_storage(args.repo)
+    title = " ".join(args.title)
+
+    # Check if already exists
+    existing = storage.get_milestone(title)
+    if existing:
+        print(f"{YELLOW}⚠{NC} Project '{title}' already exists.")
+        return 1
+
+    milestone = storage.create_milestone(
+        title=title,
+        description=args.desc,
+        due_on=args.due,
+    )
+    print(f"{GREEN}✓{NC} Created project: {milestone.get('title')}")
+    if args.due:
+        print(f"  Due: {args.due}")
+    return 0
+
+
+def cmd_project_update(args) -> int:
+    """Update a project."""
+    storage = get_storage(args.repo)
+    title = " ".join(args.title) if isinstance(args.title, list) else args.title
+
+    # Check if any update was requested
+    if not any([args.desc, args.due, args.state, args.rename]):
+        print(
+            f"{YELLOW}⚠{NC} No updates specified. Use --desc, --due, "
+            f"--state, or --rename."
+        )
+        return 1
+
+    # If renaming, we need special handling (GitHub API doesn't rename directly)
+    if args.rename:
+        milestone = storage.get_milestone(title)
+        if not milestone:
+            print(f"{RED}Error:{NC} Project '{title}' not found.")
+            return 1
+        # Update title via PATCH
+        number = milestone.get("number")
+        storage._run_gh(
+            [
+                "api",
+                f"repos/:owner/:repo/milestones/{number}",
+                "-X",
+                "PATCH",
+                "-f",
+                f"title={args.rename}",
+            ]
+        )
+        print(f"{GREEN}✓{NC} Renamed project: {title} → {args.rename}")
+        title = args.rename  # Use new name for further updates
+
+    result = storage.update_milestone(
+        title,
+        description=args.desc,
+        due_on=args.due,
+        state=args.state,
+    )
+
+    if not result:
+        print(f"{RED}Error:{NC} Project '{title}' not found.")
+        return 1
+
+    print(f"{GREEN}✓{NC} Updated project: {title}")
+    if args.desc:
+        print("  Description updated")
+    if args.due:
+        print(f"  Due: {args.due}")
+    if args.state:
+        print(f"  State: {args.state}")
+    return 0
+
+
+def cmd_project_delete(args) -> int:
+    """Delete a project."""
+    storage = get_storage(args.repo)
+    title = " ".join(args.title) if isinstance(args.title, list) else args.title
+
+    milestone = storage.get_milestone(title)
+    if not milestone:
+        print(f"{RED}Error:{NC} Project '{title}' not found.")
+        return 1
+
+    open_issues = milestone.get("open_issues", 0)
+
+    # Warn if there are open issues
+    if open_issues > 0 and not args.force:
+        print(f"{YELLOW}⚠{NC} Project '{title}' has {open_issues} open action(s).")
+        print(f"  Use {BOLD}--force{NC} to delete anyway.")
+        print("  (Actions will be unassigned from the project, not deleted)")
+        return 1
+
+    if storage.delete_milestone(title):
+        print(f"{GREEN}✓{NC} Deleted project: {title}")
+        if open_issues > 0:
+            print(f"  {open_issues} action(s) are now unassigned")
+        return 0
+    else:
+        print(f"{RED}Error:{NC} Failed to delete project.")
+        return 1
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="GTD CLI - Getting Things Done task management",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--repo", help="GitHub repo (owner/repo)")
+
+    subparsers = parser.add_subparsers(dest="command", help="Command to run")
+
+    # capture
+    p = subparsers.add_parser("capture", help="Quick capture to inbox")
+    p.add_argument("text", nargs="+", help="Text to capture")
+    p.add_argument("--body", "-b", help="Additional notes")
+    p.set_defaults(func=cmd_capture)
+
+    # inbox
+    p = subparsers.add_parser("inbox", help="List inbox items needing clarification")
+    p.set_defaults(func=cmd_inbox)
+
+    # clarify
+    p = subparsers.add_parser("clarify", help="Clarify an inbox item")
+    p.add_argument("id", help="Issue number")
+    p.set_defaults(func=cmd_clarify)
+
+    # add
+    p = subparsers.add_parser("add", help="Add a clarified task")
+    p.add_argument("title", nargs="+", help="Task title")
+    p.add_argument("--body", "-b", help="Task body")
+    p.add_argument("--context", "-c", choices=CONTEXTS, help="Context")
+    p.add_argument("--energy", "-e", choices=ENERGIES, help="Energy level")
+    p.add_argument(
+        "--status", "-s", choices=STATUSES, help="Status (active/waiting/someday)"
+    )
+    p.add_argument(
+        "--horizon", "-H", choices=HORIZONS, help="Horizon (action/project/goal)"
+    )
+    p.add_argument(
+        "--project", "-p", help="Project to assign this to (e.g., 'Launch MVP')"
+    )
+    p.set_defaults(func=cmd_add)
+
+    # list
+    p = subparsers.add_parser("list", help="List tasks")
+    p.add_argument("--context", "-c", choices=CONTEXTS, help="Filter by context")
+    p.add_argument("--energy", "-e", choices=ENERGIES, help="Filter by energy")
+    p.add_argument("--status", "-s", choices=STATUSES, help="Filter by status")
+    p.add_argument("--horizon", "-H", choices=HORIZONS, help="Filter by horizon")
+    p.add_argument("--project", "-p", help="Filter by project")
+    p.add_argument(
+        "--state", choices=["open", "closed", "all"], default="open", help="Issue state"
+    )
+    p.add_argument("--limit", "-l", type=int, default=100, help="Max items")
+    p.add_argument("--raw", "-r", action="store_true", help="Raw list (no grouping)")
+    p.add_argument("--verbose", "-v", action="store_true", help="Show debug output")
+    p.set_defaults(func=cmd_list)
+
+    # done
+    p = subparsers.add_parser("done", help="Mark task complete")
+    p.add_argument("id", help="Issue number")
+    p.set_defaults(func=cmd_done)
+
+    # daily
+    p = subparsers.add_parser("daily", help="Daily review")
+    p.set_defaults(func=cmd_daily)
+
+    # weekly
+    p = subparsers.add_parser("weekly", help="Weekly review")
+    p.set_defaults(func=cmd_weekly)
+
+    # setup
+    p = subparsers.add_parser("setup", help="Set up storage backend (create labels)")
+    p.add_argument("--check", action="store_true", help="Check if setup is needed")
+    p.add_argument("--force", "-f", action="store_true", help="Force recreate labels")
+    p.set_defaults(func=cmd_setup)
+
+    # projects
+    p = subparsers.add_parser("projects", help="List all projects with progress")
+    p.add_argument(
+        "--state", "-s", choices=["open", "closed", "all"], default="open", help="State"
+    )
+    p.set_defaults(func=cmd_projects)
+
+    # quarterly
+    p = subparsers.add_parser("quarterly", help="Quarterly review")
+    p.set_defaults(func=cmd_quarterly)
+
+    # yearly
+    p = subparsers.add_parser("yearly", help="Yearly review")
+    p.set_defaults(func=cmd_yearly)
+
+    # project command group
+    project_parser = subparsers.add_parser(
+        "project", help="Manage projects (milestones)"
+    )
+    project_sub = project_parser.add_subparsers(
+        dest="project_command", help="Project command"
+    )
+
+    # project list
+    p = project_sub.add_parser("list", help="List projects with progress")
+    p.add_argument(
+        "--state",
+        "-s",
+        choices=["open", "closed", "all"],
+        default="open",
+        help="State filter",
+    )
+    p.set_defaults(func=cmd_project_list)
+
+    # project show
+    p = project_sub.add_parser("show", help="Show project details and actions")
+    p.add_argument("title", nargs="+", help="Project title")
+    p.set_defaults(func=cmd_project_show)
+
+    # project create
+    p = project_sub.add_parser("create", help="Create a new project")
+    p.add_argument("title", nargs="+", help="Project title")
+    p.add_argument("--desc", "-d", help="Project description")
+    p.add_argument("--due", help="Due date (YYYY-MM-DDTHH:MM:SSZ or YYYY-MM-DD)")
+    p.set_defaults(func=cmd_project_create)
+
+    # project update
+    p = project_sub.add_parser("update", help="Update a project")
+    p.add_argument("title", nargs="+", help="Project title")
+    p.add_argument("--desc", "-d", help="New description")
+    p.add_argument("--due", help="New due date")
+    p.add_argument("--state", choices=["open", "closed"], help="New state")
+    p.add_argument("--rename", help="Rename project to this title")
+    p.set_defaults(func=cmd_project_update)
+
+    # project delete
+    p = project_sub.add_parser("delete", help="Delete a project")
+    p.add_argument("title", nargs="+", help="Project title")
+    p.add_argument(
+        "--force", "-f", action="store_true", help="Delete even with open actions"
+    )
+    p.set_defaults(func=cmd_project_delete)
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        return 1
+
+    # Handle 'project' without subcommand - show help
+    if args.command == "project" and not args.project_command:
+        project_parser.print_help()
+        return 1
+
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,12 +1,12 @@
-# GTD Label Taxonomy
+<critical_rule>
+This is a CLOSED taxonomy - do NOT create new labels!
 
-Complete reference for the 6-dimensional label system.
-
-**⚠️ CRITICAL: This is a CLOSED taxonomy - do NOT create new labels!**
-
-- The 26 labels below are the complete, fixed set
+- The 12 labels below are the complete, fixed set
 - If you need a label that doesn't exist, choose the closest existing one
 - If truly uncertain, ASK THE USER before creating anything
+</critical_rule>
+
+<context_labels>
 
 ## Context Labels (Work Mode)
 
@@ -21,19 +21,22 @@ Based on actual work patterns - how you choose what to work on:
 
 ```bash
 # Morning: What can I do in my focus block?
-gh issue list --label "context/focus" --label "horizon/now"
+./gtd list --context focus --status active
 
 # Afternoon: What's between meetings?
-gh issue list --label "context/async" --label "horizon/now"
+./gtd list --context async --status active
 
 # Before travel: What needs prep?
-gh issue list --label "context/offsite"
+./gtd list --context offsite
 ```
 
 **Combinations:** Issues can have multiple contexts if they fit different modes
 
 - `context/focus` + `context/async` = Can do in focus time OR asynchronously
 - `context/offsite` + `context/focus` = Travel prep that needs deep thinking
+</context_labels>
+
+<energy_labels>
 
 ## Energy Labels (Cognitive Load)
 
@@ -46,114 +49,137 @@ Not about time, but about mental overhead required:
 
 ```bash
 # Morning when fresh: Show heavy lifting
-gh issue list --label "context/focus" --label "energy/high"
+./gtd list --context focus --energy high
 
 # Between meetings when fragmented: Show light tasks
-gh issue list --label "context/async" --label "energy/low"
+./gtd list --context async --energy low
 
 # End of day, low energy: What's quick?
-gh issue list --label "energy/low" --state open
+./gtd list --energy low
 ```
 
-**Why separate from priority:**
+**Why separate from status:**
 
-- Priority = urgency/importance
+- Status = state in workflow (ready, blocked, deferred)
 - Energy = mental effort required
-- They're independent: urgent admin task = `priority/high` + `energy/low`
+- They're independent: ready admin task = `status/active` + `energy/low`
 
 **Examples:**
 
 - `energy/high`: Design plugin architecture, write RFE, complex JIRA epic breakdown
 - `energy/low`: Approve PR, update JIRA status, quick Slack reply, Workday entries
+</energy_labels>
 
-## Horizon Labels (GTD Time)
+<status_labels>
 
-- `horizon/now` - Next actions (this week)
-- `horizon/soon` - Upcoming (this month)
-- `horizon/later` - Someday/maybe
-- `horizon/waiting` - Waiting for others
+## Status Labels (GTD Workflow State)
 
-**Usage:** Plan weekly work, defer non-urgent tasks
+Where the item is in your GTD workflow:
 
-```bash
-# Weekly planning
-gh issue list --label "horizon/now,horizon/soon" --state open
-```
+- `status/active` - Next action, ready to work on
+- `status/waiting` - Blocked on someone else, delegated
+- `status/someday` - Not committed, maybe later (also used for inbox/unclarified)
 
-## Area Labels (PARA-aligned)
-
-- `area/career` - Career development, quarterly reviews
-- `area/architecture` - Technical architecture work
-- `area/plugins` - Plugin ecosystem work
-- `area/customers` - Customer engagements (Ford, Citi)
-- `area/ai-tooling` - AI initiatives (Sidekick, etc.)
-- `area/documentation` - Documentation projects
-- `area/team` - Team leadership, mentorship
-- `area/process` - Engineering processes, release mgmt
-
-**Usage:** Group work by responsibility area
+**Usage:** Plan weekly work, track blocked items
 
 ```bash
-# What's happening in the plugins area?
-gh issue list --label "area/plugins" --state open
+# What can I work on right now?
+./gtd list --status active
+
+# What am I waiting for?
+./gtd list --status waiting
+
+# Weekly review: check someday/maybe
+./gtd list --status someday
 ```
 
-## Priority Labels
+**Note:** These replace the old `horizon/now`, `horizon/soon`, `horizon/later`, `horizon/waiting` labels. The key insight is that GTD doesn't use "soon" - something is either actionable now or it's someday/maybe.
+</status_labels>
 
-- `priority/urgent` - 🔥 Must do this week
-- `priority/high` - Important, schedule soon
-- `priority/normal` - Regular priority
-- `priority/low` - Nice to have
+<horizon_labels>
 
-**Usage:** Focus on high-impact work
+## Horizon Labels (GTD Altitude)
+
+What *level* of commitment this represents (from David Allen's 6 Horizons of Focus):
+
+- `horizon/action` - Ground level: single next physical action
+- `horizon/project` - H1: multi-action outcome (1-12 months)
+- `horizon/goal` - H3: 1-2 year objective
+
+**Usage:** Distinguish actions from projects from goals
 
 ```bash
-# Show only urgent/high priority
-gh issue list --label "priority/urgent,priority/high"
+# What are my current projects?
+./gtd list --horizon project
+
+# What goals am I working toward?
+./gtd list --horizon goal
+
+# What's the next action for a project?
+./gtd list --horizon action --project "Launch sidekick MVP"
 ```
 
-## Type Labels
+**Higher horizons (H2, H4, H5):** Areas of Focus, Vision, and Purpose are documented in `horizons.md`, not tracked as labels. They're reviewed quarterly/yearly, not daily.
 
-- `type/project` - Multi-step project (epic-level)
-- `type/task` - Single actionable task
-- `type/achievement` - Completed work worth tracking for career
-- `type/blocked` - Can't proceed, needs unblocking
+**Projects:**
 
-**Usage:** Filter by work type, extract achievements
+When you create a `horizon/project` item, a project grouping is auto-created. Actions belonging to that project get the project assigned:
 
 ```bash
-# Show all achievements for Q4 career review
-gh issue list --label "type/achievement" --milestone "Q4-2025" --state all
+# Create a project (outcome-focused name)
+./gtd add "Launch sidekick MVP" --horizon project
+
+# Add actions to the project
+./gtd add "Write user documentation" --horizon action --project "Launch sidekick MVP"
 ```
+
+</horizon_labels>
+
+<combinations>
 
 ## Powerful Label Combinations
 
 **Morning deep work:**
 
 ```bash
-gh issue list --label "context/focus,energy/high,horizon/now"
+./gtd list --context focus --energy high --status active
 ```
 
 **Quick tasks between meetings:**
 
 ```bash
-gh issue list --label "context/async,energy/low"
+./gtd list --context async --energy low --status active
 ```
 
 **Offsite preparation:**
 
 ```bash
-gh issue list --label "context/offsite"
+./gtd list --context offsite --status active
 ```
 
-**This week's priorities:**
+**Weekly review - check waiting items:**
 
 ```bash
-gh issue list --label "horizon/now,priority/high"
+./gtd list --status waiting
 ```
 
-**Career achievements:**
+**Quarterly review - check projects:**
 
 ```bash
-gh issue list --label "type/achievement" --milestone "Q4-2025"
+./gtd projects
 ```
+
+</combinations>
+
+<label_summary>
+
+## Complete Label List (12 labels)
+
+| Dimension | Labels |
+|-----------|--------|
+| Context | focus, meetings, async, offsite |
+| Energy | high, low |
+| Status | active, waiting, someday |
+| Horizon | action, project, goal |
+
+</label_summary>
