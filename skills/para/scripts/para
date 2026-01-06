@@ -34,7 +34,15 @@ PARA_FOLDERS = {
 
 
 def load_config() -> dict:
-    """Load config from ~/.config/para/config.toml."""
+    """Load config from ~/.config/para/config.toml.
+
+    Config structure:
+        para_root = "/default/para/path"  # Global default
+
+        [repos]
+        "/path/to/repo-a" = "/path/to/para-for-a"
+        "/path/to/repo-b" = "/path/to/para-for-b"
+    """
     if not CONFIG_FILE.exists():
         return {}
 
@@ -43,16 +51,28 @@ def load_config() -> dict:
     if tomllib:
         return tomllib.loads(content)
 
-    # Fallback: simple TOML parsing for para_root only
+    # Fallback: simple TOML parsing
     config = {}
+    current_section = None
     for line in content.splitlines():
         line = line.strip()
-        if line.startswith("#") or "=" not in line:
+        if line.startswith("#") or not line:
+            continue
+        # Section header
+        if line.startswith("[") and line.endswith("]"):
+            current_section = line[1:-1]
+            if current_section not in config:
+                config[current_section] = {}
+            continue
+        if "=" not in line:
             continue
         key, value = line.split("=", 1)
-        key = key.strip()
+        key = key.strip().strip('"').strip("'")
         value = value.strip().strip('"').strip("'")
-        config[key] = value
+        if current_section:
+            config[current_section][key] = value
+        else:
+            config[key] = value
     return config
 
 
@@ -60,27 +80,103 @@ def save_config(config: dict) -> None:
     """Save config to ~/.config/para/config.toml."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     lines = ["# PARA CLI configuration\n"]
+
+    # Write top-level keys first
     for key, value in config.items():
-        lines.append(f'{key} = "{value}"\n')
+        if not isinstance(value, dict):
+            lines.append(f'{key} = "{value}"\n')
+
+    # Write sections
+    for key, value in config.items():
+        if isinstance(value, dict):
+            lines.append(f"\n[{key}]\n")
+            for k, v in value.items():
+                lines.append(f'"{k}" = "{v}"\n')
+
     CONFIG_FILE.write_text("".join(lines))
+
+
+def find_git_root() -> Path | None:
+    """Find the root of the current git repository."""
+    cwd = Path.cwd()
+    for path in [cwd] + list(cwd.parents):
+        if (path / ".git").exists():
+            return path
+    return None
+
+
+def load_local_config(repo_root: Path) -> dict:
+    """Load .para.toml from repo root if it exists.
+
+    Local config structure:
+        para_root = "/path/to/para/for/this/repo"
+    """
+    local_config = repo_root / ".para.toml"
+    if not local_config.exists():
+        return {}
+
+    content = local_config.read_text()
+
+    if tomllib:
+        return tomllib.loads(content)
+
+    # Fallback: simple parsing
+    config = {}
+    for line in content.splitlines():
+        line = line.strip()
+        if line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        config[key.strip()] = value.strip().strip('"').strip("'")
+    return config
 
 
 def find_para_root() -> Path | None:
     """Find the PARA root directory.
 
-    Priority:
-    1. Config file (~/.config/para/config.toml) if para_root is set
-    2. Auto-discovery: walk up from cwd looking for PARA folders
+    Resolution order:
+    1. Local .para.toml in current git repo root
+    2. [repos] mapping in global config (longest prefix match)
+    3. Global para_root in config
+    4. Auto-discovery: walk up from cwd looking for PARA folders
     """
-    # Check config first
+    cwd = Path.cwd()
     config = load_config()
+
+    # 1. Check for local .para.toml in git repo
+    git_root = find_git_root()
+    if git_root:
+        local_config = load_local_config(git_root)
+        if "para_root" in local_config:
+            configured_path = Path(local_config["para_root"]).expanduser()
+            if configured_path.exists():
+                return configured_path
+
+    # 2. Check [repos] mapping (longest prefix match)
+    repos = config.get("repos", {})
+    if repos and git_root:
+        git_root_str = str(git_root)
+        # Find longest matching prefix
+        best_match = None
+        best_len = 0
+        for repo_path, para_path in repos.items():
+            repo_path_expanded = str(Path(repo_path).expanduser())
+            if git_root_str.startswith(repo_path_expanded):
+                if len(repo_path_expanded) > best_len:
+                    best_match = para_path
+                    best_len = len(repo_path_expanded)
+        if best_match:
+            configured_path = Path(best_match).expanduser()
+            if configured_path.exists():
+                return configured_path
+
+    # 3. Check global para_root
     if "para_root" in config:
         configured_path = Path(config["para_root"]).expanduser()
         if configured_path.exists():
             return configured_path
 
-    # Fallback: auto-discovery from cwd
-    cwd = Path.cwd()
+    # 4. Fallback: auto-discovery from cwd
     for path in [cwd] + list(cwd.parents):
         if (path / PARA_FOLDERS["projects"]).exists() or (
             path / PARA_FOLDERS["areas"]
@@ -210,7 +306,7 @@ def cmd_config(args) -> int:
     """Show or set PARA configuration."""
     config = load_config()
 
-    # Set para_root
+    # Set para_root (global default)
     if args.set_root:
         path = Path(args.set_root).expanduser().resolve()
         if not path.exists():
@@ -231,22 +327,79 @@ def cmd_config(args) -> int:
             print(f"{YELLOW}Note:{NC} para_root was not set")
         return 0
 
+    # Set repo mapping
+    if args.set_repo:
+        repo_path, para_path = args.set_repo
+        repo_path = str(Path(repo_path).expanduser().resolve())
+        para_path_resolved = Path(para_path).expanduser().resolve()
+        if not para_path_resolved.exists():
+            print(f"{RED}Error:{NC} PARA path does not exist: {para_path_resolved}")
+            return 1
+        if "repos" not in config:
+            config["repos"] = {}
+        config["repos"][repo_path] = str(para_path_resolved)
+        save_config(config)
+        print(f"{GREEN}✓{NC} Mapped repo {repo_path}")
+        print(f"         → {para_path_resolved}")
+        return 0
+
+    # Unset repo mapping
+    if args.unset_repo:
+        repo_path = str(Path(args.unset_repo).expanduser().resolve())
+        repos = config.get("repos", {})
+        if repo_path in repos:
+            del repos[repo_path]
+            if not repos:
+                del config["repos"]
+            save_config(config)
+            print(f"{GREEN}✓{NC} Removed mapping for {repo_path}")
+        else:
+            print(f"{YELLOW}Note:{NC} No mapping found for {repo_path}")
+        return 0
+
     # Show config
     print(f"\n{BLUE}⚙️  PARA Config{NC}")
     print(f"Config file: {CONFIG_FILE}")
     print("=" * 40)
 
-    if not config:
-        print(f"\n{YELLOW}No configuration set.{NC}")
-        print("Using auto-discovery from current directory.\n")
-        print(f"To set PARA root: {BOLD}para config --set-root /path/to/para{NC}")
+    # Global default
+    if "para_root" in config:
+        print(f"\n{BOLD}Default:{NC}")
+        print(f"  para_root = {config['para_root']}")
     else:
-        for key, value in config.items():
-            print(f"  {key} = {value}")
+        print(f"\n{YELLOW}No global default set.{NC}")
 
-    # Show current effective root
+    # Repo mappings
+    repos = config.get("repos", {})
+    if repos:
+        print(f"\n{BOLD}Repo mappings:{NC}")
+        for repo, para in repos.items():
+            print(f"  {repo}")
+            print(f"    → {para}")
+    else:
+        print(f"\n{YELLOW}No repo mappings.{NC}")
+
+    # Show resolution context
+    git_root = find_git_root()
+    print(f"\n{BOLD}Current context:{NC}")
+    print(f"  Git repo: {git_root or '(not in a git repo)'}")
+
+    if git_root:
+        local_config = load_local_config(git_root)
+        local_para = local_config.get("para_root")
+        if local_para:
+            print(f"  Local .para.toml: {local_para}")
+        else:
+            print("  Local .para.toml: (none)")
+
+    # Show effective root
     root = find_para_root()
-    print(f"\nEffective PARA root: {root or '(not found)'}")
+    print(f"\n{GREEN}Effective PARA root:{NC} {root or '(not found)'}")
+
+    if not config and not root:
+        print(f"\n{BOLD}Quick start:{NC}")
+        print(f"  Global default: {BOLD}para config --set-root /path/to/para{NC}")
+        print(f"  For this repo:  {BOLD}para config --set-repo . /path/to/para{NC}")
 
     return 0
 
@@ -490,9 +643,22 @@ def main():
 
     # config
     p_config = subparsers.add_parser("config", help="Show or set PARA configuration")
-    p_config.add_argument("--set-root", metavar="PATH", help="Set PARA root directory")
     p_config.add_argument(
-        "--unset-root", action="store_true", help="Remove para_root from config"
+        "--set-root", metavar="PATH", help="Set global default PARA root"
+    )
+    p_config.add_argument(
+        "--unset-root", action="store_true", help="Remove global para_root from config"
+    )
+    p_config.add_argument(
+        "--set-repo",
+        nargs=2,
+        metavar=("REPO", "PARA"),
+        help="Map a git repo to a PARA root (e.g., --set-repo . ~/Notes/work)",
+    )
+    p_config.add_argument(
+        "--unset-repo",
+        metavar="REPO",
+        help="Remove repo mapping (e.g., --unset-repo .)",
     )
     p_config.set_defaults(func=cmd_config)
 

@@ -62,10 +62,18 @@ If it exits non-zero or shows "Error: PARA root not configured", the user needs 
 
 1. Use `AskUserQuestion` to ask: "Where would you like to store your PARA files?"
    - Offer sensible options like `~/Notes`, `~/Documents/PARA`, or let them specify a custom path
+   - Ask if this should be the default for all projects or just this repo
 2. After getting the path, run:
 
    ```bash
-   ./.claude/skills/para/scripts/para init --path <user-specified-path> --save-config
+   # Initialize PARA structure
+   ./.claude/skills/para/scripts/para init --path <user-specified-path>
+
+   # Then save config (choose one):
+   # For this repo only:
+   ./.claude/skills/para/scripts/para config --set-repo . <user-specified-path>
+   # Or as global default:
+   ./.claude/skills/para/scripts/para config --set-root <user-specified-path>
    ```
 
 3. Then proceed to the intake menu.
@@ -108,6 +116,14 @@ PARA="./.claude/skills/para/scripts/para"
 # Show PARA structure status
 $PARA status
 
+# Show/manage configuration
+$PARA config
+
+# Configuration options:
+$PARA config --set-root ~/Notes           # Set global default
+$PARA config --set-repo . ~/Notes/work    # Map current repo → PARA location
+$PARA config --unset-repo .               # Remove repo mapping
+
 # Sync with GTD (shows mismatches)
 $PARA sync
 
@@ -123,6 +139,15 @@ $PARA project archive "Project-Name"
 # List projects (with GTD sync status)
 $PARA project list
 ```
+
+## Configuration Resolution
+
+PARA root is resolved in order:
+
+1. `.para.toml` in current git repo root (local override)
+2. `[repos]` mapping in `~/.config/para/config.toml` (per-repo)
+3. `para_root` in global config (default)
+4. Auto-discovery (walk up from cwd looking for PARA folders)
 
 ## Decision Tree
 
