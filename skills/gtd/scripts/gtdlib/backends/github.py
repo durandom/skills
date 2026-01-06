@@ -51,9 +51,6 @@ class GitHubStorage(GTDStorage):
         except json.JSONDecodeError:
             return []
 
-    # GTD label prefixes we manage
-    GTD_PREFIXES = ("context/", "energy/", "status/", "horizon/")
-
     def get_stale_labels(self) -> list[str]:
         """Find labels with GTD prefixes that aren't in the current taxonomy.
 
@@ -61,11 +58,12 @@ class GitHubStorage(GTDStorage):
         """
         existing = self._get_existing_labels()
         required = self.get_required_labels()
+        prefixes = self.get_label_prefixes()
 
         stale = []
         for label in existing:
             # Only consider labels with GTD prefixes
-            if any(label.startswith(prefix) for prefix in self.GTD_PREFIXES):
+            if any(label.startswith(prefix) for prefix in prefixes):
                 if label not in required:
                     stale.append(label)
         return sorted(stale)

@@ -111,6 +111,14 @@ class GTDStorage(ABC):
     }
 
     @classmethod
+    def get_label_prefixes(cls) -> tuple[str, ...]:
+        """Get GTD label prefixes (e.g., 'context/', 'energy/').
+
+        These are the prefixes that identify GTD-managed labels.
+        """
+        return tuple(f"{category}/" for category in cls.LABELS.keys())
+
+    @classmethod
     def get_all_labels(cls) -> list[str]:
         """Get flat list of all label names (e.g., 'context/focus')."""
         labels = []
