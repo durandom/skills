@@ -256,8 +256,8 @@ class GitHubStorage(GTDStorage):
 
         if labels:
             args.extend(["--label", ",".join(labels)])
-        if body:
-            args.extend(["--body", body])
+        # --body is required for non-interactive mode
+        args.extend(["--body", body or ""])
         if project:
             args.extend(["--milestone", project])  # project → milestone
 

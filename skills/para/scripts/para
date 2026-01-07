@@ -1,0 +1,1062 @@
+#!/usr/bin/env python3
+"""PARA CLI - Organize notes by actionability (Projects, Areas, Resources, Archive)."""
+
+import argparse
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+try:
+    import tomllib  # Python 3.11+ (project requires >=3.11)
+except ImportError:
+    tomllib = None  # Defensive fallback for manual TOML parsing
+
+# Config file location (XDG-compliant)
+CONFIG_DIR = Path.home() / ".config" / "para"
+CONFIG_FILE = CONFIG_DIR / "config.toml"
+
+# ANSI colors
+BLUE = "\033[0;34m"
+GREEN = "\033[0;32m"
+YELLOW = "\033[0;33m"
+RED = "\033[0;31m"
+BOLD = "\033[1m"
+NC = "\033[0m"  # No Color
+
+# PARA folder names
+PARA_FOLDERS = {
+    "projects": "1 Projects",
+    "areas": "2 Areas",
+    "resources": "3 Resources",
+    "archive": "4 Archive",
+}
+
+
+def load_config() -> dict:
+    """Load config from ~/.config/para/config.toml.
+
+    Config structure:
+        para_root = "/default/para/path"  # Global default
+
+        [repos]
+        "/path/to/repo-a" = "/path/to/para-for-a"
+        "/path/to/repo-b" = "/path/to/para-for-b"
+    """
+    if not CONFIG_FILE.exists():
+        return {}
+
+    content = CONFIG_FILE.read_text()
+
+    if tomllib:
+        return tomllib.loads(content)
+
+    # Fallback: simple TOML parsing
+    config = {}
+    current_section = None
+    for line in content.splitlines():
+        line = line.strip()
+        if line.startswith("#") or not line:
+            continue
+        # Section header
+        if line.startswith("[") and line.endswith("]"):
+            current_section = line[1:-1]
+            if current_section not in config:
+                config[current_section] = {}
+            continue
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip().strip('"').strip("'")
+        value = value.strip().strip('"').strip("'")
+        if current_section:
+            config[current_section][key] = value
+        else:
+            config[key] = value
+    return config
+
+
+def save_config(config: dict) -> None:
+    """Save config to ~/.config/para/config.toml."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    lines = ["# PARA CLI configuration\n"]
+
+    # Write top-level keys first
+    for key, value in config.items():
+        if not isinstance(value, dict):
+            lines.append(f'{key} = "{value}"\n')
+
+    # Write sections
+    for key, value in config.items():
+        if isinstance(value, dict):
+            lines.append(f"\n[{key}]\n")
+            for k, v in value.items():
+                lines.append(f'"{k}" = "{v}"\n')
+
+    CONFIG_FILE.write_text("".join(lines))
+
+
+def find_git_root() -> Path | None:
+    """Find the root of the current git repository."""
+    cwd = Path.cwd()
+    for path in [cwd] + list(cwd.parents):
+        if (path / ".git").exists():
+            return path
+    return None
+
+
+def load_local_config(repo_root: Path) -> dict:
+    """Load .para.toml from repo root if it exists.
+
+    Local config structure:
+        para_root = "/path/to/para/for/this/repo"
+    """
+    local_config = repo_root / ".para.toml"
+    if not local_config.exists():
+        return {}
+
+    content = local_config.read_text()
+
+    if tomllib:
+        return tomllib.loads(content)
+
+    # Fallback: simple parsing
+    config = {}
+    for line in content.splitlines():
+        line = line.strip()
+        if line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        config[key.strip()] = value.strip().strip('"').strip("'")
+    return config
+
+
+def find_para_root() -> Path | None:
+    """Find the PARA root directory.
+
+    Resolution order:
+    1. Local .para.toml in current git repo root
+    2. [repos] mapping in global config (longest prefix match)
+    3. Global para_root in config
+    4. Auto-discovery: walk up from cwd looking for PARA folders
+    """
+    cwd = Path.cwd()
+    config = load_config()
+
+    # 1. Check for local .para.toml in git repo
+    git_root = find_git_root()
+    if git_root:
+        local_config = load_local_config(git_root)
+        if "para_root" in local_config:
+            configured_path = Path(local_config["para_root"]).expanduser()
+            if configured_path.exists():
+                return configured_path
+
+    # 2. Check [repos] mapping (longest prefix match)
+    repos = config.get("repos", {})
+    if repos and git_root:
+        git_root_str = str(git_root)
+        # Find longest matching prefix
+        best_match = None
+        best_len = 0
+        for repo_path, para_path in repos.items():
+            repo_path_expanded = str(Path(repo_path).expanduser())
+            if git_root_str.startswith(repo_path_expanded):
+                if len(repo_path_expanded) > best_len:
+                    best_match = para_path
+                    best_len = len(repo_path_expanded)
+        if best_match:
+            configured_path = Path(best_match).expanduser()
+            if configured_path.exists():
+                return configured_path
+
+    # 3. Check global para_root
+    if "para_root" in config:
+        configured_path = Path(config["para_root"]).expanduser()
+        if configured_path.exists():
+            return configured_path
+
+    # 4. Fallback: auto-discovery from cwd
+    for path in [cwd] + list(cwd.parents):
+        if (path / PARA_FOLDERS["projects"]).exists() or (
+            path / PARA_FOLDERS["areas"]
+        ).exists():
+            return path
+    return None
+
+
+def prompt_for_para_root() -> Path | None:
+    """Interactively ask user for PARA root and optionally initialize."""
+    print(f"\n{BLUE}PARA Setup{NC}")
+    print("=" * 40)
+    print("No PARA folder structure found and no config set.\n")
+
+    try:
+        path_input = input("Enter PARA root directory (or 'q' to quit): ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return None
+
+    if not path_input or path_input.lower() == "q":
+        return None
+
+    root = Path(path_input).expanduser().resolve()
+
+    # Check if PARA structure exists there
+    has_structure = (root / PARA_FOLDERS["projects"]).exists() or (
+        root / PARA_FOLDERS["areas"]
+    ).exists()
+
+    if not has_structure:
+        if not root.exists():
+            try:
+                create = input("Directory doesn't exist. Create it? [Y/n]: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                return None
+            if create.lower() == "n":
+                return None
+            root.mkdir(parents=True, exist_ok=True)
+
+        # Initialize PARA structure
+        print(f"\n{BLUE}Initializing PARA structure...{NC}")
+        for key, folder in PARA_FOLDERS.items():
+            folder_path = root / folder
+            if not folder_path.exists():
+                folder_path.mkdir(parents=True)
+                index_path = folder_path / "_INDEX.md"
+                index_path.write_text(f"# {folder}\n\nIndex of {key}.\n")
+                print(f"  {GREEN}created:{NC} {folder}")
+
+    # Save to config
+    config = load_config()
+    config["para_root"] = str(root)
+    save_config(config)
+    print(f"\n{GREEN}✓{NC} Saved to {CONFIG_FILE}")
+
+    return root
+
+
+def get_para_root() -> Path:
+    """Get PARA root, prompt user if not found."""
+    root = find_para_root()
+    if not root:
+        root = prompt_for_para_root()
+        if not root:
+            print(f"\n{RED}Error:{NC} PARA root not configured.")
+            print(f"  Run {BOLD}para config --set-root /path/to/para{NC}")
+            sys.exit(1)
+    return root
+
+
+def get_gtd_cli() -> str | None:
+    """Find the GTD CLI script."""
+    # Look relative to this script
+    script_dir = Path(__file__).parent
+    gtd_path = script_dir.parent.parent / "gtd" / "scripts" / "gtd"
+    if gtd_path.exists():
+        return str(gtd_path)
+    return None
+
+
+def run_gtd(*args) -> subprocess.CompletedProcess:
+    """Run a GTD CLI command."""
+    gtd = get_gtd_cli()
+    if not gtd:
+        print(f"{RED}Error:{NC} GTD CLI not found.")
+        sys.exit(1)
+    return subprocess.run([gtd, *args], capture_output=True, text=True)
+
+
+def get_gtd_projects() -> list[str]:
+    """Get list of GTD project names (milestones)."""
+    result = run_gtd("project", "list", "--state", "open", "--format", "plain")
+    if result.returncode != 0:
+        return []
+
+    projects = []
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Filter out UI elements from GTD output
+        if line.startswith("="):  # Separator lines
+            continue
+        if line.startswith("No "):  # "No projects found"
+            continue
+        if line.startswith("["):  # Progress bars like [███░░░] 0%
+            continue
+        if line.startswith("📊"):  # Section headers
+            continue
+        if "%" in line and ("[" in line or "█" in line or "░" in line):
+            # Progress bar lines: "[███░░░] 50% (2/4)"
+            continue
+        if line == "No actions yet":  # Status messages
+            continue
+        # Extract project name (before parenthesis if present)
+        if "(" in line:
+            name = line.split("(")[0].strip()
+        else:
+            name = line
+        if name:
+            projects.append(name)
+    return projects
+
+
+def get_para_projects(root: Path) -> list[str]:
+    """Get list of PARA project folder names."""
+    projects_dir = root / PARA_FOLDERS["projects"]
+    if not projects_dir.exists():
+        return []
+
+    projects = []
+    for item in projects_dir.iterdir():
+        if item.is_dir() and not item.name.startswith("_"):
+            projects.append(item.name)
+    return sorted(projects)
+
+
+def cmd_config(args) -> int:
+    """Show or set PARA configuration."""
+    config = load_config()
+
+    # Set para_root (global default)
+    if args.set_root:
+        path = Path(args.set_root).expanduser().resolve()
+        if not path.exists():
+            print(f"{RED}Error:{NC} Path does not exist: {path}")
+            return 1
+        config["para_root"] = str(path)
+        save_config(config)
+        print(f"{GREEN}✓{NC} Set para_root = {path}")
+        return 0
+
+    # Unset para_root
+    if args.unset_root:
+        if "para_root" in config:
+            del config["para_root"]
+            save_config(config)
+            print(f"{GREEN}✓{NC} Removed para_root from config")
+        else:
+            print(f"{YELLOW}Note:{NC} para_root was not set")
+        return 0
+
+    # Set repo mapping
+    if args.set_repo:
+        repo_path, para_path = args.set_repo
+        repo_path = str(Path(repo_path).expanduser().resolve())
+        para_path_resolved = Path(para_path).expanduser().resolve()
+        if not para_path_resolved.exists():
+            print(f"{RED}Error:{NC} PARA path does not exist: {para_path_resolved}")
+            return 1
+        if "repos" not in config:
+            config["repos"] = {}
+        config["repos"][repo_path] = str(para_path_resolved)
+        save_config(config)
+        print(f"{GREEN}✓{NC} Mapped repo {repo_path}")
+        print(f"         → {para_path_resolved}")
+        return 0
+
+    # Unset repo mapping
+    if args.unset_repo:
+        repo_path = str(Path(args.unset_repo).expanduser().resolve())
+        repos = config.get("repos", {})
+        if repo_path in repos:
+            del repos[repo_path]
+            if not repos:
+                del config["repos"]
+            save_config(config)
+            print(f"{GREEN}✓{NC} Removed mapping for {repo_path}")
+        else:
+            print(f"{YELLOW}Note:{NC} No mapping found for {repo_path}")
+        return 0
+
+    # Show config
+    print(f"\n{BLUE}⚙️  PARA Config{NC}")
+    print(f"Config file: {CONFIG_FILE}")
+    print("=" * 40)
+
+    # Global default
+    if "para_root" in config:
+        print(f"\n{BOLD}Default:{NC}")
+        print(f"  para_root = {config['para_root']}")
+    else:
+        print(f"\n{YELLOW}No global default set.{NC}")
+
+    # Repo mappings
+    repos = config.get("repos", {})
+    if repos:
+        print(f"\n{BOLD}Repo mappings:{NC}")
+        for repo, para in repos.items():
+            print(f"  {repo}")
+            print(f"    → {para}")
+    else:
+        print(f"\n{YELLOW}No repo mappings.{NC}")
+
+    # Show resolution context
+    git_root = find_git_root()
+    print(f"\n{BOLD}Current context:{NC}")
+    print(f"  Git repo: {git_root or '(not in a git repo)'}")
+
+    if git_root:
+        local_config = load_local_config(git_root)
+        local_para = local_config.get("para_root")
+        if local_para:
+            print(f"  Local .para.toml: {local_para}")
+        else:
+            print("  Local .para.toml: (none)")
+
+    # Show effective root
+    root = find_para_root()
+    print(f"\n{GREEN}Effective PARA root:{NC} {root or '(not found)'}")
+
+    if not config and not root:
+        print(f"\n{BOLD}Quick start:{NC}")
+        print(f"  Global default: {BOLD}para config --set-root /path/to/para{NC}")
+        print(f"  For this repo:  {BOLD}para config --set-repo . /path/to/para{NC}")
+
+    return 0
+
+
+def cmd_init(args) -> int:
+    """Initialize PARA folder structure."""
+    root = Path(args.path).expanduser().resolve() if args.path else Path.cwd()
+
+    print(f"{BLUE}Initializing PARA structure in {root}{NC}")
+    print("=" * 40)
+
+    for key, folder in PARA_FOLDERS.items():
+        folder_path = root / folder
+        if folder_path.exists():
+            print(f"  {YELLOW}exists:{NC} {folder}")
+        else:
+            folder_path.mkdir(parents=True)
+            # Create index file
+            index_path = folder_path / "_INDEX.md"
+            index_path.write_text(f"# {folder}\n\nIndex of {key}.\n")
+            print(f"  {GREEN}created:{NC} {folder}")
+
+    # Save to config if requested
+    if args.save_config:
+        config = load_config()
+        config["para_root"] = str(root)
+        save_config(config)
+        print(f"{GREEN}✓{NC} Saved to {CONFIG_FILE}")
+
+    print(f"\n{GREEN}✓{NC} PARA structure ready.")
+    return 0
+
+
+def cmd_status(args) -> int:
+    """Show PARA structure status."""
+    # Use find_para_root() directly to avoid interactive prompt
+    root = find_para_root()
+    if not root:
+        print(f"{RED}Error:{NC} PARA root not configured.")
+        print(f"Run {BOLD}para init --path /path/to/para --save-config{NC} to set up.")
+        return 1
+
+    print(f"\n{BLUE}📁 PARA Status{NC}")
+    print(f"Root: {root}")
+    print("=" * 40)
+
+    for key, folder in PARA_FOLDERS.items():
+        folder_path = root / folder
+        if folder_path.exists():
+            items = [
+                f
+                for f in folder_path.iterdir()
+                if not f.name.startswith("_") and not f.name.startswith(".")
+            ]
+            print(f"\n{BOLD}{folder}{NC} ({len(items)} items)")
+            for item in sorted(items)[:10]:  # Show first 10
+                if item.is_dir():
+                    print(f"  📁 {item.name}/")
+                else:
+                    print(f"  📄 {item.name}")
+            if len(items) > 10:
+                print(f"  ... and {len(items) - 10} more")
+        else:
+            print(f"\n{YELLOW}{folder}{NC} (not found)")
+
+    return 0
+
+
+def cmd_sync(args) -> int:
+    """Sync PARA projects with GTD milestones."""
+    root = get_para_root()
+
+    print(f"\n{BLUE}🔄 PARA ↔ GTD Sync{NC}")
+    print("=" * 40)
+
+    para_projects = set(get_para_projects(root))
+    gtd_projects = set(get_gtd_projects())
+
+    synced = para_projects & gtd_projects
+    para_only = para_projects - gtd_projects
+    gtd_only = gtd_projects - para_projects
+
+    print(f"\n{BOLD}Synced ({len(synced)}):{NC}")
+    if synced:
+        for p in sorted(synced):
+            print(f"  {GREEN}✓{NC} {p}")
+    else:
+        print("  (none)")
+
+    print(f"\n{BOLD}PARA-only ({len(para_only)}):{NC} (no GTD milestone)")
+    if para_only:
+        for p in sorted(para_only):
+            print(f"  {YELLOW}?{NC} {p}")
+    else:
+        print("  (none)")
+
+    print(f"\n{BOLD}GTD-only ({len(gtd_only)}):{NC} (no PARA folder)")
+    if gtd_only:
+        for p in sorted(gtd_only):
+            print(f"  {YELLOW}?{NC} {p}")
+    else:
+        print("  (none)")
+
+    # Fix mode
+    if args.fix and (para_only or gtd_only):
+        # Show what will be created and ask for confirmation
+        print(f"\n{BLUE}Proposed changes:{NC}")
+        if gtd_only:
+            print(f"  Create PARA folders for {len(gtd_only)} GTD project(s):")
+            for p in sorted(gtd_only):
+                print(f"    + {PARA_FOLDERS['projects']}/{p}/")
+        if para_only:
+            print(f"  Create GTD milestones for {len(para_only)} PARA project(s):")
+            for p in sorted(para_only):
+                print(f"    + milestone '{p}'")
+
+        try:
+            confirm = input(f"\n{BOLD}Proceed with these changes?{NC} [y/N]: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nAborted.")
+            return 0
+
+        if confirm.lower() != "y":
+            print("Aborted.")
+            return 0
+
+        print(f"\n{BLUE}Fixing mismatches...{NC}")
+
+        # Resolve the base projects path once to guard against path traversal
+        base_projects_path = (root / PARA_FOLDERS["projects"]).resolve()
+
+        # Create PARA folders for GTD-only projects
+        for p in gtd_only:
+            # Validate project name to prevent path traversal
+            if (
+                ".." in p
+                or p.startswith(("/", "\\"))
+                or "/" in p
+                or "\\" in p
+                or p == "."
+            ):
+                print(f"  {RED}skipped (unsafe name):{NC} GTD project '{p}'")
+                continue
+
+            folder_path = base_projects_path / p
+            resolved_folder_path = folder_path.resolve()
+
+            # Ensure the resolved path is still under the PARA projects root
+            if not str(resolved_folder_path).startswith(str(base_projects_path)):
+                print(f"  {RED}skipped (outside PARA root):{NC} GTD project '{p}'")
+                continue
+
+            resolved_folder_path.mkdir(parents=True, exist_ok=True)
+            index_path = resolved_folder_path / "_INDEX.md"
+            content = f"# Project: {p}\n\n## Outcome\n[Define success]\n\n"
+            content += "## Status\n- [ ] Active\n"
+            # Don't overwrite existing _INDEX.md
+            if not index_path.exists():
+                index_path.write_text(content)
+                print(f"  {GREEN}created:{NC} {PARA_FOLDERS['projects']}/{p}/")
+            else:
+                print(
+                    f"  {YELLOW}exists:{NC} {PARA_FOLDERS['projects']}/{p}/ "
+                    f"(_INDEX.md not overwritten)"
+                )
+
+        # Offer to create GTD milestones for PARA-only projects
+        for p in para_only:
+            result = run_gtd("project", "create", p)
+            if result.returncode == 0:
+                print(f"  {GREEN}created:{NC} GTD milestone '{p}'")
+            else:
+                print(f"  {RED}failed:{NC} GTD milestone '{p}' - {result.stderr}")
+
+    elif para_only or gtd_only:
+        print(f"\nRun {BOLD}para sync --fix{NC} to create missing items.")
+
+    return 0
+
+
+def cmd_project_list(args) -> int:
+    """List PARA projects with GTD sync status."""
+    root = get_para_root()
+
+    para_projects = set(get_para_projects(root))
+    gtd_projects = set(get_gtd_projects())
+
+    print(f"\n{BLUE}📁 PARA Projects{NC}")
+    print("=" * 40)
+
+    if not para_projects:
+        print("\nNo PARA projects found.")
+        print(f"\nCreate one with: {BOLD}para project create 'Project-Name'{NC}")
+        return 0
+
+    for p in sorted(para_projects):
+        if p in gtd_projects:
+            sync_status = f"{GREEN}✓ synced{NC}"
+        else:
+            sync_status = f"{YELLOW}⚠ no GTD{NC}"
+        print(f"  {p}  [{sync_status}]")
+
+    return 0
+
+
+def cmd_project_create(args) -> int:
+    """Create a new PARA project (and optionally GTD milestone)."""
+    root = get_para_root()
+    name = args.name
+
+    # Create PARA folder
+    folder_path = root / PARA_FOLDERS["projects"] / name
+    if folder_path.exists():
+        print(f"{YELLOW}Warning:{NC} Project folder already exists: {folder_path}")
+    else:
+        folder_path.mkdir(parents=True)
+        index_content = f"""# Project: {name}
+
+## Outcome
+[What does "done" look like?]
+
+## Status
+- [x] Active
+
+## Key Files
+- [List important files here]
+
+## Notes
+"""
+        (folder_path / "_INDEX.md").write_text(index_content)
+        print(f"{GREEN}✓{NC} Created PARA project: {folder_path}")
+
+    # Create GTD milestone
+    if not args.no_gtd:
+        result = run_gtd("project", "create", name)
+        if result.returncode == 0:
+            print(f"{GREEN}✓{NC} Created GTD milestone: {name}")
+        else:
+            # Check if already exists
+            if "already exists" in result.stderr.lower():
+                print(f"{YELLOW}Note:{NC} GTD milestone already exists")
+            else:
+                print(f"{YELLOW}Warning:{NC} Could not create GTD milestone")
+                print(f"  {result.stderr}")
+
+    return 0
+
+
+def cmd_project_archive(args) -> int:
+    """Archive a PARA project (and close GTD milestone)."""
+    root = get_para_root()
+    name = args.name
+
+    # Find the project folder
+    project_path = root / PARA_FOLDERS["projects"] / name
+    if not project_path.exists():
+        print(f"{RED}Error:{NC} Project not found: {project_path}")
+        return 1
+
+    # Create archive destination
+    archive_dest = root / PARA_FOLDERS["archive"] / "projects"
+    archive_dest.mkdir(parents=True, exist_ok=True)
+
+    # Move to archive
+    dest_path = archive_dest / name
+    if dest_path.exists():
+        print(f"{RED}Error:{NC} Archive destination already exists: {dest_path}")
+        return 1
+
+    shutil.move(str(project_path), str(dest_path))
+    print(f"{GREEN}✓{NC} Archived: {project_path} → {dest_path}")
+
+    # Close GTD milestone
+    if not args.no_gtd:
+        result = run_gtd("project", "update", name, "--state", "closed")
+        if result.returncode == 0:
+            print(f"{GREEN}✓{NC} Closed GTD milestone: {name}")
+        else:
+            print(f"{YELLOW}Warning:{NC} Could not close GTD milestone")
+
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="PARA CLI - Organize notes and files by actionability.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+PARA Method Overview:
+  Projects   - Active work with defined outcomes and deadlines
+  Areas      - Ongoing responsibilities without end dates
+  Resources  - Reference materials for future use
+  Archive    - Completed or inactive items
+
+Configuration Resolution (in order):
+  1. Local .para.toml in current git repo root
+  2. [repos] mapping in ~/.config/para/config.toml (longest prefix match)
+  3. Global para_root in ~/.config/para/config.toml
+  4. Auto-discovery: walk up from cwd looking for PARA folders
+
+Quick Start Examples:
+  # Initialize PARA in a new directory and save to config
+  para init --path ~/Notes/para --save-config
+
+  # Check current PARA status
+  para status
+
+  # Create a new project (also creates GTD milestone)
+  para project create "My-New-Project"
+
+  # Sync PARA projects with GTD milestones
+  para sync --fix
+
+For LLM Integration:
+  - Use 'para status' to discover the current PARA root and structure
+  - Use 'para config' to inspect resolution context and repo mappings
+  - Project names should use kebab-case or PascalCase (no spaces)
+  - The CLI outputs colored text; parse the semantic content, not colors
+""",
+    )
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
+
+    # config
+    p_config = subparsers.add_parser(
+        "config",
+        help="Show or set PARA configuration",
+        description=(
+            "Manage PARA configuration. Shows current config when called "
+            "without arguments."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Show current configuration and resolution context
+  para config
+
+  # Set a global default PARA root (used when no repo mapping matches)
+  para config --set-root ~/Notes/para
+
+  # Map current git repo to a specific PARA root
+  para config --set-repo . ~/Notes/work-para
+
+  # Map a specific repo path to a PARA root
+  para config --set-repo ~/Projects/myapp ~/Notes/myapp-para
+
+  # Remove a repo mapping
+  para config --unset-repo ~/Projects/myapp
+
+Output Fields (for LLM parsing):
+  - "Effective PARA root:" shows the resolved path that will be used
+  - "Git repo:" shows the current git repository context
+  - "Local .para.toml:" shows per-repo override if present
+""",
+    )
+    p_config.add_argument(
+        "--set-root",
+        metavar="PATH",
+        help="Set global default PARA root (must exist)",
+    )
+    p_config.add_argument(
+        "--unset-root",
+        action="store_true",
+        help="Remove global para_root from config",
+    )
+    p_config.add_argument(
+        "--set-repo",
+        nargs=2,
+        metavar=("REPO", "PARA"),
+        help=(
+            "Map a git repo to a PARA root. REPO can be '.' for current "
+            "repo. PARA path must exist."
+        ),
+    )
+    p_config.add_argument(
+        "--unset-repo",
+        metavar="REPO",
+        help="Remove repo mapping. REPO can be '.' for current repo.",
+    )
+    p_config.set_defaults(func=cmd_config)
+
+    # init
+    p_init = subparsers.add_parser(
+        "init",
+        help="Initialize PARA folder structure",
+        description=(
+            "Create the standard PARA folder structure (1 Projects, 2 Areas, "
+            "3 Resources, 4 Archive)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Initialize PARA in current directory
+  para init
+
+  # Initialize PARA in a specific path
+  para init --path ~/Notes/para
+
+  # Initialize and save as global default
+  para init --path ~/Notes/para --save-config
+
+Created Structure:
+  <root>/
+    1 Projects/    # Active work with outcomes
+      _INDEX.md    # Index file for Projects
+    2 Areas/       # Ongoing responsibilities
+      _INDEX.md
+    3 Resources/   # Reference materials
+      _INDEX.md
+    4 Archive/     # Completed/inactive items
+      _INDEX.md
+
+Notes:
+  - Existing folders are left untouched (shows "exists:")
+  - New folders get an _INDEX.md template
+  - Use --save-config to set as global default in ~/.config/para/config.toml
+""",
+    )
+    p_init.add_argument(
+        "--path",
+        help="Path to create PARA structure (default: current working directory)",
+    )
+    p_init.add_argument(
+        "--save-config",
+        action="store_true",
+        help="Save this path as global default in ~/.config/para/config.toml",
+    )
+    p_init.set_defaults(func=cmd_init)
+
+    # status
+    p_status = subparsers.add_parser(
+        "status",
+        help="Show PARA structure status",
+        description=(
+            "Display the current PARA root and list contents of each PARA folder."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Show PARA status
+  para status
+
+Output Format:
+  Shows the resolved PARA root, then lists each folder with item counts:
+    1 Projects (3 items)
+      📁 Project-A/
+      📁 Project-B/
+      📄 notes.md
+    2 Areas (2 items)
+      ...
+
+Notes:
+  - Files/folders starting with _ or . are hidden from counts
+  - Shows first 10 items per folder, then "... and N more"
+  - Returns exit code 1 if PARA root is not configured
+  - Does NOT prompt interactively; use 'para init' to set up first
+""",
+    )
+    p_status.set_defaults(func=cmd_status)
+
+    # sync
+    p_sync = subparsers.add_parser(
+        "sync",
+        help="Sync PARA projects with GTD milestones",
+        description=(
+            "Compare PARA project folders with GTD milestones and show/fix mismatches."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Show sync status (read-only)
+  para sync
+
+  # Fix mismatches: create missing folders and milestones
+  para sync --fix
+
+How It Works:
+  1. Lists all folders in "1 Projects/" (excluding _ and . prefixed)
+  2. Lists all open GTD milestones via 'gtd project list --state open'
+  3. Compares the two sets and reports:
+     - Synced: exists in both PARA and GTD
+     - PARA-only: folder exists but no GTD milestone
+     - GTD-only: milestone exists but no PARA folder
+
+With --fix:
+  - Creates PARA folders for GTD-only projects (with _INDEX.md template)
+  - Creates GTD milestones for PARA-only projects
+
+Prerequisites:
+  - Requires GTD CLI at ../gtd/scripts/gtd relative to this script
+  - GTD must be configured with a GitHub repo for milestones
+""",
+    )
+    p_sync.add_argument(
+        "--fix",
+        action="store_true",
+        help="Create missing PARA folders and GTD milestones",
+    )
+    p_sync.set_defaults(func=cmd_sync)
+
+    # project
+    p_project = subparsers.add_parser(
+        "project",
+        help="Project management (list, create, archive)",
+        description=(
+            "Manage PARA projects. Defaults to 'list' when called without subcommand."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # List all projects (default action)
+  para project
+  para project list
+
+  # Create a new project
+  para project create "My-Project"
+
+  # Archive a completed project
+  para project archive "My-Project"
+
+Subcommands:
+  list      List PARA projects with GTD sync status
+  create    Create a new project folder (and GTD milestone)
+  archive   Move project to archive (and close GTD milestone)
+""",
+    )
+    project_sub = p_project.add_subparsers(dest="project_cmd")
+
+    # project list
+    p_proj_list = project_sub.add_parser(
+        "list",
+        help="List projects with GTD sync status",
+        description=(
+            "List all PARA projects and show whether each has a matching GTD milestone."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  para project list
+
+Output Format:
+  Project-A  [✓ synced]    # Has matching GTD milestone
+  Project-B  [⚠ no GTD]    # No GTD milestone found
+
+Notes:
+  - Projects are folders in "1 Projects/" (excluding _ and . prefixed)
+  - Sync status is checked against 'gtd project list --state open'
+""",
+    )
+    p_proj_list.set_defaults(func=cmd_project_list)
+
+    # project create
+    p_proj_create = project_sub.add_parser(
+        "create",
+        help="Create a new project",
+        description="Create a new PARA project folder and optionally a GTD milestone.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Create project with GTD milestone (default)
+  para project create "Website-Redesign"
+
+  # Create project without GTD milestone
+  para project create "Quick-Experiment" --no-gtd
+
+Created Structure:
+  1 Projects/
+    Website-Redesign/
+      _INDEX.md    # Template with Outcome, Status, Key Files, Notes sections
+
+Project Naming:
+  - Use kebab-case (my-project) or PascalCase (MyProject)
+  - Avoid spaces in names (they work but are awkward in CLI)
+  - Names should be descriptive and match GTD milestone naming
+
+Notes:
+  - Existing folders are not overwritten (shows warning)
+  - If GTD milestone already exists, shows note instead of error
+""",
+    )
+    p_proj_create.add_argument(
+        "name",
+        help="Project name (use kebab-case or PascalCase, avoid spaces)",
+    )
+    p_proj_create.add_argument(
+        "--no-gtd",
+        action="store_true",
+        help="Skip creating GTD milestone (PARA folder only)",
+    )
+    p_proj_create.set_defaults(func=cmd_project_create)
+
+    # project archive
+    p_proj_archive = project_sub.add_parser(
+        "archive",
+        help="Archive a completed project",
+        description=(
+            "Move a project from 'Projects' to 'Archive' and optionally "
+            "close GTD milestone."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Archive project and close GTD milestone (default)
+  para project archive "Completed-Project"
+
+  # Archive without closing GTD milestone
+  para project archive "Completed-Project" --no-gtd
+
+Result:
+  Moves: 1 Projects/Completed-Project/ → 4 Archive/projects/Completed-Project/
+
+Notes:
+  - Fails if source project folder doesn't exist
+  - Fails if destination already exists in archive
+  - GTD milestone is closed via 'gtd project update NAME --state closed'
+""",
+    )
+    p_proj_archive.add_argument(
+        "name",
+        help="Project name to archive (must exist in 1 Projects/)",
+    )
+    p_proj_archive.add_argument(
+        "--no-gtd",
+        action="store_true",
+        help="Skip closing GTD milestone (move folder only)",
+    )
+    p_proj_archive.set_defaults(func=cmd_project_archive)
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        return 0
+
+    if args.command == "project" and not args.project_cmd:
+        # Default to list
+        return cmd_project_list(args)
+
+    if hasattr(args, "func"):
+        return args.func(args)
+
+    parser.print_help()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

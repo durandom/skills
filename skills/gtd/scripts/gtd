@@ -528,11 +528,19 @@ def cmd_projects(args) -> int:
     """List all projects with progress."""
     storage = get_storage(args.repo)
 
-    print(f"\n{BLUE}📊 Projects{NC}")
-    print("=" * 40)
-
     # Get milestones (projects)
     milestones = storage.list_milestones(state=args.state)
+
+    # Plain format: just titles, one per line (for machine parsing)
+    output_format = getattr(args, "format", "pretty")
+    if output_format == "plain":
+        for m in milestones:
+            print(m.get("title", "Untitled"))
+        return 0
+
+    # Pretty format: decorated output with progress bars
+    print(f"\n{BLUE}📊 Projects{NC}")
+    print("=" * 40)
 
     if not milestones:
         print("\nNo projects found.")
@@ -987,6 +995,13 @@ def main() -> int:
         choices=["open", "closed", "all"],
         default="open",
         help="State filter",
+    )
+    p.add_argument(
+        "--format",
+        "-f",
+        choices=["pretty", "plain"],
+        default="pretty",
+        help="Output format: pretty (decorated) or plain (one title per line)",
     )
     p.set_defaults(func=cmd_project_list)
 
