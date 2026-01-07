@@ -1,0 +1,6 @@
+# Generic SPA config
+# Use for React, Vue, Angular, or any JavaScript-rendered site
+# Waits until page has substantial content (> 1000 chars)
+
+page_timeout: 60000
+wait_for: "js:() => document.body.innerText.length > 1000"
