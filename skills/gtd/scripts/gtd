@@ -3,8 +3,10 @@
 
 import argparse
 import sys
+from datetime import date
 
 from gtdlib.backends.github import GitHubStorage
+from gtdlib.metadata import GTDMetadata
 from gtdlib.storage import GTDItem, GTDStorage
 
 # ANSI colors
@@ -20,6 +22,48 @@ CONTEXTS = list(GTDStorage.LABELS["context"].keys())
 ENERGIES = list(GTDStorage.LABELS["energy"].keys())
 STATUSES = list(GTDStorage.LABELS["status"].keys())
 HORIZONS = list(GTDStorage.LABELS["horizon"].keys())
+
+# Category metadata for label management
+GTD_CATEGORIES = {
+    "status": {"values": STATUSES, "prefix": "status/"},
+    "context": {"values": CONTEXTS, "prefix": "context/"},
+    "energy": {"values": ENERGIES, "prefix": "energy/"},
+    "horizon": {"values": HORIZONS, "prefix": "horizon/"},
+}
+
+
+def compute_label_changes(
+    args, existing_labels: list[str] | None = None
+) -> tuple[list[str], list[str]]:
+    """Compute labels to add/remove based on args.
+
+    Args:
+        args: Parsed arguments with status, context, energy, horizon attrs.
+        existing_labels: If provided, only remove labels that exist.
+            If None, generate all possible labels to remove (bulk mode).
+
+    Returns:
+        Tuple of (labels_to_add, labels_to_remove).
+    """
+    labels_to_add = []
+    labels_to_remove = []
+
+    for category, meta in GTD_CATEGORIES.items():
+        value = getattr(args, category, None)
+        if value and value in meta["values"]:
+            labels_to_add.append(f"{meta['prefix']}{value}")
+            if existing_labels is not None:
+                # Single-item mode: only remove existing labels with this prefix
+                for label in existing_labels:
+                    if label.startswith(meta["prefix"]):
+                        labels_to_remove.append(label)
+            else:
+                # Bulk mode: list all possible labels to remove (filtered at execution)
+                labels_to_remove.extend(
+                    f"{meta['prefix']}{v}" for v in meta["values"] if v != value
+                )
+
+    return labels_to_add, labels_to_remove
 
 
 def get_storage(repo: str | None = None, ensure_setup: bool = True) -> GitHubStorage:
@@ -253,6 +297,38 @@ def cmd_list(args) -> int:
         verbose=verbose,
     )
 
+    # Apply date-based filters (post-fetch filtering)
+    due_before = getattr(args, "due_before", None)
+    if due_before:
+        try:
+            target = date.fromisoformat(due_before)
+            items = [i for i in items if i.due and i.due <= target]
+        except ValueError:
+            print(f"{RED}Error:{NC} Invalid date format for --due-before.")
+            print("  Use YYYY-MM-DD.")
+            return 1
+
+    if getattr(args, "overdue", False):
+        items = [i for i in items if i.is_overdue]
+
+    if getattr(args, "deferred", False):
+        items = [i for i in items if i.is_deferred]
+
+    if getattr(args, "not_deferred", False):
+        items = [i for i in items if not i.is_deferred]
+
+    if getattr(args, "blocked", False):
+        items = [i for i in items if i.blocked_by]
+
+    waiting_on = getattr(args, "waiting_on", None)
+    if waiting_on:
+        items = [
+            i
+            for i in items
+            if i.waiting_for
+            and waiting_on.lower() in i.waiting_for.get("person", "").lower()
+        ]
+
     if not items:
         print("No items found matching criteria.")
         return 0
@@ -286,8 +362,296 @@ def cmd_done(args) -> int:
         print(f"{RED}Error:{NC} Item #{args.id} not found.")
         return 1
 
-    storage.close_item(args.id)
+    # Close item first (primary operation)
+    try:
+        storage.close_item(args.id)
+    except Exception as exc:
+        print(f"{RED}Error:{NC} Failed to close item #{args.id}: {exc}")
+        return 1
+
+    # Add comment if provided (secondary operation, after successful close)
+    if args.comment:
+        try:
+            storage.add_comment(args.id, args.comment)
+        except Exception as exc:
+            print(f"{YELLOW}Warning:{NC} Failed to add comment: {exc}")
+        else:
+            suffix = "..." if len(args.comment) > 50 else ""
+            print(f"  Added comment: {args.comment[:50]}{suffix}")
+
     print(f"{GREEN}✓{NC} Completed: #{item.id} {item.title}")
+    return 0
+
+
+def cmd_update(args) -> int:
+    """Update an existing task's GTD labels."""
+    storage = get_storage(args.repo)
+    item = storage.get_item(args.id)
+
+    if not item:
+        print(f"{RED}Error:{NC} Item #{args.id} not found.")
+        return 1
+
+    # Compute label changes (pass existing labels for precise removal)
+    labels_to_add, labels_to_remove = compute_label_changes(args, item.labels)
+
+    # Check that at least one update was requested
+    if not any([labels_to_add, labels_to_remove, args.project]):
+        print(f"{YELLOW}⚠{NC} No updates specified.")
+        print("  Use --status, --context, --energy, --horizon, or --project")
+        return 1
+
+    # Handle project change
+    if args.project:
+        storage.ensure_project(args.project)
+        storage.update_item(args.id, project=args.project)
+
+    # Apply label changes
+    if labels_to_remove:
+        storage.remove_labels(args.id, labels_to_remove)
+    if labels_to_add:
+        storage.add_labels(args.id, labels_to_add)
+
+    # Show result
+    updated = storage.get_item(args.id)
+    print(f"{GREEN}✓{NC} Updated: #{updated.id} {updated.title}")
+    print(format_item(updated, show_labels=True))
+    return 0
+
+
+def cmd_comment(args) -> int:
+    """Add a comment to a task."""
+    storage = get_storage(args.repo)
+    item = storage.get_item(args.id)
+
+    if not item:
+        print(f"{RED}Error:{NC} Item #{args.id} not found.")
+        return 1
+
+    message = " ".join(args.message)
+    try:
+        storage.add_comment(args.id, message)
+    except Exception as e:
+        print(f"{RED}Error:{NC} Failed to add comment to #{item.id}: {e}")
+        return 1
+    print(f"{GREEN}✓{NC} Comment added to #{item.id}")
+    print(f"  {message[:80]}{'...' if len(message) > 80 else ''}")
+    return 0
+
+
+def cmd_view(args) -> int:
+    """View a task with GTD-relevant info highlighted."""
+    storage = get_storage(args.repo)
+    item = storage.get_item(args.id)
+
+    if not item:
+        print(f"{RED}Error:{NC} Item #{args.id} not found.")
+        return 1
+
+    # Header
+    state_color = GREEN if item.state == "open" else RED
+    print(f"\n{BLUE}#{item.id}{NC} {BOLD}{item.title}{NC}")
+    print(f"State: {state_color}{item.state}{NC}")
+    print("=" * 50)
+
+    # GTD Properties
+    print(f"\n{BOLD}GTD Properties:{NC}")
+    print(f"  Context:  {item.context or '(none)'}")
+    print(f"  Energy:   {item.energy or '(none)'}")
+    print(f"  Status:   {item.status or '(none)'}")
+    print(f"  Horizon:  {item.horizon or '(none)'}")
+    if item.project:
+        print(f"  Project:  {item.project}")
+
+    # All labels
+    non_gtd_labels = [
+        label
+        for label in item.labels
+        if not any(label.startswith(p) for p in GTDStorage.get_label_prefixes())
+    ]
+    if non_gtd_labels:
+        print(f"\n{BOLD}Other Labels:{NC} {', '.join(non_gtd_labels)}")
+
+    # Body
+    if item.body:
+        print(f"\n{BOLD}Description:{NC}")
+        # Truncate long bodies
+        body_lines = item.body.split("\n")[:15]
+        for line in body_lines:
+            print(f"  {line}")
+        if len(item.body.split("\n")) > 15:
+            print(f"  {YELLOW}... (truncated){NC}")
+
+    # Metadata
+    print(f"\n{BOLD}Metadata:{NC}")
+    if item.created_at:
+        print(f"  Created:  {item.created_at[:10]}")
+    if item.closed_at:
+        print(f"  Closed:   {item.closed_at[:10]}")
+    if item.url:
+        print(f"  URL:      {item.url}")
+
+    print()
+    return 0
+
+
+def cmd_bulk(args) -> int:
+    """Perform bulk operations on multiple tasks."""
+    storage = get_storage(args.repo)
+
+    # Parse issue numbers
+    ids = []
+    for part in args.ids.split(","):
+        part = part.strip()
+        if "-" in part:
+            # Range like 36-38
+            start, end = (s.strip() for s in part.split("-", 1))
+            # Validate that both bounds are non-empty and numeric
+            if not start.isdigit() or not end.isdigit():
+                print(f"{RED}Error:{NC} Invalid range '{part}'.")
+                print("  Use START-END with positive integers.")
+                return 1
+            start_int = int(start)
+            end_int = int(end)
+            if start_int > end_int:
+                print(f"{RED}Error:{NC} Invalid range '{part}'.")
+                print("  Start cannot be greater than end.")
+                return 1
+            ids.extend(str(i) for i in range(start_int, end_int + 1))
+        else:
+            if not part.isdigit():
+                print(f"{RED}Error:{NC} Invalid issue number '{part}'.")
+                print("  Must be a positive integer.")
+                return 1
+            ids.append(part)
+
+    if not ids:
+        print(f"{RED}Error:{NC} No issue numbers provided.")
+        return 1
+
+    # Determine operation (no existing_labels = bulk mode, filtered at execution)
+    labels_to_add, labels_to_remove = compute_label_changes(args)
+
+    # Handle custom label add/remove (bulk-specific)
+    if args.add_label:
+        labels_to_add.append(args.add_label)
+    if args.remove_label:
+        labels_to_remove.append(args.remove_label)
+
+    # Check if closing
+    close_items = args.close
+
+    if not any([labels_to_add, labels_to_remove, close_items, args.project]):
+        print(f"{YELLOW}⚠{NC} No operation specified.")
+        print("  Use --status, --context, --energy, --horizon, --add-label,")
+        print("  --remove-label, --project, or --close")
+        return 1
+
+    # Preview mode
+    if not args.force:
+        print(f"\n{BLUE}[PREVIEW] Bulk operation on {len(ids)} items:{NC}")
+        if labels_to_add:
+            print(f"  Add labels: {', '.join(labels_to_add)}")
+        if labels_to_remove:
+            print(f"  Remove labels: {', '.join(labels_to_remove)}")
+        if args.project:
+            print(f"  Set project: {args.project}")
+        if close_items:
+            print("  Close items: yes")
+        print(f"\n  Items: {', '.join(ids[:10])}{'...' if len(ids) > 10 else ''}")
+        print(f"\n{YELLOW}Run with --force to execute.{NC}")
+        return 0
+
+    # Execute
+    success = 0
+    failed = 0
+
+    for item_id in ids:
+        try:
+            item = storage.get_item(item_id)
+            if not item:
+                print(f"  {RED}✗{NC} #{item_id} not found")
+                failed += 1
+                continue
+
+            if labels_to_remove:
+                # Only remove labels that actually exist on this item
+                existing_labels = set(getattr(item, "labels", []) or [])
+                labels_to_remove_for_item = [
+                    label for label in labels_to_remove if label in existing_labels
+                ]
+                if labels_to_remove_for_item:
+                    storage.remove_labels(item_id, labels_to_remove_for_item)
+            if labels_to_add:
+                storage.add_labels(item_id, labels_to_add)
+            if args.project:
+                storage.ensure_project(args.project)
+                storage.update_item(item_id, project=args.project)
+            if close_items:
+                storage.close_item(item_id)
+
+            print(f"  {GREEN}✓{NC} #{item_id} {(item.title or '')[:40]}...")
+            success += 1
+        except Exception as e:
+            print(f"  {RED}✗{NC} #{item_id}: {e}")
+            failed += 1
+
+    print(f"\n{GREEN}✓{NC} Completed: {success} succeeded, {failed} failed")
+    return 0 if failed == 0 else 1
+
+
+def cmd_next(args) -> int:
+    """Show the next action to work on.
+
+    Returns a single prioritized task based on context and energy filters.
+    Priority: high energy focus work > low energy focus > async > other contexts.
+    """
+    storage = get_storage(args.repo)
+
+    # Build filter labels
+    labels = ["status/active", "horizon/action"]
+    if args.context and args.context in CONTEXTS:
+        labels.append(f"context/{args.context}")
+    if args.energy and args.energy in ENERGIES:
+        labels.append(f"energy/{args.energy}")
+
+    # If no filters provided, try to find the best next action
+    if not args.context and not args.energy:
+        # Priority order for finding next action
+        priority_filters = [
+            (["context/focus", "energy/high", "status/active"], "🧠 High-energy focus"),
+            (["context/focus", "energy/low", "status/active"], "📝 Low-energy focus"),
+            (["context/focus", "status/active"], "💻 Focus work"),
+            (["context/async", "status/active"], "📱 Async work"),
+            (["status/active", "horizon/action"], "📋 Active action"),
+        ]
+
+        for filter_labels, label_desc in priority_filters:
+            items = storage.list_items(labels=filter_labels, limit=1)
+            if items:
+                item = items[0]
+                print(f"\n{BLUE}Next action ({label_desc}):{NC}")
+                print(f"  #{item.id} {item.title}")
+                if item.project:
+                    print(f"  {YELLOW}Project:{NC} {item.project}")
+                print(f"\n  {BOLD}gtd done {item.id}{NC} when complete")
+                return 0
+
+        print(f"{GREEN}✓{NC} No active actions found. Time to clarify inbox or relax!")
+        return 0
+
+    # With filters, just get the first matching item
+    items = storage.list_items(labels=labels, limit=1)
+    if items:
+        item = items[0]
+        print(f"\n{BLUE}Next action:{NC}")
+        print(format_item(item, show_labels=True))
+        if item.project:
+            print(f"  {YELLOW}Project:{NC} {item.project}")
+        print(f"\n  {BOLD}gtd done {item.id}{NC} when complete")
+    else:
+        print("No matching actions found.")
+
     return 0
 
 
@@ -335,10 +699,68 @@ def cmd_daily(args) -> int:
     if items:
         for item in items:
             print(format_item(item))
+            # Show who we're waiting on if available
+            if item.waiting_for:
+                person = item.waiting_for.get("person", "")
+                reason = item.waiting_for.get("reason", "")
+                if person:
+                    wait_info = f"Waiting on: {person}"
+                    if reason:
+                        wait_info += f" ({reason})"
+                    print(f"    {YELLOW}{wait_info}{NC}")
     else:
         print("  (none)")
 
-    # 5. Inbox check
+    # 5. Deferred items now active
+    print(f"\n{BOLD}🔔 Deferred Items Now Active{NC}")
+    all_someday = storage.list_items(labels=["status/someday"], limit=50)
+    now_active = [
+        i for i in all_someday if i.defer_until and i.defer_until <= date.today()
+    ]
+    if now_active:
+        for item in now_active:
+            print(f"  #{item.id} {item.title}")
+            print(f"    {YELLOW}Was deferred until: {item.defer_until}{NC}")
+        print(f"\n  Consider: {BOLD}gtd update <id> --status active{NC}")
+    else:
+        print("  (none)")
+
+    # 6. Overdue items
+    print(f"\n{BOLD}🚨 Overdue Items{NC}")
+    active_items = storage.list_items(labels=["status/active"], limit=100)
+    overdue = [i for i in active_items if i.is_overdue]
+    if overdue:
+        for item in overdue:
+            days = (date.today() - item.due).days
+            print(f"  {RED}#{item.id}{NC} {item.title}")
+            print(f"    Due: {item.due} ({days} days ago)")
+    else:
+        print(f"  {GREEN}✓{NC} No overdue items")
+
+    # 7. Blocked items - check if blockers resolved
+    print(f"\n{BOLD}🔓 Blocked Items (Check Blockers){NC}")
+    waiting_items = storage.list_items(labels=["status/waiting"], limit=50)
+    blocked_items = [i for i in waiting_items if i.blocked_by]
+    if blocked_items:
+        for item in blocked_items:
+            print(f"  #{item.id} {item.title}")
+            all_resolved = True
+            for bid in item.blocked_by:
+                blocker = storage.get_item(str(bid))
+                if not blocker:
+                    # Blocker not found - treat as unresolved (might be deleted)
+                    all_resolved = False
+                    print(f"    ⛔ Blocked by #{bid}: (not found)")
+                elif blocker.state == "open":
+                    all_resolved = False
+                    print(f"    ⛔ Blocked by #{bid}: {(blocker.title or '')[:40]}...")
+            if all_resolved:
+                print(f"    {GREEN}All blockers resolved!{NC}")
+                print(f"    Consider: {BOLD}gtd blocked {item.id} --clear{NC}")
+    else:
+        print("  (none)")
+
+    # 8. Inbox check
     inbox = storage.list_inbox()
     if inbox:
         print(f"\n{YELLOW}📥 Inbox has {len(inbox)} items to clarify{NC}")
@@ -699,6 +1121,251 @@ def cmd_yearly(args) -> int:
     return 0
 
 
+# GTD workaround commands (defer, waiting, due, blocked)
+
+
+def cmd_defer(args) -> int:
+    """Defer an item until a future date.
+
+    Usage: gtd defer <id> <date>
+    Example: gtd defer 42 2026-03-01
+    """
+    storage = get_storage(args.repo)
+    item = storage.get_item(args.id)
+
+    if not item:
+        print(f"{RED}Error:{NC} Item #{args.id} not found.")
+        return 1
+
+    # Parse date
+    try:
+        defer_date = date.fromisoformat(args.date)
+    except ValueError:
+        print(f"{RED}Error:{NC} Invalid date format. Use YYYY-MM-DD.")
+        return 1
+
+    if defer_date <= date.today():
+        print(f"{YELLOW}Warning:{NC} Defer date is today or in the past.")
+
+    # Update metadata
+    metadata = item.metadata
+    new_metadata = GTDMetadata(
+        due=metadata.due,
+        defer_until=defer_date,
+        waiting_for=metadata.waiting_for,
+        blocked_by=metadata.blocked_by,
+    )
+    storage.update_metadata(args.id, new_metadata)
+
+    # Optionally set status to someday
+    if args.someday:
+        storage.remove_labels(args.id, ["status/active", "status/waiting"])
+        storage.add_labels(args.id, ["status/someday"])
+
+    print(f"{GREEN}✓{NC} Deferred #{item.id} until {defer_date}")
+    if args.someday:
+        print("  Status changed to someday")
+    print(f"  Item will resurface after {defer_date}")
+    return 0
+
+
+def cmd_waiting(args) -> int:
+    """Mark an item as waiting on someone.
+
+    Usage: gtd waiting <id> <person> [reason]
+    Example: gtd waiting 42 Alice "PR review"
+
+    Note: Does NOT use @mentions to avoid notifications.
+    """
+    storage = get_storage(args.repo)
+    item = storage.get_item(args.id)
+
+    if not item:
+        print(f"{RED}Error:{NC} Item #{args.id} not found.")
+        return 1
+
+    # Update metadata
+    metadata = item.metadata
+    new_metadata = GTDMetadata(
+        due=metadata.due,
+        defer_until=metadata.defer_until,
+        waiting_for={
+            "person": args.person,
+            "reason": args.reason or "",
+        },
+        blocked_by=metadata.blocked_by,
+    )
+    storage.update_metadata(args.id, new_metadata)
+
+    # Set status to waiting
+    storage.remove_labels(args.id, ["status/active", "status/someday"])
+    storage.add_labels(args.id, ["status/waiting"])
+
+    print(f"{GREEN}✓{NC} #{item.id} now waiting on {args.person}")
+    if args.reason:
+        print(f"  Reason: {args.reason}")
+    return 0
+
+
+def cmd_due(args) -> int:
+    """Set or view due date for an item.
+
+    Usage:
+      gtd due <id> <date>     # Set due date
+      gtd due <id> --clear    # Remove due date
+      gtd due <id>            # View due date
+    """
+    storage = get_storage(args.repo)
+    item = storage.get_item(args.id)
+
+    if not item:
+        print(f"{RED}Error:{NC} Item #{args.id} not found.")
+        return 1
+
+    if args.clear:
+        metadata = item.metadata
+        new_metadata = GTDMetadata(
+            due=None,
+            defer_until=metadata.defer_until,
+            waiting_for=metadata.waiting_for,
+            blocked_by=metadata.blocked_by,
+        )
+        storage.update_metadata(args.id, new_metadata)
+        print(f"{GREEN}✓{NC} Cleared due date for #{item.id}")
+        return 0
+
+    if not args.date:
+        # View mode
+        if item.due:
+            days_until = (item.due - date.today()).days
+            if days_until < 0:
+                print(f"{RED}Due:{NC} {item.due} ({abs(days_until)} days overdue)")
+            elif days_until == 0:
+                print(f"{YELLOW}Due:{NC} {item.due} (TODAY)")
+            else:
+                print(f"Due: {item.due} ({days_until} days)")
+        else:
+            print("No due date set.")
+        return 0
+
+    # Set due date
+    try:
+        due_date = date.fromisoformat(args.date)
+    except ValueError:
+        print(f"{RED}Error:{NC} Invalid date format. Use YYYY-MM-DD.")
+        return 1
+
+    metadata = item.metadata
+    new_metadata = GTDMetadata(
+        due=due_date,
+        defer_until=metadata.defer_until,
+        waiting_for=metadata.waiting_for,
+        blocked_by=metadata.blocked_by,
+    )
+    storage.update_metadata(args.id, new_metadata)
+
+    days_until = (due_date - date.today()).days
+    print(f"{GREEN}✓{NC} Set due date for #{item.id}: {due_date}")
+    if days_until < 0:
+        print(f"  {RED}Warning:{NC} Date is in the past!")
+    elif days_until == 0:
+        print(f"  {YELLOW}Due today!{NC}")
+    else:
+        print(f"  {days_until} days from now")
+    return 0
+
+
+def cmd_blocked(args) -> int:
+    """Mark an item as blocked by other issues.
+
+    Usage:
+      gtd blocked <id> <blocker-ids>   # Set blockers (comma-separated)
+      gtd blocked <id> --clear         # Remove all blockers
+      gtd blocked <id>                 # View blockers
+    """
+    storage = get_storage(args.repo)
+    item = storage.get_item(args.id)
+
+    if not item:
+        print(f"{RED}Error:{NC} Item #{args.id} not found.")
+        return 1
+
+    if args.clear:
+        metadata = item.metadata
+        new_metadata = GTDMetadata(
+            due=metadata.due,
+            defer_until=metadata.defer_until,
+            waiting_for=metadata.waiting_for,
+            blocked_by=[],
+        )
+        storage.update_metadata(args.id, new_metadata)
+        storage.remove_labels(args.id, ["status/waiting"])
+        storage.add_labels(args.id, ["status/active"])
+        print(f"{GREEN}✓{NC} Cleared blockers for #{item.id}")
+        return 0
+
+    if not args.blockers:
+        # View mode - show blockers from metadata
+        blockers = item.blocked_by
+        if blockers:
+            print(f"{BLUE}Blocked by:{NC}")
+            for blocker_id in blockers:
+                blocker = storage.get_item(str(blocker_id))
+                if blocker:
+                    state_color = GREEN if blocker.state == "closed" else YELLOW
+                    state_icon = "✓" if blocker.state == "closed" else "○"
+                    print(
+                        f"  {state_icon} #{blocker_id} "
+                        f"[{state_color}{blocker.state}{NC}] {blocker.title}"
+                    )
+                else:
+                    print(f"  ? #{blocker_id} (not found)")
+
+            # Check if all blockers are resolved
+            all_resolved = True
+            for bid in blockers:
+                blocker_item = storage.get_item(str(bid))
+                if not blocker_item or blocker_item.state != "closed":
+                    all_resolved = False
+                    break
+            if all_resolved and blockers:
+                print(f"\n{GREEN}All blockers resolved!{NC}")
+                print(f"  Consider: {BOLD}gtd blocked {args.id} --clear{NC}")
+        else:
+            print("No blockers set.")
+        return 0
+
+    # Set blockers
+    try:
+        blocker_ids = [int(x.strip()) for x in args.blockers.split(",")]
+    except ValueError:
+        print(f"{RED}Error:{NC} Invalid blocker IDs.")
+        print("  Use comma-separated numbers (e.g., 42,43,44).")
+        return 1
+
+    # Validate blockers exist
+    for bid in blocker_ids:
+        if not storage.get_item(str(bid)):
+            print(f"{YELLOW}Warning:{NC} Blocker #{bid} not found.")
+
+    metadata = item.metadata
+    new_metadata = GTDMetadata(
+        due=metadata.due,
+        defer_until=metadata.defer_until,
+        waiting_for=metadata.waiting_for,
+        blocked_by=blocker_ids,
+    )
+    storage.update_metadata(args.id, new_metadata)
+
+    # Set status to waiting
+    storage.remove_labels(args.id, ["status/active", "status/someday"])
+    storage.add_labels(args.id, ["status/waiting"])
+
+    blockers_str = ", ".join(f"#{x}" for x in blocker_ids)
+    print(f"{GREEN}✓{NC} #{item.id} now blocked by: {blockers_str}")
+    return 0
+
+
 # Project management commands
 
 
@@ -928,12 +1595,61 @@ def main() -> int:
     p.add_argument("--limit", "-l", type=int, default=100, help="Max items")
     p.add_argument("--raw", "-r", action="store_true", help="Raw list (no grouping)")
     p.add_argument("--verbose", "-v", action="store_true", help="Show debug output")
+    # Date-based filters (GTD workarounds)
+    p.add_argument("--due-before", help="Filter: due on or before date (YYYY-MM-DD)")
+    p.add_argument("--overdue", action="store_true", help="Filter: past due date")
+    p.add_argument("--deferred", action="store_true", help="Filter: currently deferred")
+    p.add_argument("--not-deferred", action="store_true", help="Filter: not deferred")
+    p.add_argument("--blocked", action="store_true", help="Filter: has blockers")
+    p.add_argument("--waiting-on", help="Filter: waiting on person (partial match)")
     p.set_defaults(func=cmd_list)
 
     # done
     p = subparsers.add_parser("done", help="Mark task complete")
     p.add_argument("id", help="Issue number")
+    p.add_argument("--comment", "-m", help="Add completion comment")
     p.set_defaults(func=cmd_done)
+
+    # update
+    p = subparsers.add_parser("update", help="Update task GTD labels")
+    p.add_argument("id", help="Issue number")
+    p.add_argument("--status", "-s", choices=STATUSES, help="Set status")
+    p.add_argument("--context", "-c", choices=CONTEXTS, help="Set context")
+    p.add_argument("--energy", "-e", choices=ENERGIES, help="Set energy")
+    p.add_argument("--horizon", "-H", choices=HORIZONS, help="Set horizon")
+    p.add_argument("--project", "-p", help="Set project")
+    p.set_defaults(func=cmd_update)
+
+    # comment
+    p = subparsers.add_parser("comment", help="Add comment to task")
+    p.add_argument("id", help="Issue number")
+    p.add_argument("message", nargs="+", help="Comment message")
+    p.set_defaults(func=cmd_comment)
+
+    # view
+    p = subparsers.add_parser("view", help="View task with GTD info")
+    p.add_argument("id", help="Issue number")
+    p.set_defaults(func=cmd_view)
+
+    # bulk
+    p = subparsers.add_parser("bulk", help="Bulk operations on multiple tasks")
+    p.add_argument("ids", help="Issue numbers (comma-separated, or ranges like 1-5)")
+    p.add_argument("--status", "-s", choices=STATUSES, help="Set status")
+    p.add_argument("--context", "-c", choices=CONTEXTS, help="Set context")
+    p.add_argument("--energy", "-e", choices=ENERGIES, help="Set energy")
+    p.add_argument("--horizon", "-H", choices=HORIZONS, help="Set horizon")
+    p.add_argument("--project", "-p", help="Set project")
+    p.add_argument("--add-label", help="Add a label")
+    p.add_argument("--remove-label", help="Remove a label")
+    p.add_argument("--close", action="store_true", help="Close items")
+    p.add_argument("--force", "-f", action="store_true", help="Execute (no preview)")
+    p.set_defaults(func=cmd_bulk)
+
+    # next
+    p = subparsers.add_parser("next", help="Show the next action to work on")
+    p.add_argument("--context", "-c", choices=CONTEXTS, help="Filter by context")
+    p.add_argument("--energy", "-e", choices=ENERGIES, help="Filter by energy")
+    p.set_defaults(func=cmd_next)
 
     # daily
     p = subparsers.add_parser("daily", help="Daily review")
@@ -978,6 +1694,36 @@ def main() -> int:
     # yearly
     p = subparsers.add_parser("yearly", help="Yearly review")
     p.set_defaults(func=cmd_yearly)
+
+    # defer - GTD workaround for deferred items
+    p = subparsers.add_parser("defer", help="Defer an item until a future date")
+    p.add_argument("id", help="Issue number")
+    p.add_argument("date", help="Defer until date (YYYY-MM-DD)")
+    p.add_argument(
+        "--someday", "-s", action="store_true", help="Also set status to someday"
+    )
+    p.set_defaults(func=cmd_defer)
+
+    # waiting - GTD workaround for tracking who you're waiting on
+    p = subparsers.add_parser("waiting", help="Mark item as waiting on someone")
+    p.add_argument("id", help="Issue number")
+    p.add_argument("person", help="Person you're waiting on (NO @mentions)")
+    p.add_argument("reason", nargs="?", help="What you're waiting for")
+    p.set_defaults(func=cmd_waiting)
+
+    # due - GTD workaround for due dates
+    p = subparsers.add_parser("due", help="Set or view due date")
+    p.add_argument("id", help="Issue number")
+    p.add_argument("date", nargs="?", help="Due date (YYYY-MM-DD)")
+    p.add_argument("--clear", action="store_true", help="Remove due date")
+    p.set_defaults(func=cmd_due)
+
+    # blocked - GTD workaround for dependencies
+    p = subparsers.add_parser("blocked", help="Mark item as blocked by other issues")
+    p.add_argument("id", help="Issue number")
+    p.add_argument("blockers", nargs="?", help="Blocker IDs (comma-separated)")
+    p.add_argument("--clear", action="store_true", help="Remove all blockers")
+    p.set_defaults(func=cmd_blocked)
 
     # project command group
     project_parser = subparsers.add_parser(

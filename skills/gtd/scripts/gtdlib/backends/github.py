@@ -1,8 +1,11 @@
 """GitHub Issues backend for GTD storage."""
 
+from __future__ import annotations
+
 import json
 import subprocess
 
+from ..metadata import GTDMetadata, update_body_metadata
 from ..storage import GTDItem, GTDStorage
 
 
@@ -386,6 +389,174 @@ class GitHubStorage(GTDStorage):
         """Reopen a closed issue."""
         self._run_gh(["issue", "reopen", item_id])
         return self.get_item(item_id)
+
+    def add_comment(self, item_id: str, body: str) -> None:
+        """Add a comment to an issue."""
+        self._run_gh(["issue", "comment", item_id, "--body", body])
+
+    # GTD metadata management
+
+    def _get_repo_info(self) -> tuple[str, str]:
+        """Get owner and repo name for GraphQL queries.
+
+        Returns:
+            Tuple of (owner, repo_name)
+        """
+        if self.repo:
+            parts = self.repo.split("/")
+            return parts[0], parts[1]
+        # Get from git remote if not specified
+        output = self._run_gh(["repo", "view", "--json", "owner,name"])
+        data = json.loads(output)
+        return data["owner"]["login"], data["name"]
+
+    def _run_graphql(self, query: str, variables: dict | None = None) -> dict:
+        """Run a GraphQL query via gh api graphql.
+
+        Args:
+            query: GraphQL query string
+            variables: Optional variables to pass to the query
+
+        Returns:
+            Parsed JSON response
+        """
+        args = ["api", "graphql", "-f", f"query={query}"]
+        if variables:
+            for key, value in variables.items():
+                args.extend(["-F", f"{key}={value}"])
+
+        output = self._run_gh(args, check=False)
+        if not output:
+            return {}
+        return json.loads(output)
+
+    def update_metadata(self, item_id: str, metadata: GTDMetadata) -> GTDItem:
+        """Update an item's body with new metadata.
+
+        Uses read-modify-write pattern to preserve existing body content.
+
+        Args:
+            item_id: Issue number
+            metadata: New metadata to embed in body
+
+        Returns:
+            Updated GTDItem
+
+        Raises:
+            ValueError: If item not found
+        """
+        item = self.get_item(item_id)
+        if not item:
+            raise ValueError(f"Item #{item_id} not found")
+
+        new_body = update_body_metadata(item.body, metadata)
+        return self.update_item(item_id, body=new_body)
+
+    def get_blocking_issues(self, item_id: str) -> list[dict]:
+        """Get issues that are blocking this item.
+
+        Uses metadata as the source of truth if available, otherwise
+        falls back to GitHub's native GraphQL tracking API.
+
+        Args:
+            item_id: Issue number to check
+
+        Returns:
+            List of dicts with: number, title, state
+        """
+        # First, try to get from item's metadata (always available)
+        item = self.get_item(item_id)
+        if not item:
+            return []
+
+        # If metadata has blocked_by, use that as source of truth
+        if item.blocked_by:
+            blockers = []
+            for bid in item.blocked_by:
+                blocker = self.get_item(str(bid))
+                if blocker:
+                    blockers.append(
+                        {
+                            "number": int(blocker.id),
+                            "title": blocker.title,
+                            "state": blocker.state.upper(),
+                        }
+                    )
+                else:
+                    blockers.append(
+                        {
+                            "number": bid,
+                            "title": "(not found)",
+                            "state": "UNKNOWN",
+                        }
+                    )
+            return blockers
+
+        # Try GitHub's native tracking API via GraphQL
+        try:
+            owner, repo = self._get_repo_info()
+            query = """
+            query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                    issue(number: $number) {
+                        trackedInIssues(first: 20) {
+                            nodes {
+                                number
+                                title
+                                state
+                            }
+                        }
+                    }
+                }
+            }
+            """
+            result = self._run_graphql(
+                query,
+                {
+                    "owner": owner,
+                    "repo": repo,
+                    "number": item_id,
+                },
+            )
+
+            nodes = (
+                result.get("data", {})
+                .get("repository", {})
+                .get("issue", {})
+                .get("trackedInIssues", {})
+                .get("nodes", [])
+            )
+            return nodes if nodes else []
+        except (RuntimeError, json.JSONDecodeError, KeyError):
+            # GraphQL not available or failed - return empty
+            return []
+
+    def set_blocked_by(self, item_id: str, blocker_ids: list[int]) -> GTDItem:
+        """Set the blocked-by relationship for an item.
+
+        Stores in metadata (GitHub's native blocking API requires
+        specific permissions that may not be available).
+
+        Args:
+            item_id: Issue number
+            blocker_ids: List of issue numbers blocking this item
+
+        Returns:
+            Updated GTDItem
+        """
+        item = self.get_item(item_id)
+        if not item:
+            raise ValueError(f"Item #{item_id} not found")
+
+        metadata = item.metadata
+        # Create new metadata with updated blocked_by
+        new_metadata = GTDMetadata(
+            due=metadata.due,
+            defer_until=metadata.defer_until,
+            waiting_for=metadata.waiting_for,
+            blocked_by=blocker_ids,
+        )
+        return self.update_metadata(item_id, new_metadata)
 
     # Milestone management for project support
 
