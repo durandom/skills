@@ -1,195 +1,121 @@
-# Workflow: Troubleshoot System
+# Workflow: Troubleshoot Cross-System Issues
 
 <objective>
-Diagnose and fix issues with the b4brain workflow. Help users identify what's not working and provide concrete steps to get back on track.
+Diagnose and fix issues that span both GTD and PARA systems. For methodology-specific issues, direct users to the standalone skills.
 </objective>
 
 <required_reading>
-**Read these reference files NOW:**
+**Read these reference files:**
 
-1. references/common-mistakes.md (primary)
-2. references/unified-workflow.md (for system understanding)
-3. references/decision-trees.md (for correct processes)
+1. references/common-mistakes.md (system-level mistakes and recovery)
+2. references/unified-workflow.md (for understanding the integration)
 </required_reading>
 
 <process>
-## Step 1: Identify the Symptom
 
-Common symptoms users report:
+## Step 1: Determine If This Is a Cross-System Issue
 
-| Symptom | Likely Problem Area |
-|---------|---------------------|
-| "Inbox is overwhelming" | Capture or processing issue |
-| "Can't find things" | PARA organization issue |
-| "Nothing gets done" | GTD task/priority issue |
-| "System feels pointless" | Integration or trust issue |
-| "Too much overhead" | Over-engineering issue |
-| "Lost track of projects" | Review habit issue |
-| "Notes are useless" | Zettelkasten execution issue |
+This skill handles issues like:
 
-Ask the user to describe:
+- Projects out of sync between GTD and PARA
+- Confusion about which system to use
+- System feels too complex (over-engineering)
+- Lost trust in the combined system
+
+**Redirect** methodology-specific issues:
+
+- "My GTD inbox is overwhelming" → Use the `gtd` skill
+- "I can't find my PARA files" → Use the `para` skill
+
+## Step 2: Identify the Cross-System Symptom
+
+| Symptom | Likely Problem |
+|---------|----------------|
+| "Projects are out of sync" | GTD milestones ≠ PARA folders |
+| "Don't know which system to use" | Missing decision framework |
+| "System is too complex" | Over-engineering, too many tools |
+| "Lost trust in the system" | Inconsistent usage, drift |
+
+Ask the user:
 
 - What specifically feels wrong?
-- When did it start feeling this way?
-- What were you doing (or not doing)?
+- When did it start?
+- Which parts are working/not working?
 
-## Step 2: Diagnose Root Cause
+## Step 3: Apply Cross-System Fixes
 
-Use this diagnostic tree:
-
-```
-Symptom: Overwhelmed/Anxious
-├── Inbox overflowing?
-│   ├── YES → Not processing regularly
-│   │         Fix: Daily 10-min /inbox sessions
-│   └── NO → Too many commitments captured?
-│            Fix: Say no more, review projects
-│
-├── Too many projects?
-│   ├── YES → Not distinguishing Areas from Projects
-│   │         Fix: Review list, archive inactive
-│   └── NO → Priorities unclear?
-│            Fix: Weekly review, reset priorities
-│
-└── Captured but not trusted?
-    └── Process items to build trust
-
-Symptom: Can't Find Things
-├── Filed in wrong PARA category?
-│   └── Fix: Re-categorize by actionability
-├── No indexes/organization?
-│   └── Fix: Run /index, update _INDEX.md
-└── Not using search?
-    └── Fix: Use /search, Obsidian search
-
-Symptom: Tasks Not Getting Done
-├── Tasks too vague?
-│   └── Fix: Clarify to physical next actions
-├── Wrong context/priority?
-│   └── Fix: Reassign contexts and priorities
-├── Too many tasks?
-│   └── Fix: Review, delete, defer, focus
-└── Not filtering by context?
-    └── Fix: Work from filtered list
-
-Symptom: System Feels Like Burden
-├── Too much organizing?
-│   └── Fix: Simplify, just-in-time structure
-├── Not seeing value?
-│   └── Fix: Use system for real work, not perfectly
-└── Over-engineered?
-    └── Fix: Reduce to essentials
-```
-
-## Step 3: Confirm Diagnosis
-
-Before prescribing a fix, confirm:
-
-- "It sounds like [diagnosis]. Does that match your experience?"
-- Ask for specific examples if unclear
-- Consider multiple contributing factors
-
-## Step 4: Provide Fix
-
-For each problem, provide:
-
-1. **Why this happened** - Understanding prevents recurrence
-2. **Immediate action** - What to do right now
-3. **Ongoing habit** - What to do regularly
-
-### Common Fixes
-
-**Inbox Overflow:**
+**Projects Out of Sync:**
 
 ```
-Immediate: Don't try to process everything
-1. Pick 5 most important items
-2. Process those with /inbox
-3. Archive or delete the rest
+Immediate: Run sync workflow
+1. Use b4brain sync-para-gtd workflow
+2. Resolve mismatches one by one
+3. Establish naming convention
 
-Ongoing: Daily 10-minute processing
-Schedule it like a meeting
+Ongoing: Run sync check weekly during review
 ```
 
-**Too Many Projects:**
+**Don't Know Which System to Use:**
 
 ```
-Immediate: Review project list
-1. /project status to see all
-2. Archive completed/stalled projects
-3. Move "someday" projects to Someday/Maybe
-4. Keep only 5-7 active projects
+Immediate: Apply two-layer model
+- Is it something to DO? → GTD
+- Is it something to ORGANIZE? → PARA
+- Need both? → Create in both, keep synced
 
-Ongoing: Weekly project review
-Ask "Can I actually work on this this week?"
+Ongoing: Use guide-decision workflow when unclear
 ```
 
-**Tasks Not Moving:**
+**System Too Complex:**
 
 ```
-Immediate: Clarify stuck tasks
-1. Review _GTD_TASKS.md
-2. For each stuck task, ask "What's the actual next physical action?"
-3. Rewrite vague tasks
-4. Delete tasks that don't matter
+Immediate: Simplify
+1. Focus on GTD + PARA core only
+2. Skip optional features (Zettelkasten, etc.)
+3. Reduce to: capture → clarify → organize → review
 
-Ongoing: Enforce "next action" thinking during /inbox
+Ongoing: "Good enough is good enough"
 ```
 
-**System Distrust:**
+**Lost Trust in System:**
 
 ```
 Immediate: Start fresh
-1. Commit to capture EVERYTHING for one week
-2. Process daily (even if small)
-3. Do one weekly review
+1. Don't try to fix everything
+2. Commit to using system for 2 weeks
+3. Daily: capture + quick clarify
+4. Weekly: sync check + review
 
 Ongoing: Consistency builds trust
-The system works when you work the system
 ```
 
-**Zettelkasten Confusion:**
+## Step 4: Provide Recovery Path
 
-```
-Immediate: Pause Zettelkasten
-1. Focus on GTD + PARA only
-2. Let Zettelkasten wait
-3. Return when you have content worth synthesizing
+For each issue, provide:
 
-Ongoing: Zettelkasten is optional
-It's for deep knowledge work, not everything
-```
+1. **Immediate action** - What to do right now
+2. **Ongoing habit** - What prevents recurrence
+3. **Which skill to use** - GTD, PARA, or b4brain
 
-## Step 5: Suggest Prevention
-
-After fixing the immediate issue, recommend:
-
-- Review habits to maintain (daily/weekly/monthly)
-- Simplified workflows if over-engineered
-- Permission to let things be imperfect
-
-## Step 6: Check Recovery
+## Step 5: Confirm Recovery
 
 End with:
 
-- "Try this and let me know how it goes"
-- Offer to help with follow-up issues
-- Remind that lapses are normal and recoverable
+- Clear next action
+- Reminder that lapses are normal
+- Offer follow-up help
+
 </process>
 
 <quick_fixes>
 
 ## Quick Fix Reference
 
-| Problem | Quick Fix |
-| --- | --- |
-| Inbox overflowing | Archive everything, start fresh, commit to daily processing |
-| Can't find things | Use /search, update indexes with /index |
-| Tasks ignored | Clarify next actions, reduce list, filter by context |
-| Too many projects | Archive to 5-7 active, rest to someday/maybe |
-| Skipped reviews | Schedule daily 5-min, weekly 15-min reviews |
-| Notes useless | Pause Zettelkasten, focus on GTD+PARA |
-| System feels heavy | Simplify, remove complexity, good enough is enough |
+| Cross-System Problem | Fix |
+|----------------------|-----|
+| Projects out of sync | Run b4brain sync workflow |
+| Confusion about which system | Apply two-layer model (DO=GTD, ORGANIZE=PARA) |
+| System too complex | Simplify to core GTD+PARA only |
 | Lost trust | Start fresh, be consistent for 2 weeks |
 
 </quick_fixes>
@@ -198,21 +124,19 @@ End with:
 
 ## Recovery Mantras
 
+- "GTD for doing, PARA for organizing"
+- "Sync once a week, not every day"
 - "Imperfect system > no system"
-- "Just start from where you are"
 - "The system serves you, not vice versa"
-- "Weekly review catches everything"
-- "Capture is cheap, organize is optional"
-- "Good enough is good enough"
+
 </recovery_mantras>
 
 <success_criteria>
 This workflow is complete when:
 
-- [ ] Symptom identified and confirmed
-- [ ] Root cause diagnosed
-- [ ] Immediate fix provided
-- [ ] Ongoing habit recommended
+- [ ] Determined if issue is cross-system or methodology-specific
+- [ ] Redirected methodology issues to standalone skills
+- [ ] Diagnosed cross-system root cause
+- [ ] Provided immediate fix and ongoing habit
 - [ ] User has clear next action
-- [ ] Recovery path is clear
 </success_criteria>

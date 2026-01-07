@@ -41,7 +41,7 @@ The system supports David Allen's 6 Horizons:
 |---------|------|----------------|
 | Ground | Actions | `horizon/action` label via gtd CLI |
 | H1 | Projects | `horizon/project` label + project grouping |
-| H2 | Areas of Focus | `2_Areas/` folder (PARA) |
+| H2 | Areas of Focus | Ongoing responsibilities without end dates |
 | H3 | Goals | `horizon/goal` label via gtd CLI |
 | H4 | Vision | `HORIZONS.md` at vault root |
 | H5 | Purpose | `HORIZONS.md` at vault root |
@@ -273,6 +273,9 @@ $GTD yearly
 - [label-taxonomy.md](references/label-taxonomy.md) - Complete 12-label reference
 - [gtd-workflow.md](references/gtd-workflow.md) - GTD methodology details
 - [horizons.md](references/horizons.md) - Template for HORIZONS.md (copy to vault root)
+- [clarify-decision-tree.md](references/clarify-decision-tree.md) - Decision trees for clarification, context, priority, reviews
+- [common-mistakes.md](references/common-mistakes.md) - GTD anti-patterns and fixes
+- [github-limitations.md](references/github-limitations.md) - GitHub CLI reference and workarounds
 
 **Review Workflows (agent-consumable instructions):**
 
