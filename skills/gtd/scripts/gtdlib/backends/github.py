@@ -455,7 +455,8 @@ class GitHubStorage(GTDStorage):
     def get_blocking_issues(self, item_id: str) -> list[dict]:
         """Get issues that are blocking this item.
 
-        Tries GitHub's native GraphQL API first, falls back to metadata.
+        Uses metadata as the source of truth if available, otherwise
+        falls back to GitHub's native GraphQL tracking API.
 
         Args:
             item_id: Issue number to check

@@ -26,7 +26,7 @@ class GTDItem:
     closed_at: str | None = None
 
     # Cached metadata (lazy-loaded from body)
-    _metadata: GTDMetadata | None = field(default=None, repr=False)
+    _metadata: GTDMetadata | None = field(default=None, repr=False, init=False)
 
     @property
     def metadata(self) -> GTDMetadata:

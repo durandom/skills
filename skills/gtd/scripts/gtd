@@ -395,15 +395,16 @@ def cmd_update(args) -> int:
     # Compute label changes (pass existing labels for precise removal)
     labels_to_add, labels_to_remove = compute_label_changes(args, item.labels)
 
-    # Handle project change
-    if args.project:
-        storage.ensure_project(args.project)
-        storage.update_item(args.id, project=args.project)
-
+    # Check that at least one update was requested
     if not any([labels_to_add, labels_to_remove, args.project]):
         print(f"{YELLOW}⚠{NC} No updates specified.")
         print("  Use --status, --context, --energy, --horizon, or --project")
         return 1
+
+    # Handle project change
+    if args.project:
+        storage.ensure_project(args.project)
+        storage.update_item(args.id, project=args.project)
 
     # Apply label changes
     if labels_to_remove:
@@ -589,7 +590,7 @@ def cmd_bulk(args) -> int:
             if close_items:
                 storage.close_item(item_id)
 
-            print(f"  {GREEN}✓{NC} #{item_id} {item.title[:40]}...")
+            print(f"  {GREEN}✓{NC} #{item_id} {(item.title or '')[:40]}...")
             success += 1
         except Exception as e:
             print(f"  {RED}✗{NC} #{item_id}: {e}")
@@ -746,9 +747,13 @@ def cmd_daily(args) -> int:
             all_resolved = True
             for bid in item.blocked_by:
                 blocker = storage.get_item(str(bid))
-                if blocker and blocker.state == "open":
+                if not blocker:
+                    # Blocker not found - treat as unresolved (might be deleted)
                     all_resolved = False
-                    print(f"    ⛔ Blocked by #{bid}: {blocker.title[:40]}...")
+                    print(f"    ⛔ Blocked by #{bid}: (not found)")
+                elif blocker.state == "open":
+                    all_resolved = False
+                    print(f"    ⛔ Blocked by #{bid}: {(blocker.title or '')[:40]}...")
             if all_resolved:
                 print(f"    {GREEN}All blockers resolved!{NC}")
                 print(f"    Consider: {BOLD}gtd blocked {item.id} --clear{NC}")
@@ -1140,7 +1145,7 @@ def cmd_defer(args) -> int:
         return 1
 
     if defer_date <= date.today():
-        print(f"{YELLOW}Warning:{NC} Defer date is not in the future.")
+        print(f"{YELLOW}Warning:{NC} Defer date is today or in the past.")
 
     # Update metadata
     metadata = item.metadata
