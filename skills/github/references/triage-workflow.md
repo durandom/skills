@@ -155,7 +155,7 @@ gh run view <databaseId> --log-failed 2>&1 | grep -A 5 "Error\|FAIL" | head -50
 
 ### Merging PRs
 
-**Important**: This repo uses merge commits (not squash). Always use `--merge`.
+**Important**: Adjust the merge method to match the repository's strategy. For example, if the repo uses merge commits (not squash), use `--merge`; if it uses squash or rebase, use the corresponding option.
 
 **Step 1: Approve if needed** (branch protection requires review approval)
 

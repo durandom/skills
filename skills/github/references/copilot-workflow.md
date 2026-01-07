@@ -75,7 +75,7 @@ gh pr list --search "review-requested:@me"
 
 ## Assigning Issues to Copilot
 
-CLI assignment doesn't work for Copilot. Use web UI:
+As of January 2026, CLI assignment doesn't work for Copilot. Use web UI:
 
 1. Go to issue URL
 2. Click "Assignees" in right sidebar
