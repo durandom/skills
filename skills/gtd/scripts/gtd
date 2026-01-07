@@ -21,6 +21,48 @@ ENERGIES = list(GTDStorage.LABELS["energy"].keys())
 STATUSES = list(GTDStorage.LABELS["status"].keys())
 HORIZONS = list(GTDStorage.LABELS["horizon"].keys())
 
+# Category metadata for label management
+GTD_CATEGORIES = {
+    "status": {"values": STATUSES, "prefix": "status/"},
+    "context": {"values": CONTEXTS, "prefix": "context/"},
+    "energy": {"values": ENERGIES, "prefix": "energy/"},
+    "horizon": {"values": HORIZONS, "prefix": "horizon/"},
+}
+
+
+def compute_label_changes(
+    args, existing_labels: list[str] | None = None
+) -> tuple[list[str], list[str]]:
+    """Compute labels to add/remove based on args.
+
+    Args:
+        args: Parsed arguments with status, context, energy, horizon attrs.
+        existing_labels: If provided, only remove labels that exist.
+            If None, generate all possible labels to remove (bulk mode).
+
+    Returns:
+        Tuple of (labels_to_add, labels_to_remove).
+    """
+    labels_to_add = []
+    labels_to_remove = []
+
+    for category, meta in GTD_CATEGORIES.items():
+        value = getattr(args, category, None)
+        if value and value in meta["values"]:
+            labels_to_add.append(f"{meta['prefix']}{value}")
+            if existing_labels is not None:
+                # Single-item mode: only remove existing labels with this prefix
+                for label in existing_labels:
+                    if label.startswith(meta["prefix"]):
+                        labels_to_remove.append(label)
+            else:
+                # Bulk mode: list all possible labels to remove (filtered at execution)
+                labels_to_remove.extend(
+                    f"{meta['prefix']}{v}" for v in meta["values"] if v != value
+                )
+
+    return labels_to_add, labels_to_remove
+
 
 def get_storage(repo: str | None = None, ensure_setup: bool = True) -> GitHubStorage:
     """Get the storage backend.
@@ -286,13 +328,23 @@ def cmd_done(args) -> int:
         print(f"{RED}Error:{NC} Item #{args.id} not found.")
         return 1
 
-    # Add comment if provided
-    if args.comment:
-        storage.add_comment(args.id, args.comment)
-        suffix = "..." if len(args.comment) > 50 else ""
-        print(f"  Added comment: {args.comment[:50]}{suffix}")
+    # Close item first (primary operation)
+    try:
+        storage.close_item(args.id)
+    except Exception as exc:
+        print(f"{RED}Error:{NC} Failed to close item #{args.id}: {exc}")
+        return 1
 
-    storage.close_item(args.id)
+    # Add comment if provided (secondary operation, after successful close)
+    if args.comment:
+        try:
+            storage.add_comment(args.id, args.comment)
+        except Exception as exc:
+            print(f"{YELLOW}Warning:{NC} Failed to add comment: {exc}")
+        else:
+            suffix = "..." if len(args.comment) > 50 else ""
+            print(f"  Added comment: {args.comment[:50]}{suffix}")
+
     print(f"{GREEN}✓{NC} Completed: #{item.id} {item.title}")
     return 0
 
@@ -306,37 +358,8 @@ def cmd_update(args) -> int:
         print(f"{RED}Error:{NC} Item #{args.id} not found.")
         return 1
 
-    labels_to_add = []
-    labels_to_remove = []
-
-    # Handle status change
-    if args.status and args.status in STATUSES:
-        # Remove existing status labels
-        for label in item.labels:
-            if label.startswith("status/"):
-                labels_to_remove.append(label)
-        labels_to_add.append(f"status/{args.status}")
-
-    # Handle context change
-    if args.context and args.context in CONTEXTS:
-        for label in item.labels:
-            if label.startswith("context/"):
-                labels_to_remove.append(label)
-        labels_to_add.append(f"context/{args.context}")
-
-    # Handle energy change
-    if args.energy and args.energy in ENERGIES:
-        for label in item.labels:
-            if label.startswith("energy/"):
-                labels_to_remove.append(label)
-        labels_to_add.append(f"energy/{args.energy}")
-
-    # Handle horizon change
-    if args.horizon and args.horizon in HORIZONS:
-        for label in item.labels:
-            if label.startswith("horizon/"):
-                labels_to_remove.append(label)
-        labels_to_add.append(f"horizon/{args.horizon}")
+    # Compute label changes (pass existing labels for precise removal)
+    labels_to_add, labels_to_remove = compute_label_changes(args, item.labels)
 
     # Handle project change
     if args.project:
@@ -371,7 +394,11 @@ def cmd_comment(args) -> int:
         return 1
 
     message = " ".join(args.message)
-    storage.add_comment(args.id, message)
+    try:
+        storage.add_comment(args.id, message)
+    except Exception as e:
+        print(f"{RED}Error:{NC} Failed to add comment to #{item.id}: {e}")
+        return 1
     print(f"{GREEN}✓{NC} Comment added to #{item.id}")
     print(f"  {message[:80]}{'...' if len(message) > 80 else ''}")
     return 0
@@ -443,31 +470,34 @@ def cmd_bulk(args) -> int:
         part = part.strip()
         if "-" in part:
             # Range like 36-38
-            start, end = part.split("-")
-            ids.extend(str(i) for i in range(int(start), int(end) + 1))
+            start, end = (s.strip() for s in part.split("-", 1))
+            # Validate that both bounds are non-empty and numeric
+            if not start.isdigit() or not end.isdigit():
+                print(f"{RED}Error:{NC} Invalid range '{part}'.")
+                print("  Use START-END with positive integers.")
+                return 1
+            start_int = int(start)
+            end_int = int(end)
+            if start_int > end_int:
+                print(f"{RED}Error:{NC} Invalid range '{part}'.")
+                print("  Start cannot be greater than end.")
+                return 1
+            ids.extend(str(i) for i in range(start_int, end_int + 1))
         else:
+            if not part.isdigit():
+                print(f"{RED}Error:{NC} Invalid issue number '{part}'.")
+                print("  Must be a positive integer.")
+                return 1
             ids.append(part)
 
     if not ids:
         print(f"{RED}Error:{NC} No issue numbers provided.")
         return 1
 
-    # Determine operation
-    labels_to_add = []
-    labels_to_remove = []
+    # Determine operation (no existing_labels = bulk mode, filtered at execution)
+    labels_to_add, labels_to_remove = compute_label_changes(args)
 
-    if args.status and args.status in STATUSES:
-        labels_to_add.append(f"status/{args.status}")
-        labels_to_remove.extend(f"status/{s}" for s in STATUSES if s != args.status)
-    if args.context and args.context in CONTEXTS:
-        labels_to_add.append(f"context/{args.context}")
-        labels_to_remove.extend(f"context/{c}" for c in CONTEXTS if c != args.context)
-    if args.energy and args.energy in ENERGIES:
-        labels_to_add.append(f"energy/{args.energy}")
-        labels_to_remove.extend(f"energy/{e}" for e in ENERGIES if e != args.energy)
-    if args.horizon and args.horizon in HORIZONS:
-        labels_to_add.append(f"horizon/{args.horizon}")
-        labels_to_remove.extend(f"horizon/{h}" for h in HORIZONS if h != args.horizon)
+    # Handle custom label add/remove (bulk-specific)
     if args.add_label:
         labels_to_add.append(args.add_label)
     if args.remove_label:
@@ -510,7 +540,13 @@ def cmd_bulk(args) -> int:
                 continue
 
             if labels_to_remove:
-                storage.remove_labels(item_id, labels_to_remove)
+                # Only remove labels that actually exist on this item
+                existing_labels = set(getattr(item, "labels", []) or [])
+                labels_to_remove_for_item = [
+                    label for label in labels_to_remove if label in existing_labels
+                ]
+                if labels_to_remove_for_item:
+                    storage.remove_labels(item_id, labels_to_remove_for_item)
             if labels_to_add:
                 storage.add_labels(item_id, labels_to_add)
             if args.project:
