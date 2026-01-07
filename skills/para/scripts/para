@@ -270,22 +270,36 @@ def run_gtd(*args) -> subprocess.CompletedProcess:
 
 def get_gtd_projects() -> list[str]:
     """Get list of GTD project names (milestones)."""
-    result = run_gtd("project", "list", "--state", "open")
+    result = run_gtd("project", "list", "--state", "open", "--format", "plain")
     if result.returncode != 0:
         return []
 
     projects = []
     for line in result.stdout.splitlines():
-        # Parse lines like "  Project-Name (3/5 done)"
         line = line.strip()
-        if line and not line.startswith("=") and not line.startswith("No "):
-            # Extract project name (before the parenthesis)
-            if "(" in line:
-                name = line.split("(")[0].strip()
-            else:
-                name = line
-            if name and not name.startswith("📊"):
-                projects.append(name)
+        if not line:
+            continue
+        # Filter out UI elements from GTD output
+        if line.startswith("="):  # Separator lines
+            continue
+        if line.startswith("No "):  # "No projects found"
+            continue
+        if line.startswith("["):  # Progress bars like [███░░░] 0%
+            continue
+        if line.startswith("📊"):  # Section headers
+            continue
+        if "%" in line and ("[" in line or "█" in line or "░" in line):
+            # Progress bar lines: "[███░░░] 50% (2/4)"
+            continue
+        if line in ("No actions yet",):  # Status messages
+            continue
+        # Extract project name (before parenthesis if present)
+        if "(" in line:
+            name = line.split("(")[0].strip()
+        else:
+            name = line
+        if name:
+            projects.append(name)
     return projects
 
 
