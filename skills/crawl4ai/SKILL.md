@@ -43,15 +43,15 @@ crwl crawl -C configs/spa.yaml -bc -o md "https://spa-site.com"
 # Using uv (recommended) - include [all] for ML features
 uv tool install 'crawl4ai[all]'
 
-## Or with pip
+# Or with pip
 
 pip install 'crawl4ai[all]'
 
-## Run setup after installation
+# Run setup after installation
 
 crawl4ai-setup
 
-## Verify installation
+# Verify installation
 
 crwl --help
 crawl4ai-doctor
@@ -105,7 +105,7 @@ crwl crawl -C configs/spa.yaml -bc -o md "https://spa-site.com"
 **Or create a site-specific config:**
 
 ```yaml
-## my_site_config.yaml
+# my_site_config.yaml
 page_timeout: 60000
 wait_for: "js:() => document.body.innerText.includes('expected content')"
 ```
@@ -129,10 +129,10 @@ crwl crawl -C my_site_config.yaml -bc -o md "https://my-spa-site.com"
 **Example usage:**
 
 ```bash
-## Obsidian Publish site
+# Obsidian Publish site
 crwl crawl -C configs/obsidian-publish.yaml -bc -o md "https://plugins.javalent.com/statblocks/readme/bestiary"
 
-## Generic SPA
+# Generic SPA
 crwl crawl -C configs/spa.yaml -bc -o md "https://react-app.example.com"
 ```
 
@@ -299,7 +299,7 @@ Crawl is successful when:
 **Quick validation:**
 
 ```bash
-## Should return actual content, not just nav elements
+# Should return actual content, not just nav elements
 crwl crawl -C configs/spa.yaml -bc -o md URL | head -50
 ```
 

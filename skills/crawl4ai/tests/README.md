@@ -21,5 +21,5 @@ Tests for the `crwl` CLI commands documented in SKILL.md.
 
 ## Requirements
 
-- `crwl` CLI installed (`pip install crawl4ai && crawl4ai-setup`)
+- `crwl` CLI installed (`uv tool install 'crawl4ai[all]' && crawl4ai-setup`)
 - Network access to test URLs
