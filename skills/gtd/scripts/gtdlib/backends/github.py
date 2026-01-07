@@ -387,6 +387,10 @@ class GitHubStorage(GTDStorage):
         self._run_gh(["issue", "reopen", item_id])
         return self.get_item(item_id)
 
+    def add_comment(self, item_id: str, body: str) -> None:
+        """Add a comment to an issue."""
+        self._run_gh(["issue", "comment", item_id, "--body", body])
+
     # Milestone management for project support
 
     def list_milestones(self, state: str = "open") -> list[dict]:

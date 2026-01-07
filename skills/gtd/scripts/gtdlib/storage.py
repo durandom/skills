@@ -222,6 +222,11 @@ class GTDStorage(ABC):
         """Reopen a closed item."""
         ...
 
+    @abstractmethod
+    def add_comment(self, item_id: str, body: str) -> None:
+        """Add a comment to an item."""
+        ...
+
     # Convenience methods with default implementations
 
     def capture(self, title: str, body: str | None = None) -> GTDItem:
