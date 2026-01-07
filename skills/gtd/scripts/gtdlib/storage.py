@@ -1,7 +1,14 @@
 """Abstract storage interface for GTD items."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import date
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .metadata import GTDMetadata
 
 
 @dataclass
@@ -17,6 +24,52 @@ class GTDItem:
     url: str | None = None
     created_at: str | None = None
     closed_at: str | None = None
+
+    # Cached metadata (lazy-loaded from body)
+    _metadata: GTDMetadata | None = field(default=None, repr=False)
+
+    @property
+    def metadata(self) -> GTDMetadata:
+        """Get parsed metadata from body (cached after first access)."""
+        if self._metadata is None:
+            from .metadata import parse_metadata
+
+            self._metadata = parse_metadata(self.body)
+        return self._metadata
+
+    @property
+    def due(self) -> date | None:
+        """Get due date from metadata."""
+        return self.metadata.due
+
+    @property
+    def defer_until(self) -> date | None:
+        """Get defer-until date from metadata."""
+        return self.metadata.defer_until
+
+    @property
+    def waiting_for(self) -> dict | None:
+        """Get waiting-for info from metadata {"person": str, "reason": str}."""
+        return self.metadata.waiting_for
+
+    @property
+    def blocked_by(self) -> list[int]:
+        """Get list of blocking issue numbers from metadata."""
+        return self.metadata.blocked_by
+
+    @property
+    def is_deferred(self) -> bool:
+        """Check if item is currently deferred (defer_until in future)."""
+        from .metadata import is_deferred
+
+        return is_deferred(self.metadata)
+
+    @property
+    def is_overdue(self) -> bool:
+        """Check if item is past due date."""
+        from .metadata import is_overdue
+
+        return is_overdue(self.metadata)
 
     @property
     def context(self) -> str | None:

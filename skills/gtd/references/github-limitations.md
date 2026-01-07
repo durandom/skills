@@ -16,10 +16,11 @@ GitHub Issues provides a solid foundation for GTD, but some GTD concepts don't m
 | Status | Labels (status/*) | ✅ Yes |
 | Energy | Labels (energy/*) | ✅ Yes |
 | Horizons | Labels (horizon/*) | ✅ Yes |
-| Due Dates | Issue body convention | ⚠️ Workaround |
-| Dependencies | Native GraphQL API | ✅ Yes |
-| Waiting-For | status/waiting + text note | ⚠️ Workaround |
-| Recurring Tasks | Labels or milestone | ⚠️ Workaround |
+| Due Dates | `gtd due` command | ✅ CLI supported |
+| Defer/Tickler | `gtd defer` command | ✅ CLI supported |
+| Dependencies | `gtd blocked` command | ✅ CLI supported |
+| Waiting-For | `gtd waiting` command | ✅ CLI supported |
+| Recurring Tasks | Labels or milestone | ⚠️ Manual |
 | Someday/Maybe | status/someday label | ✅ Yes |
 
 </concept_mapping>
@@ -388,16 +389,81 @@ gh issue list --label status/waiting --json number,title,body | \
 
 </conventions_summary>
 
+<implemented_commands>
+
+## Implemented CLI Commands
+
+These commands store metadata in a machine-readable HTML comment in the issue body:
+
+```html
+<!-- gtd-metadata: {"due":"2026-01-15","defer_until":"2026-03-01","waiting_for":{"person":"Alice","reason":"PR review"},"blocked_by":[42,43]} -->
+```
+
+### gtd due - Due Date Management
+
+```bash
+gtd due <id> <date>     # Set due date (YYYY-MM-DD)
+gtd due <id>            # View due date
+gtd due <id> --clear    # Remove due date
+```
+
+### gtd defer - Defer Items
+
+```bash
+gtd defer <id> <date>           # Defer until date
+gtd defer <id> <date> --someday # Defer and set status to someday
+```
+
+Items deferred until today or earlier appear in `gtd daily` review.
+
+### gtd waiting - Track Who You're Waiting On
+
+```bash
+gtd waiting <id> <person> [reason]  # Mark as waiting
+# Example: gtd waiting 42 Alice "PR review"
+```
+
+**Important**: Does NOT use @mentions to avoid notifications.
+
+### gtd blocked - Dependency Tracking
+
+```bash
+gtd blocked <id> <ids>   # Set blockers (comma-separated)
+gtd blocked <id>         # View blockers and their status
+gtd blocked <id> --clear # Remove blockers, set status to active
+```
+
+### gtd list - Enhanced Filters
+
+```bash
+gtd list --due-before 2026-01-31  # Due on or before date
+gtd list --overdue                 # Past due date
+gtd list --deferred                # Currently deferred
+gtd list --not-deferred            # Not deferred
+gtd list --blocked                 # Has blockers
+gtd list --waiting-on "Alice"      # Waiting on person (partial match)
+```
+
+### gtd daily - Enhanced Review
+
+The daily review now includes:
+
+- **Deferred Items Now Active**: Items where defer_until <= today
+- **Overdue Items**: Items past due date
+- **Blocked Items**: Shows if blockers are resolved
+
+</implemented_commands>
+
 <future_enhancements>
 
 ## Potential Future Enhancements
 
-1. **`gtd defer <id> <date>`**: Add defer-until convention and auto-promote
-2. **`gtd blocked <id> <blocker-ids>`**: Integrate with GitHub's native GraphQL blocking API
-3. **`gtd waiting <id> "person" "reason"`**: Structured waiting-for tracking (plain text, no @mentions)
-4. **Due date parsing**: Add `--due-before` filter to `gtd list`
+1. ~~**`gtd defer <id> <date>`**: Add defer-until convention~~ ✅ Implemented
+2. ~~**`gtd blocked <id> <blocker-ids>`**: Dependency tracking~~ ✅ Implemented
+3. ~~**`gtd waiting <id> "person" "reason"`**: Structured waiting-for~~ ✅ Implemented
+4. ~~**Due date parsing**: Add `--due-before` filter~~ ✅ Implemented
 5. **GitHub Projects integration**: Add `--project-field` options
-6. **Sub-issues support**: Integrate with GitHub's native sub-issues for project→action hierarchy
+6. **Sub-issues support**: Integrate with GitHub's native sub-issues
 
 See GitHub issue #5 for discussion and contributions.
 
