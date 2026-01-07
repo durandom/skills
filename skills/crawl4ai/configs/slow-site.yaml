@@ -1,0 +1,4 @@
+# Slow loading sites config
+# Extended timeout for sites with heavy assets or slow servers
+
+page_timeout: 90000

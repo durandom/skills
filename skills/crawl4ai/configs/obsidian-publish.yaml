@@ -1,0 +1,6 @@
+# Obsidian Publish sites config
+# Works for plugins.javalent.com, publish.obsidian.md, etc.
+# Waits for markdown preview content to render
+
+page_timeout: 60000
+wait_for: "js:() => document.body.innerText.length > 1000"
