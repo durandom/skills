@@ -8,9 +8,9 @@ import sys
 from pathlib import Path
 
 try:
-    import tomllib  # Python 3.11+
+    import tomllib  # Python 3.11+ (project requires >=3.11)
 except ImportError:
-    tomllib = None  # Fallback to manual parsing
+    tomllib = None  # Defensive fallback for manual TOML parsing
 
 # Config file location (XDG-compliant)
 CONFIG_DIR = Path.home() / ".config" / "para"
@@ -291,7 +291,7 @@ def get_gtd_projects() -> list[str]:
         if "%" in line and ("[" in line or "█" in line or "░" in line):
             # Progress bar lines: "[███░░░] 50% (2/4)"
             continue
-        if line in ("No actions yet",):  # Status messages
+        if line == "No actions yet":  # Status messages
             continue
         # Extract project name (before parenthesis if present)
         if "(" in line:
@@ -519,17 +519,66 @@ def cmd_sync(args) -> int:
 
     # Fix mode
     if args.fix and (para_only or gtd_only):
+        # Show what will be created and ask for confirmation
+        print(f"\n{BLUE}Proposed changes:{NC}")
+        if gtd_only:
+            print(f"  Create PARA folders for {len(gtd_only)} GTD project(s):")
+            for p in sorted(gtd_only):
+                print(f"    + {PARA_FOLDERS['projects']}/{p}/")
+        if para_only:
+            print(f"  Create GTD milestones for {len(para_only)} PARA project(s):")
+            for p in sorted(para_only):
+                print(f"    + milestone '{p}'")
+
+        try:
+            confirm = input(f"\n{BOLD}Proceed with these changes?{NC} [y/N]: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nAborted.")
+            return 0
+
+        if confirm.lower() != "y":
+            print("Aborted.")
+            return 0
+
         print(f"\n{BLUE}Fixing mismatches...{NC}")
+
+        # Resolve the base projects path once to guard against path traversal
+        base_projects_path = (root / PARA_FOLDERS["projects"]).resolve()
 
         # Create PARA folders for GTD-only projects
         for p in gtd_only:
-            folder_path = root / PARA_FOLDERS["projects"] / p
-            folder_path.mkdir(parents=True, exist_ok=True)
-            index_path = folder_path / "_INDEX.md"
+            # Validate project name to prevent path traversal
+            if (
+                ".." in p
+                or p.startswith(("/", "\\"))
+                or "/" in p
+                or "\\" in p
+                or p == "."
+            ):
+                print(f"  {RED}skipped (unsafe name):{NC} GTD project '{p}'")
+                continue
+
+            folder_path = base_projects_path / p
+            resolved_folder_path = folder_path.resolve()
+
+            # Ensure the resolved path is still under the PARA projects root
+            if not str(resolved_folder_path).startswith(str(base_projects_path)):
+                print(f"  {RED}skipped (outside PARA root):{NC} GTD project '{p}'")
+                continue
+
+            resolved_folder_path.mkdir(parents=True, exist_ok=True)
+            index_path = resolved_folder_path / "_INDEX.md"
             content = f"# Project: {p}\n\n## Outcome\n[Define success]\n\n"
             content += "## Status\n- [ ] Active\n"
-            index_path.write_text(content)
-            print(f"  {GREEN}created:{NC} {PARA_FOLDERS['projects']}/{p}/")
+            # Don't overwrite existing _INDEX.md
+            if not index_path.exists():
+                index_path.write_text(content)
+                print(f"  {GREEN}created:{NC} {PARA_FOLDERS['projects']}/{p}/")
+            else:
+                print(
+                    f"  {YELLOW}exists:{NC} {PARA_FOLDERS['projects']}/{p}/ "
+                    f"(_INDEX.md not overwritten)"
+                )
 
         # Offer to create GTD milestones for PARA-only projects
         for p in para_only:

@@ -38,7 +38,7 @@ pre-commit run --all-files
 skills/               # Main skills (SKILL.md + references/ + workflows/ + scripts/)
 ├── code-mapping/     # Hierarchical codebase documentation (code maps)
 ├── gtd/              # GTD task management via GitHub issues
-└── b4brain/          # PARA + GTD methodology domain knowledge
+└── para/             # PARA organization with GTD synchronization
 
 commands/             # Slash commands (.md files with YAML frontmatter)
 ├── commit.md         # /commit - git commit with emoji conventional commits
