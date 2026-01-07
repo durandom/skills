@@ -636,72 +636,345 @@ def cmd_project_archive(args) -> int:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="PARA CLI - Organize by actionability",
+        description="PARA CLI - Organize notes and files by actionability.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+PARA Method Overview:
+  Projects   - Active work with defined outcomes and deadlines
+  Areas      - Ongoing responsibilities without end dates
+  Resources  - Reference materials for future use
+  Archive    - Completed or inactive items
+
+Configuration Resolution (in order):
+  1. Local .para.toml in current git repo root
+  2. [repos] mapping in ~/.config/para/config.toml (longest prefix match)
+  3. Global para_root in ~/.config/para/config.toml
+  4. Auto-discovery: walk up from cwd looking for PARA folders
+
+Quick Start Examples:
+  # Initialize PARA in a new directory and save to config
+  para init --path ~/Notes/para --save-config
+
+  # Check current PARA status
+  para status
+
+  # Create a new project (also creates GTD milestone)
+  para project create "My-New-Project"
+
+  # Sync PARA projects with GTD milestones
+  para sync --fix
+
+For LLM Integration:
+  - Use 'para status' to discover the current PARA root and structure
+  - Use 'para config' to inspect resolution context and repo mappings
+  - Project names should use kebab-case or PascalCase (no spaces)
+  - The CLI outputs colored text; parse the semantic content, not colors
+""",
     )
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
     # config
-    p_config = subparsers.add_parser("config", help="Show or set PARA configuration")
-    p_config.add_argument(
-        "--set-root", metavar="PATH", help="Set global default PARA root"
+    p_config = subparsers.add_parser(
+        "config",
+        help="Show or set PARA configuration",
+        description=(
+            "Manage PARA configuration. Shows current config when called "
+            "without arguments."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Show current configuration and resolution context
+  para config
+
+  # Set a global default PARA root (used when no repo mapping matches)
+  para config --set-root ~/Notes/para
+
+  # Map current git repo to a specific PARA root
+  para config --set-repo . ~/Notes/work-para
+
+  # Map a specific repo path to a PARA root
+  para config --set-repo ~/Projects/myapp ~/Notes/myapp-para
+
+  # Remove a repo mapping
+  para config --unset-repo ~/Projects/myapp
+
+Output Fields (for LLM parsing):
+  - "Effective PARA root:" shows the resolved path that will be used
+  - "Git repo:" shows the current git repository context
+  - "Local .para.toml:" shows per-repo override if present
+""",
     )
     p_config.add_argument(
-        "--unset-root", action="store_true", help="Remove global para_root from config"
+        "--set-root",
+        metavar="PATH",
+        help="Set global default PARA root (must exist)",
+    )
+    p_config.add_argument(
+        "--unset-root",
+        action="store_true",
+        help="Remove global para_root from config",
     )
     p_config.add_argument(
         "--set-repo",
         nargs=2,
         metavar=("REPO", "PARA"),
-        help="Map a git repo to a PARA root (e.g., --set-repo . ~/Notes/work)",
+        help=(
+            "Map a git repo to a PARA root. REPO can be '.' for current "
+            "repo. PARA path must exist."
+        ),
     )
     p_config.add_argument(
         "--unset-repo",
         metavar="REPO",
-        help="Remove repo mapping (e.g., --unset-repo .)",
+        help="Remove repo mapping. REPO can be '.' for current repo.",
     )
     p_config.set_defaults(func=cmd_config)
 
     # init
-    p_init = subparsers.add_parser("init", help="Initialize PARA folder structure")
-    p_init.add_argument("--path", help="Path to create PARA structure (default: cwd)")
+    p_init = subparsers.add_parser(
+        "init",
+        help="Initialize PARA folder structure",
+        description=(
+            "Create the standard PARA folder structure (1 Projects, 2 Areas, "
+            "3 Resources, 4 Archive)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Initialize PARA in current directory
+  para init
+
+  # Initialize PARA in a specific path
+  para init --path ~/Notes/para
+
+  # Initialize and save as global default
+  para init --path ~/Notes/para --save-config
+
+Created Structure:
+  <root>/
+    1 Projects/    # Active work with outcomes
+      _INDEX.md    # Index file for Projects
+    2 Areas/       # Ongoing responsibilities
+      _INDEX.md
+    3 Resources/   # Reference materials
+      _INDEX.md
+    4 Archive/     # Completed/inactive items
+      _INDEX.md
+
+Notes:
+  - Existing folders are left untouched (shows "exists:")
+  - New folders get an _INDEX.md template
+  - Use --save-config to set as global default in ~/.config/para/config.toml
+""",
+    )
+    p_init.add_argument(
+        "--path",
+        help="Path to create PARA structure (default: current working directory)",
+    )
     p_init.add_argument(
         "--save-config",
         action="store_true",
-        help="Save this path to config file",
+        help="Save this path as global default in ~/.config/para/config.toml",
     )
     p_init.set_defaults(func=cmd_init)
 
     # status
-    p_status = subparsers.add_parser("status", help="Show PARA structure status")
+    p_status = subparsers.add_parser(
+        "status",
+        help="Show PARA structure status",
+        description=(
+            "Display the current PARA root and list contents of each PARA folder."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Show PARA status
+  para status
+
+Output Format:
+  Shows the resolved PARA root, then lists each folder with item counts:
+    1 Projects (3 items)
+      📁 Project-A/
+      📁 Project-B/
+      📄 notes.md
+    2 Areas (2 items)
+      ...
+
+Notes:
+  - Files/folders starting with _ or . are hidden from counts
+  - Shows first 10 items per folder, then "... and N more"
+  - Returns exit code 1 if PARA root is not configured
+  - Does NOT prompt interactively; use 'para init' to set up first
+""",
+    )
     p_status.set_defaults(func=cmd_status)
 
     # sync
-    p_sync = subparsers.add_parser("sync", help="Sync PARA projects with GTD")
-    p_sync.add_argument("--fix", action="store_true", help="Fix mismatches")
+    p_sync = subparsers.add_parser(
+        "sync",
+        help="Sync PARA projects with GTD milestones",
+        description=(
+            "Compare PARA project folders with GTD milestones and show/fix mismatches."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Show sync status (read-only)
+  para sync
+
+  # Fix mismatches: create missing folders and milestones
+  para sync --fix
+
+How It Works:
+  1. Lists all folders in "1 Projects/" (excluding _ and . prefixed)
+  2. Lists all open GTD milestones via 'gtd project list --state open'
+  3. Compares the two sets and reports:
+     - Synced: exists in both PARA and GTD
+     - PARA-only: folder exists but no GTD milestone
+     - GTD-only: milestone exists but no PARA folder
+
+With --fix:
+  - Creates PARA folders for GTD-only projects (with _INDEX.md template)
+  - Creates GTD milestones for PARA-only projects
+
+Prerequisites:
+  - Requires GTD CLI at ../gtd/scripts/gtd relative to this script
+  - GTD must be configured with a GitHub repo for milestones
+""",
+    )
+    p_sync.add_argument(
+        "--fix",
+        action="store_true",
+        help="Create missing PARA folders and GTD milestones",
+    )
     p_sync.set_defaults(func=cmd_sync)
 
     # project
-    p_project = subparsers.add_parser("project", help="Project management")
+    p_project = subparsers.add_parser(
+        "project",
+        help="Project management (list, create, archive)",
+        description=(
+            "Manage PARA projects. Defaults to 'list' when called without subcommand."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # List all projects (default action)
+  para project
+  para project list
+
+  # Create a new project
+  para project create "My-Project"
+
+  # Archive a completed project
+  para project archive "My-Project"
+
+Subcommands:
+  list      List PARA projects with GTD sync status
+  create    Create a new project folder (and GTD milestone)
+  archive   Move project to archive (and close GTD milestone)
+""",
+    )
     project_sub = p_project.add_subparsers(dest="project_cmd")
 
     # project list
-    p_proj_list = project_sub.add_parser("list", help="List projects")
+    p_proj_list = project_sub.add_parser(
+        "list",
+        help="List projects with GTD sync status",
+        description=(
+            "List all PARA projects and show whether each has a matching GTD milestone."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  para project list
+
+Output Format:
+  Project-A  [✓ synced]    # Has matching GTD milestone
+  Project-B  [⚠ no GTD]    # No GTD milestone found
+
+Notes:
+  - Projects are folders in "1 Projects/" (excluding _ and . prefixed)
+  - Sync status is checked against 'gtd project list --state open'
+""",
+    )
     p_proj_list.set_defaults(func=cmd_project_list)
 
     # project create
-    p_proj_create = project_sub.add_parser("create", help="Create a project")
-    p_proj_create.add_argument("name", help="Project name")
+    p_proj_create = project_sub.add_parser(
+        "create",
+        help="Create a new project",
+        description="Create a new PARA project folder and optionally a GTD milestone.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Create project with GTD milestone (default)
+  para project create "Website-Redesign"
+
+  # Create project without GTD milestone
+  para project create "Quick-Experiment" --no-gtd
+
+Created Structure:
+  1 Projects/
+    Website-Redesign/
+      _INDEX.md    # Template with Outcome, Status, Key Files, Notes sections
+
+Project Naming:
+  - Use kebab-case (my-project) or PascalCase (MyProject)
+  - Avoid spaces in names (they work but are awkward in CLI)
+  - Names should be descriptive and match GTD milestone naming
+
+Notes:
+  - Existing folders are not overwritten (shows warning)
+  - If GTD milestone already exists, shows note instead of error
+""",
+    )
     p_proj_create.add_argument(
-        "--no-gtd", action="store_true", help="Don't create GTD milestone"
+        "name",
+        help="Project name (use kebab-case or PascalCase, avoid spaces)",
+    )
+    p_proj_create.add_argument(
+        "--no-gtd",
+        action="store_true",
+        help="Skip creating GTD milestone (PARA folder only)",
     )
     p_proj_create.set_defaults(func=cmd_project_create)
 
     # project archive
-    p_proj_archive = project_sub.add_parser("archive", help="Archive a project")
-    p_proj_archive.add_argument("name", help="Project name")
+    p_proj_archive = project_sub.add_parser(
+        "archive",
+        help="Archive a completed project",
+        description=(
+            "Move a project from 'Projects' to 'Archive' and optionally "
+            "close GTD milestone."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Archive project and close GTD milestone (default)
+  para project archive "Completed-Project"
+
+  # Archive without closing GTD milestone
+  para project archive "Completed-Project" --no-gtd
+
+Result:
+  Moves: 1 Projects/Completed-Project/ → 4 Archive/projects/Completed-Project/
+
+Notes:
+  - Fails if source project folder doesn't exist
+  - Fails if destination already exists in archive
+  - GTD milestone is closed via 'gtd project update NAME --state closed'
+""",
+    )
     p_proj_archive.add_argument(
-        "--no-gtd", action="store_true", help="Don't close GTD milestone"
+        "name",
+        help="Project name to archive (must exist in 1 Projects/)",
+    )
+    p_proj_archive.add_argument(
+        "--no-gtd",
+        action="store_true",
+        help="Skip closing GTD milestone (move folder only)",
     )
     p_proj_archive.set_defaults(func=cmd_project_archive)
 
