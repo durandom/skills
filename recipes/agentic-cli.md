@@ -363,6 +363,69 @@ def get_content(args):
 - The `-` convention (read from stdin) is widely understood
 - Avoid auto-detecting stdin (can cause hangs if agent doesn't pipe anything)
 
+### Pattern 11: Skill Configuration Separation
+
+Skills often need configuration, but mixing person-specific paths with behavior settings creates problems: absolute paths like `/home/alice/Documents` can't be committed to a repo.
+
+**Solution:** Separate configuration into layers:
+
+| Layer | Location | Contents | Commit? |
+|-------|----------|----------|---------|
+| **Behavior** | `.skill/config.toml` in repo | Feature flags, templates, defaults | ✅ Yes |
+| **Personal** | `~/.config/<skill>/config.toml` | Filesystem paths, credentials | ❌ Never |
+| **Environment** | `SKILL_ROOT`, etc. | CI overrides, testing | N/A |
+
+**Resolution order:**
+
+```python
+def find_skill_root():
+    """Resolve skill root with clear precedence."""
+    # 1. Environment variable (CI, testing)
+    if env_root := os.environ.get("SKILL_ROOT"):
+        return Path(env_root)
+
+    # 2. User config (~/.config/skill/config.toml)
+    user_config = load_user_config()  # XDG-compliant
+    if root := user_config.get("skill_root"):
+        return Path(root).expanduser()
+
+    # 3. Auto-discovery (walk up from cwd)
+    return auto_discover_root()
+```
+
+**Behavior config (committable):**
+
+```toml
+# .skill/config.toml — COMMIT THIS
+# Contains NO paths, only behavior settings
+
+sync_enabled = true
+default_template = "project-v2"
+naming_convention = "kebab-case"
+
+[features]
+auto_archive = false
+gtd_integration = true
+```
+
+**Personal config (never commit):**
+
+```toml
+# ~/.config/skill/config.toml — NEVER COMMIT
+# Contains person-specific paths and credentials
+
+skill_root = "/home/alice/Documents/MySkill"
+
+[repos]
+# Map git repos to skill roots (longest prefix match)
+"/home/alice/work/project-a" = "/home/alice/Notes/work"
+"/home/alice/personal" = "/home/alice/Notes/personal"
+```
+
+**Key insight:** If a value contains a filesystem path or credential, it belongs in `~/.config/`, not in the repo. Feature flags and behavior settings can be shared.
+
+See [Skill Configuration Recipe](skill-configuration.md) for the complete pattern.
+
 ---
 
 ## Complete Example
@@ -581,6 +644,7 @@ except ConnectionError as e:
 | Scoped permissions | `--allow-paths`, `--deny-paths` |
 | Trust awareness | Categorize by risk level |
 | Multi-line input | `--file`, `--stdin`, or heredoc-friendly `-m` |
+| Config separation | Behavior in repo, paths in `~/.config/` |
 
 ---
 
