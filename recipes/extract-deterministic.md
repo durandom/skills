@@ -98,7 +98,7 @@ Requests involving quantities:
 "count the..."
 "list all..."
 "find every..."
-"what's the total..."
+"what is the total..."
 ```
 
 **Example conversation smell:**
@@ -161,7 +161,8 @@ AI: Let me check each one...
 
 ```bash
 while read url; do
-  curl -s -o /dev/null -w "%{http_code} $url\n" "$url"
+  status=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+  printf '%s %s\n' "$status" "$url"
 done < urls.txt
 ```
 
@@ -244,8 +245,11 @@ and create a manifest of what was moved
 **Extraction opportunity:**
 
 ```bash
-find . -name "*.png" -size +1M -exec mv {} /archive/ \; \
-  -print > manifest.txt
+find . -name "*.png" -size +1M -print0 | \
+  while IFS= read -r -d '' file; do
+    mv "$file" /archive/
+    printf '%s\n' "/archive/$(basename "$file")"
+  done > manifest.txt
 ```
 
 ---
@@ -327,8 +331,8 @@ msg="$1"
 [[ "$msg" =~ ^(feat|fix|docs|style|refactor|test|chore): ]] ||
   { echo "Error: Must start with type:"; exit 1; }
 [[ ${#msg} -le 72 ]] ||
-  { echo "Error: Must be ≤72 chars"; exit 1; }
-[[ "$msg" != *. ]] ||
+  { echo "Error: Must be <=72 chars"; exit 1; }
+[[ "$msg" == *. ]] &&
   { echo "Error: No trailing period"; exit 1; }
 echo "Valid"
 ```
@@ -454,7 +458,7 @@ When creating a new React component:
 name="$1"
 mkdir -p "src/components/$name"
 
-cat > "src/components/$name/$name.tsx" << 'EOF'
+cat > "src/components/$name/$name.tsx" << EOF
 import React from 'react';
 
 interface Props {}
@@ -527,7 +531,7 @@ AI: Let me analyze your package.json...
 #!/bin/bash
 # audit_deps.sh
 npm audit --json | jq '.vulnerabilities | to_entries[] |
-  {name: .key, severity: .value.severity, via: .value.via[0]}'
+  {name: .key, severity: .value.severity}'
 ```
 
 **AI's new role:** Explain the vulnerabilities, suggest fixes, prioritize remediation — judgment tasks.
