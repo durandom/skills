@@ -90,8 +90,9 @@ def load_config(config_path: Path | None = None) -> GTDConfig:
     """Load GTD configuration from file or return defaults.
 
     Args:
-        config_path: Explicit path to config file. If None, searches
-            for .gtd.json by walking up from cwd.
+        config_path: Explicit path to config file. If None, uses
+            find_config_file to look for `.gtd/config.json` in the git
+            repository root (if any) or the current working directory.
 
     Returns:
         GTDConfig with loaded or default values.
@@ -112,13 +113,29 @@ def load_config(config_path: Path | None = None) -> GTDConfig:
     if backend not in AVAILABLE_BACKENDS:
         backend = "github"
 
+    # Ensure backend-specific config sections are dicts before unpacking
     tw_data = data.get("taskwarrior", {})
+    if not isinstance(tw_data, dict):
+        tw_data = {}
     gh_data = data.get("github", {})
+    if not isinstance(gh_data, dict):
+        gh_data = {}
+
+    # Construct backend configs defensively; fall back to defaults on error
+    try:
+        tw_config = TaskwarriorConfig(**tw_data)
+    except TypeError:
+        tw_config = TaskwarriorConfig()
+
+    try:
+        gh_config = GitHubConfig(**gh_data)
+    except TypeError:
+        gh_config = GitHubConfig()
 
     return GTDConfig(
         backend=backend,
-        taskwarrior=TaskwarriorConfig(**tw_data),
-        github=GitHubConfig(**gh_data),
+        taskwarrior=tw_config,
+        github=gh_config,
     )
 
 

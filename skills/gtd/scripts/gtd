@@ -102,9 +102,9 @@ def get_storage(
     Args:
         repo: Optional repo in "owner/repo" format (for GitHub backend).
         backend: Override backend choice ('github' or 'taskwarrior').
-            If None, uses .gtd.yaml config.
+            If None, uses the configuration from .gtd/config.json.
         ensure_setup: If True, automatically run setup if needed.
-        require_init: If True, fail if not initialized (no .gtd.yaml).
+        require_init: If True, fail if not initialized (no .gtd/config.json).
 
     Raises:
         NotInitializedError: If require_init=True and no config exists.
@@ -344,7 +344,11 @@ def cmd_clarify(args) -> int:
     # Update next action (title)
     next_action = getattr(args, "next_action", None)
     if next_action and next_action != item.title:
-        storage.update_item(args.id, title=next_action)
+        try:
+            storage.update_item(args.id, title=next_action)
+        except (ValueError, RuntimeError) as e:
+            print(f"{RED}✗{NC} Failed to update title for #{args.id}: {e}")
+            return 1
 
     # Horizon (default to action)
     horizon = getattr(args, "horizon", None) or "action"
@@ -1967,20 +1971,24 @@ def main() -> int:
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
-    # init - only show when NOT initialized
-    if not initialized:
-        p = subparsers.add_parser("init", help="Initialize GTD with a storage backend")
-        p.add_argument(
-            "backend_choice",
-            nargs="?",
-            help="Backend to use (run without args to see options)",
-        )
-        p.add_argument(
-            "--force",
-            action="store_true",
-            help=argparse.SUPPRESS,  # Hidden: only revealed in output
-        )
-        p.set_defaults(func=cmd_init)
+    # init - always available; behavior depends on initialization state
+    init_help = (
+        "Initialize GTD with a storage backend"
+        if not initialized
+        else "Initialize or reconfigure GTD with a storage backend"
+    )
+    p = subparsers.add_parser("init", help=init_help)
+    p.add_argument(
+        "backend_choice",
+        nargs="?",
+        help="Backend to use (run without args to see options)",
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help=argparse.SUPPRESS,  # Hidden: only revealed in output
+    )
+    p.set_defaults(func=cmd_init)
 
     # capture
     p = subparsers.add_parser("capture", help="Quick capture to inbox")

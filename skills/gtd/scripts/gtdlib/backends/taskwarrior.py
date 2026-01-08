@@ -145,7 +145,12 @@ class TaskwarriorStorage(GTDStorage):
 
         # Get first annotation as body (if any)
         annotations = data.get("annotations", [])
-        body = annotations[0].get("description") if annotations else None
+        first_annotation = annotations[0] if annotations else None
+        body = (
+            first_annotation.get("description")
+            if isinstance(first_annotation, dict)
+            else None
+        )
 
         # Build metadata from Taskwarrior fields
         # Note: Metadata is reconstructed from TW attributes, not stored in body
@@ -195,7 +200,10 @@ class TaskwarriorStorage(GTDStorage):
         if body:
             self._run_task([task_id, "annotate", body])
 
-        return self.get_item(task_id)
+        item = self.get_item(task_id)
+        if item is None:
+            raise RuntimeError(f"Task {task_id} not found after creation")
+        return item
 
     def get_item(self, item_id: str) -> GTDItem | None:
         """Get a single task by ID."""
@@ -277,19 +285,18 @@ class TaskwarriorStorage(GTDStorage):
                 args.append("project:")  # Clear project
 
         if labels is not None:
-            # Remove all existing GTD tags first
+            # Remove all existing GTD tags first (batched in a single modify command)
             current = self.get_item(item_id)
             if current:
                 for label in current.labels:
-                    self._run_task(
-                        [item_id, "modify", f"-{self._label_to_tag(label)}"],
-                        check=False,
-                    )
+                    args.append(f"-{self._label_to_tag(label)}")
             # Add new tags
             for label in labels:
                 args.append(f"+{self._label_to_tag(label)}")
 
-        if len(args) > 2:  # More than just ID and "modify"
+        # Run modify if there are changes beyond just [item_id, "modify"]
+        # This handles labels=[] case where we only remove tags
+        if len(args) > 2:
             self._run_task(args)
 
         # Handle body update via annotation
@@ -298,7 +305,10 @@ class TaskwarriorStorage(GTDStorage):
             # Add new annotation with the body content
             self._run_task([item_id, "annotate", body])
 
-        return self.get_item(item_id)
+        item = self.get_item(item_id)
+        if item is None:
+            raise ValueError(f"Task {item_id!r} not found after update")
+        return item
 
     def add_labels(self, item_id: str, labels: list[str]) -> GTDItem:
         """Add tags to a task."""
@@ -306,7 +316,10 @@ class TaskwarriorStorage(GTDStorage):
         for label in labels:
             args.append(f"+{self._label_to_tag(label)}")
         self._run_task(args)
-        return self.get_item(item_id)
+        item = self.get_item(item_id)
+        if item is None:
+            raise ValueError(f"Task {item_id!r} not found after adding labels")
+        return item
 
     def remove_labels(self, item_id: str, labels: list[str]) -> GTDItem:
         """Remove tags from a task."""
@@ -314,18 +327,27 @@ class TaskwarriorStorage(GTDStorage):
         for label in labels:
             args.append(f"-{self._label_to_tag(label)}")
         self._run_task(args, check=False)  # May fail if tag doesn't exist
-        return self.get_item(item_id)
+        item = self.get_item(item_id)
+        if item is None:
+            raise ValueError(f"Task {item_id!r} not found after removing labels")
+        return item
 
     def close_item(self, item_id: str) -> GTDItem:
         """Mark task as done."""
         self._run_task([item_id, "done"])
-        return self.get_item(item_id)
+        item = self.get_item(item_id)
+        if item is None:
+            raise ValueError(f"Task {item_id!r} not found after closing")
+        return item
 
     def reopen_item(self, item_id: str) -> GTDItem:
         """Reopen a completed task."""
         # Taskwarrior requires modify to change status back to pending
         self._run_task([item_id, "modify", "status:pending"])
-        return self.get_item(item_id)
+        item = self.get_item(item_id)
+        if item is None:
+            raise ValueError(f"Task {item_id!r} not found after reopening")
+        return item
 
     def add_comment(self, item_id: str, body: str) -> None:
         """Add an annotation to a task."""
@@ -371,7 +393,10 @@ class TaskwarriorStorage(GTDStorage):
             args.append("depends:")
 
         self._run_task(args)
-        return self.get_item(item_id)
+        item = self.get_item(item_id)
+        if item is None:
+            raise ValueError(f"Task {item_id!r} not found after metadata update")
+        return item
 
     def _ids_to_uuids(self, ids: list[int]) -> list[str]:
         """Convert task IDs to UUIDs for depends attribute."""
@@ -385,6 +410,7 @@ class TaskwarriorStorage(GTDStorage):
                     if uuid:
                         uuids.append(uuid)
             except (RuntimeError, json.JSONDecodeError):
+                # Skip invalid or non-existent task IDs silently
                 pass
         return uuids
 
@@ -403,5 +429,6 @@ class TaskwarriorStorage(GTDStorage):
                     if task_id:
                         ids.append(int(task_id))
             except (RuntimeError, json.JSONDecodeError, ValueError):
+                # Skip invalid or non-existent UUIDs silently
                 pass
         return ids
