@@ -6,6 +6,14 @@ import sys
 from datetime import date
 
 from gtdlib.backends.github import GitHubStorage
+from gtdlib.backends.taskwarrior import TaskwarriorStorage
+from gtdlib.config import (
+    AVAILABLE_BACKENDS,
+    GTDConfig,
+    is_initialized,
+    load_config,
+    save_config,
+)
 from gtdlib.metadata import GTDMetadata
 from gtdlib.storage import GTDItem, GTDStorage
 
@@ -30,6 +38,17 @@ GTD_CATEGORIES = {
     "energy": {"values": ENERGIES, "prefix": "energy/"},
     "horizon": {"values": HORIZONS, "prefix": "horizon/"},
 }
+
+
+def print_next_steps(hints: list[tuple[str, str]]) -> None:
+    """Print next-step hints at the end of output.
+
+    Args:
+        hints: List of (command, description) tuples.
+    """
+    print(f"\n{BOLD}Next steps:{NC}")
+    for cmd, desc in hints:
+        print(f"  {BOLD}{cmd:<24}{NC} {desc}")
 
 
 def compute_label_changes(
@@ -66,16 +85,46 @@ def compute_label_changes(
     return labels_to_add, labels_to_remove
 
 
-def get_storage(repo: str | None = None, ensure_setup: bool = True) -> GitHubStorage:
-    """Get the storage backend.
+class NotInitializedError(Exception):
+    """Raised when GTD is not initialized."""
+
+    pass
+
+
+def get_storage(
+    repo: str | None = None,
+    backend: str | None = None,
+    ensure_setup: bool = True,
+    require_init: bool = True,
+) -> GTDStorage:
+    """Get the storage backend based on configuration.
 
     Args:
-        repo: Optional repo in "owner/repo" format.
+        repo: Optional repo in "owner/repo" format (for GitHub backend).
+        backend: Override backend choice ('github' or 'taskwarrior').
+            If None, uses the configuration from .gtd/config.json.
         ensure_setup: If True, automatically run setup if needed.
+        require_init: If True, fail if not initialized (no .gtd/config.json).
+
+    Raises:
+        NotInitializedError: If require_init=True and no config exists.
     """
-    storage = GitHubStorage(repo=repo)
+    # Check initialization (skip if backend override provided)
+    if require_init and backend is None and not is_initialized():
+        raise NotInitializedError(
+            "GTD is not initialized. Run `gtd init` to configure."
+        )
+
+    config = load_config()
+    backend_choice = backend or config.backend
+
+    if backend_choice == "taskwarrior":
+        storage: GTDStorage = TaskwarriorStorage(data_dir=config.taskwarrior.data_dir)
+    else:
+        storage = GitHubStorage(repo=repo or config.github.repo)
+
     if ensure_setup and not storage.is_setup():
-        print(f"{YELLOW}GTD labels not found. Running setup...{NC}\n")
+        print(f"{YELLOW}GTD storage not set up. Running setup...{NC}\n")
         storage.setup(verbose=True)
         print()
     return storage
@@ -103,25 +152,91 @@ def format_item(item: GTDItem, show_labels: bool = False) -> str:
     return line
 
 
+def cmd_status(args) -> int:
+    """Show GTD system status overview.
+
+    Default command when gtd is run without arguments.
+    Provides a quick snapshot and guides to next actions.
+    """
+    try:
+        storage = get_storage(args.repo, args.backend)
+    except NotInitializedError:
+        # Not initialized - show init guidance
+        print(f"{BLUE}GTD CLI{NC} - Getting Things Done task management")
+        print(
+            f"\n{YELLOW}!{NC} Not initialized. Run {BOLD}gtd init{NC} to get started."
+        )
+        return 0
+
+    # Gather counts
+    inbox_items = storage.list_inbox()
+    active_items = storage.list_items(
+        labels=["status/active", "horizon/action"], limit=100
+    )
+    overdue_items = [i for i in active_items if i.is_overdue]
+
+    print(f"{BLUE}GTD Status{NC}")
+    print("=" * 40)
+
+    # Inbox
+    if inbox_items:
+        print(f"\n{YELLOW}📥 Inbox:{NC} {len(inbox_items)} items need clarifying")
+    else:
+        print(f"\n{GREEN}📥 Inbox:{NC} Empty ✓")
+
+    # Active actions
+    print(f"{BLUE}📋 Active:{NC} {len(active_items)} actions")
+
+    # Overdue warning
+    if overdue_items:
+        print(f"{RED}⚠ Overdue:{NC} {len(overdue_items)} items past due")
+
+    # Build context-aware hints
+    hints = []
+    if inbox_items:
+        first_id = inbox_items[0].id
+        hints.append((f"gtd clarify {first_id}", "Process first inbox item"))
+    hints.append(("gtd capture <text>", "Quick capture to inbox"))
+    if active_items:
+        hints.append(("gtd next", "Get next action to work on"))
+    hints.append(("gtd list", "List all tasks"))
+    hints.append(("gtd --help", "Show all commands"))
+
+    print_next_steps(hints)
+    return 0
+
+
 def cmd_capture(args) -> int:
     """Quick capture to inbox."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     text = " ".join(args.text)
 
     item = storage.capture(title=text, body=args.body)
     print(f"{GREEN}✓{NC} Captured to inbox: #{item.id}")
     print(f"  {item.title}")
-    print(f"\n  Run {BOLD}gtd clarify {item.id}{NC} to process this item.")
+
+    print_next_steps(
+        [
+            (f"gtd clarify {item.id}", "Process this item"),
+            ("gtd inbox", "View all inbox items"),
+        ]
+    )
     return 0
 
 
 def cmd_inbox(args) -> int:
     """List inbox items needing clarification."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     items = storage.list_inbox()
 
     if not items:
         print(f"{GREEN}✓{NC} Inbox is empty! Nothing to clarify.")
+        print_next_steps(
+            [
+                ("gtd capture <text>", "Capture a new thought"),
+                ("gtd next", "Get next action to work on"),
+            ]
+        )
         return 0
 
     print(f"{BLUE}📥 Inbox ({len(items)} items){NC}")
@@ -129,104 +244,165 @@ def cmd_inbox(args) -> int:
     print()
     for item in items:
         print(f"  #{item.id} {item.title}")
-    print()
-    print(f"Run {BOLD}gtd clarify <id>{NC} to process each item.")
+
+    first_id = items[0].id
+    print_next_steps(
+        [
+            (f"gtd clarify {first_id}", "Process first item"),
+            ("gtd view <id>", "View item details"),
+        ]
+    )
     return 0
 
 
 def cmd_clarify(args) -> int:
-    """Interactive clarification workflow."""
-    storage = get_storage(args.repo)
+    """Clarify an inbox item (non-interactive, requires flags).
+
+    Examples:
+        gtd clarify 123 --status=active --context=focus
+        gtd clarify 123 --not-actionable --delete
+        gtd clarify 123 --not-actionable --someday
+    """
+    storage = get_storage(args.repo, args.backend)
     item = storage.get_item(args.id)
 
     if not item:
         print(f"{RED}Error:{NC} Item #{args.id} not found.")
         return 1
 
-    print(f"\n{BLUE}Clarifying:{NC} #{item.id} {item.title}")
-    if item.body:
-        print(f"  {item.body[:100]}...")
-    print()
+    # Check if any decision flags were provided
+    has_actionable_flags = any(
+        [
+            getattr(args, "status", None),
+            getattr(args, "context", None),
+            getattr(args, "energy", None),
+            getattr(args, "horizon", None),
+            getattr(args, "project", None),
+            getattr(args, "outcome", None),
+            getattr(args, "next_action", None),
+        ]
+    )
+    has_not_actionable = getattr(args, "not_actionable", False)
 
-    # Step 1: Is it actionable?
-    actionable = input("Is this actionable? (y/n): ").strip().lower()
-    if actionable != "y":
-        # Move to someday/maybe or delete
-        action = input("(d)elete, (s)omeday/maybe, or (r)eference? ").strip().lower()
-        if action == "d":
+    # If no flags provided, show item and usage
+    if not has_actionable_flags and not has_not_actionable:
+        print(f"{BLUE}Item #{item.id}:{NC} {item.title}")
+        if item.body:
+            print(f"  {item.body[:100]}...")
+        print()
+        print(f"{YELLOW}Clarify requires flags to specify the decision:{NC}")
+        print()
+        print(f"{BOLD}If actionable:{NC}")
+        print(f"  gtd clarify {args.id} --status=active --context=focus")
+        print(f"  gtd clarify {args.id} --status=active --context=async --energy=low")
+        print()
+        print(f"{BOLD}If not actionable:{NC}")
+        print(f"  gtd clarify {args.id} --not-actionable --delete")
+        print(f"  gtd clarify {args.id} --not-actionable --someday")
+        print(f"  gtd clarify {args.id} --not-actionable --reference")
+        print()
+        print(f"Options: --status ({', '.join(STATUSES)})")
+        print(f"         --context ({', '.join(CONTEXTS)})")
+        print(f"         --energy ({', '.join(ENERGIES)})")
+        print(f"         --horizon ({', '.join(HORIZONS)})")
+        print("         --project <name>")
+        print("         --outcome <text>")
+        print("         --next-action <text>")
+        return 1
+
+    print(f"{BLUE}Clarifying:{NC} #{item.id} {item.title}")
+
+    # Handle non-actionable items
+    if has_not_actionable:
+        if getattr(args, "delete", False):
             storage.close_item(args.id)
             print(f"{GREEN}✓{NC} Deleted (closed).")
-        elif action == "s":
-            # Keep as someday (already status/someday from capture)
+        elif getattr(args, "someday", False):
             print(f"{GREEN}✓{NC} Staying in someday/maybe.")
+        elif getattr(args, "reference", False):
+            print(
+                f"{YELLOW}!{NC} Reference items should be moved to your notes system."
+            )
         else:
-            print("Reference items should be moved to your notes system.")
+            print(
+                f"{YELLOW}⚠{NC} --not-actionable requires "
+                "--delete, --someday, or --reference"
+            )
+            return 1
+        print_next_steps(
+            [
+                ("gtd inbox", "Process next inbox item"),
+                ("gtd list", "List all tasks"),
+            ]
+        )
         return 0
 
-    # Step 2: What's the outcome?
-    print("\nWhat does 'done' look like? (press Enter to skip)")
-    outcome = input("Outcome: ").strip()
-
-    # Step 3: What's the next action?
-    print("\nWhat's the very next physical action?")
-    next_action = input("Next action: ").strip()
-    if next_action and next_action != item.title:
-        # Update title to be the next action
-        storage.update_item(args.id, title=next_action)
-
+    # Actionable item processing
     labels_to_add = []
     labels_to_remove = ["status/someday"]  # Remove inbox status
 
-    # Step 4: Horizon (altitude) - what level is this?
-    print(f"\nWhat level? ({', '.join(HORIZONS)}) [action]")
-    horizon = input("Horizon: ").strip().lower() or "action"
+    # Update next action (title)
+    next_action = getattr(args, "next_action", None)
+    if next_action and next_action != item.title:
+        try:
+            storage.update_item(args.id, title=next_action)
+        except (ValueError, RuntimeError) as e:
+            print(f"{RED}✗{NC} Failed to update title for #{args.id}: {e}")
+            return 1
+
+    # Horizon (default to action)
+    horizon = getattr(args, "horizon", None) or "action"
     if horizon in HORIZONS:
         labels_to_add.append(f"horizon/{horizon}")
 
-    # Step 5: Context
-    print(f"\nContext? ({', '.join(CONTEXTS)})")
-    context = input("Context: ").strip().lower()
-    if context in CONTEXTS:
+    # Context
+    context = getattr(args, "context", None)
+    if context and context in CONTEXTS:
         labels_to_add.append(f"context/{context}")
 
-    # Step 6: Energy
-    print(f"\nEnergy required? ({', '.join(ENERGIES)})")
-    energy = input("Energy: ").strip().lower()
-    if energy in ENERGIES:
+    # Energy
+    energy = getattr(args, "energy", None)
+    if energy and energy in ENERGIES:
         labels_to_add.append(f"energy/{energy}")
 
-    # Step 7: Status (timing)
-    print(f"\nStatus? ({', '.join(STATUSES)}) [active]")
-    status = input("Status: ").strip().lower() or "active"
+    # Status (default to active)
+    status = getattr(args, "status", None) or "active"
     if status in STATUSES:
         labels_to_add.append(f"status/{status}")
 
-    # Step 8: Project (optional, for actions)
-    if horizon == "action":
-        print("\nBelongs to a project? (leave blank to skip)")
-        project_name = input("Project: ").strip()
-        if project_name:
-            # Ensure project exists
-            storage.ensure_project(project_name)
-            storage.update_item(args.id, project=project_name)
+    # Project
+    project = getattr(args, "project", None)
+    if project:
+        storage.ensure_project(project)
+        storage.update_item(args.id, project=project)
 
-    # Remove inbox label and apply new labels
+    # Apply label changes
     storage.remove_labels(args.id, labels_to_remove)
     if labels_to_add:
         storage.add_labels(args.id, labels_to_add)
 
     # Update body with outcome if provided
+    outcome = getattr(args, "outcome", None)
     if outcome:
         new_body = f"**Outcome:** {outcome}\n\n{item.body or ''}"
         storage.update_item(args.id, body=new_body)
 
-    print(f"\n{GREEN}✓{NC} Item clarified and organized!")
+    updated = storage.get_item(args.id)
+    print(f"{GREEN}✓{NC} Item clarified and organized!")
+    print(format_item(updated, show_labels=True))
+
+    print_next_steps(
+        [
+            ("gtd inbox", "Process next inbox item"),
+            (f"gtd done {args.id}", "Mark complete when done"),
+        ]
+    )
     return 0
 
 
 def cmd_add(args) -> int:
     """Add a new clarified task."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     title = " ".join(args.title)
     labels = []
 
@@ -263,12 +439,20 @@ def cmd_add(args) -> int:
     print(f"{GREEN}✓{NC} Created: #{item.id} {item.title}")
     if args.horizon == "project":
         print(f"  Project '{title}' created.")
+
+    print_next_steps(
+        [
+            (f"gtd done {item.id}", "Mark complete when done"),
+            (f"gtd view {item.id}", "View item details"),
+            ("gtd list", "List all tasks"),
+        ]
+    )
     return 0
 
 
 def cmd_list(args) -> int:
     """List tasks with filters."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     labels = []
 
     if args.context and args.context in CONTEXTS:
@@ -331,6 +515,12 @@ def cmd_list(args) -> int:
 
     if not items:
         print("No items found matching criteria.")
+        print_next_steps(
+            [
+                ("gtd capture <text>", "Capture a new thought"),
+                ("gtd inbox", "Process inbox items"),
+            ]
+        )
         return 0
 
     # Group by context if no specific context filter
@@ -350,12 +540,19 @@ def cmd_list(args) -> int:
         for item in items:
             print(format_item(item, show_labels=True))
 
+    print_next_steps(
+        [
+            ("gtd done <id>", "Mark task complete"),
+            ("gtd view <id>", "View task details"),
+            ("gtd next", "Get next action"),
+        ]
+    )
     return 0
 
 
 def cmd_done(args) -> int:
     """Mark task as complete."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     item = storage.get_item(args.id)
 
     if not item:
@@ -380,12 +577,20 @@ def cmd_done(args) -> int:
             print(f"  Added comment: {args.comment[:50]}{suffix}")
 
     print(f"{GREEN}✓{NC} Completed: #{item.id} {item.title}")
+
+    print_next_steps(
+        [
+            ("gtd next", "Get next action to work on"),
+            ("gtd list", "List remaining tasks"),
+            ("gtd inbox", "Process inbox items"),
+        ]
+    )
     return 0
 
 
 def cmd_update(args) -> int:
     """Update an existing task's GTD labels."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     item = storage.get_item(args.id)
 
     if not item:
@@ -416,12 +621,20 @@ def cmd_update(args) -> int:
     updated = storage.get_item(args.id)
     print(f"{GREEN}✓{NC} Updated: #{updated.id} {updated.title}")
     print(format_item(updated, show_labels=True))
+
+    print_next_steps(
+        [
+            (f"gtd done {args.id}", "Mark complete when done"),
+            (f"gtd view {args.id}", "View full details"),
+            ("gtd list", "List all tasks"),
+        ]
+    )
     return 0
 
 
 def cmd_comment(args) -> int:
     """Add a comment to a task."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     item = storage.get_item(args.id)
 
     if not item:
@@ -436,12 +649,19 @@ def cmd_comment(args) -> int:
         return 1
     print(f"{GREEN}✓{NC} Comment added to #{item.id}")
     print(f"  {message[:80]}{'...' if len(message) > 80 else ''}")
+
+    print_next_steps(
+        [
+            (f"gtd view {args.id}", "View full task"),
+            (f"gtd done {args.id}", "Mark complete"),
+        ]
+    )
     return 0
 
 
 def cmd_view(args) -> int:
     """View a task with GTD-relevant info highlighted."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     item = storage.get_item(args.id)
 
     if not item:
@@ -491,13 +711,20 @@ def cmd_view(args) -> int:
     if item.url:
         print(f"  URL:      {item.url}")
 
-    print()
+    # Context-aware hints based on item state
+    hints = []
+    if item.state == "open":
+        hints.append((f"gtd done {args.id}", "Mark complete"))
+        hints.append((f"gtd update {args.id} --status=...", "Update GTD labels"))
+    hints.append(("gtd list", "List all tasks"))
+
+    print_next_steps(hints)
     return 0
 
 
 def cmd_bulk(args) -> int:
     """Perform bulk operations on multiple tasks."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
 
     # Parse issue numbers
     ids = []
@@ -597,6 +824,13 @@ def cmd_bulk(args) -> int:
             failed += 1
 
     print(f"\n{GREEN}✓{NC} Completed: {success} succeeded, {failed} failed")
+
+    print_next_steps(
+        [
+            ("gtd list", "View all tasks"),
+            ("gtd next", "Get next action"),
+        ]
+    )
     return 0 if failed == 0 else 1
 
 
@@ -606,7 +840,7 @@ def cmd_next(args) -> int:
     Returns a single prioritized task based on context and energy filters.
     Priority: high energy focus work > low energy focus > async > other contexts.
     """
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
 
     # Build filter labels
     labels = ["status/active", "horizon/action"]
@@ -634,10 +868,21 @@ def cmd_next(args) -> int:
                 print(f"  #{item.id} {item.title}")
                 if item.project:
                     print(f"  {YELLOW}Project:{NC} {item.project}")
-                print(f"\n  {BOLD}gtd done {item.id}{NC} when complete")
+                print_next_steps(
+                    [
+                        (f"gtd done {item.id}", "Mark complete when done"),
+                        (f"gtd view {item.id}", "View details"),
+                    ]
+                )
                 return 0
 
         print(f"{GREEN}✓{NC} No active actions found. Time to clarify inbox or relax!")
+        print_next_steps(
+            [
+                ("gtd inbox", "Process inbox items"),
+                ("gtd capture <text>", "Capture a new thought"),
+            ]
+        )
         return 0
 
     # With filters, just get the first matching item
@@ -648,16 +893,27 @@ def cmd_next(args) -> int:
         print(format_item(item, show_labels=True))
         if item.project:
             print(f"  {YELLOW}Project:{NC} {item.project}")
-        print(f"\n  {BOLD}gtd done {item.id}{NC} when complete")
+        print_next_steps(
+            [
+                (f"gtd done {item.id}", "Mark complete when done"),
+                (f"gtd view {item.id}", "View details"),
+            ]
+        )
     else:
         print("No matching actions found.")
+        print_next_steps(
+            [
+                ("gtd inbox", "Process inbox items"),
+                ("gtd list", "List all tasks"),
+            ]
+        )
 
     return 0
 
 
 def cmd_daily(args) -> int:
     """Daily review workflow."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
 
     print(f"\n{BLUE}🌅 Daily Review{NC}")
     print("=" * 40)
@@ -765,13 +1021,20 @@ def cmd_daily(args) -> int:
     if inbox:
         print(f"\n{YELLOW}📥 Inbox has {len(inbox)} items to clarify{NC}")
 
-    print()
+    # Build context-aware hints
+    hints = []
+    if inbox:
+        hints.append((f"gtd clarify {inbox[0].id}", "Process first inbox item"))
+    hints.append(("gtd next", "Get next action"))
+    hints.append(("gtd weekly", "Run weekly review"))
+
+    print_next_steps(hints)
     return 0
 
 
 def cmd_weekly(args) -> int:
     """Weekly review workflow."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
 
     print(f"\n{BLUE}📅 Weekly Review{NC}")
     print("=" * 40)
@@ -826,13 +1089,114 @@ def cmd_weekly(args) -> int:
     else:
         print("  (none)")
 
+    # Build context-aware hints
+    hints = []
+    if inbox:
+        hints.append((f"gtd clarify {inbox[0].id}", "Process first inbox item"))
+    hints.append(("gtd next", "Get next action"))
+    hints.append(("gtd projects", "Review project progress"))
+
+    print_next_steps(hints)
+    return 0
+
+
+def cmd_init(args) -> int:
+    """Initialize GTD with a storage backend.
+
+    Safe-by-default: without backend argument, shows available options.
+    """
+    gh_ok = _check_tool("gh")
+    task_ok = _check_tool("task")
+
+    # If no backend specified, show available options (discovery mode)
+    if not args.backend_choice:
+        print(f"{BLUE}GTD Initialization{NC}")
+        print("=" * 40)
+        print()
+
+        if is_initialized():
+            config = load_config()
+            print(f"{GREEN}✓{NC} Already initialized: {BOLD}{config.backend}{NC}")
+            print()
+            print(f"  To switch backends, run: {BOLD}gtd init <backend>{NC}")
+        else:
+            print("Choose a storage backend:")
+            print()
+
+            # GitHub option
+            gh_status = f"{GREEN}✓ ready{NC}" if gh_ok else f"{RED}✗ not found{NC}"
+            print(f"  {BOLD}github{NC}      - Store tasks as GitHub Issues")
+            print(f"              gh CLI: {gh_status}")
+            if not gh_ok:
+                print(f"              Install: {BOLD}brew install gh{NC}")
+            print()
+
+            # Taskwarrior option
+            task_status = f"{GREEN}✓ ready{NC}" if task_ok else f"{RED}✗ not found{NC}"
+            print(f"  {BOLD}taskwarrior{NC} - Store tasks locally")
+            print(f"              task CLI: {task_status}")
+            if not task_ok:
+                print(f"              Install: {BOLD}brew install task{NC}")
+            print()
+
+            print(f"Run: {BOLD}gtd init <backend>{NC}")
+
+        return 0
+
+    backend = args.backend_choice
+
+    # Validate backend
+    if backend not in AVAILABLE_BACKENDS:
+        print(f"{RED}✗{NC} Unknown backend: {backend}")
+        print(f"  Available: {', '.join(AVAILABLE_BACKENDS)}")
+        return 1
+
+    # Check if required tool is installed
+    if backend == "github" and not gh_ok:
+        print(f"{RED}✗{NC} Cannot use github backend: gh CLI not found")
+        print()
+        print(f"  Install: {BOLD}brew install gh{NC}")
+        print(f"  Then:    {BOLD}gh auth login{NC}")
+        return 1
+    if backend == "taskwarrior" and not task_ok:
+        print(f"{RED}✗{NC} Cannot use taskwarrior backend: task CLI not found")
+        print()
+        print(f"  Install: {BOLD}brew install task{NC}")
+        return 1
+
+    # Check if already initialized
+    if is_initialized():
+        config = load_config()
+        if config.backend == backend and not args.force:
+            print(f"{GREEN}✓{NC} Already initialized with {BOLD}{backend}{NC}")
+            return 0
+        if not args.force:
+            print(f"{YELLOW}!{NC} Already initialized: {BOLD}{config.backend}{NC}")
+            print(f"  To switch to {backend}: {BOLD}gtd init {backend} --force{NC}")
+            return 1
+
+    # Create config
+    config = GTDConfig(backend=backend)
+    path = save_config(config)
+
+    print(f"{GREEN}✓{NC} Initialized GTD with {BOLD}{backend}{NC} backend")
+    print(f"  Config saved to: {path}")
+
+    # Run setup for the chosen backend
     print()
+    storage = get_storage(args.repo, backend, ensure_setup=False, require_init=False)
+    if not storage.is_setup():
+        print(f"{BLUE}Setting up {backend} storage...{NC}\n")
+        storage.setup(verbose=True)
+
     return 0
 
 
 def cmd_setup(args) -> int:
     """Run setup for the storage backend."""
-    storage = get_storage(args.repo, ensure_setup=False)
+    storage = get_storage(
+        args.repo, args.backend, ensure_setup=False, require_init=False
+    )
 
     # Cleanup mode - preview by default, --force to execute
     if args.cleanup:
@@ -948,7 +1312,7 @@ def _do_cleanup(storage, execute: bool = False) -> int:
 
 def cmd_projects(args) -> int:
     """List all projects with progress."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
 
     # Get milestones (projects)
     milestones = storage.list_milestones(state=args.state)
@@ -996,7 +1360,7 @@ def cmd_projects(args) -> int:
 
 def cmd_quarterly(args) -> int:
     """Quarterly review workflow."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
 
     print(f"\n{BLUE}🗓️  Quarterly Review{NC}")
     print("=" * 40)
@@ -1063,7 +1427,7 @@ def cmd_quarterly(args) -> int:
 
 def cmd_yearly(args) -> int:
     """Yearly review workflow."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
 
     print(f"\n{BLUE}🎯 Yearly Review{NC}")
     print("=" * 40)
@@ -1130,7 +1494,7 @@ def cmd_defer(args) -> int:
     Usage: gtd defer <id> <date>
     Example: gtd defer 42 2026-03-01
     """
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     item = storage.get_item(args.id)
 
     if not item:
@@ -1177,7 +1541,7 @@ def cmd_waiting(args) -> int:
 
     Note: Does NOT use @mentions to avoid notifications.
     """
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     item = storage.get_item(args.id)
 
     if not item:
@@ -1215,7 +1579,7 @@ def cmd_due(args) -> int:
       gtd due <id> --clear    # Remove due date
       gtd due <id>            # View due date
     """
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     item = storage.get_item(args.id)
 
     if not item:
@@ -1283,7 +1647,7 @@ def cmd_blocked(args) -> int:
       gtd blocked <id> --clear         # Remove all blockers
       gtd blocked <id>                 # View blockers
     """
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     item = storage.get_item(args.id)
 
     if not item:
@@ -1377,7 +1741,7 @@ def cmd_project_list(args) -> int:
 
 def cmd_project_show(args) -> int:
     """Show project details and its actions."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     title = " ".join(args.title) if isinstance(args.title, list) else args.title
 
     milestone = storage.get_milestone(title)
@@ -1437,7 +1801,7 @@ def cmd_project_show(args) -> int:
 
 def cmd_project_create(args) -> int:
     """Create a new project."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     title = " ".join(args.title)
 
     # Check if already exists
@@ -1459,7 +1823,7 @@ def cmd_project_create(args) -> int:
 
 def cmd_project_update(args) -> int:
     """Update a project."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     title = " ".join(args.title) if isinstance(args.title, list) else args.title
 
     # Check if any update was requested
@@ -1514,7 +1878,7 @@ def cmd_project_update(args) -> int:
 
 def cmd_project_delete(args) -> int:
     """Delete a project."""
-    storage = get_storage(args.repo)
+    storage = get_storage(args.repo, args.backend)
     title = " ".join(args.title) if isinstance(args.title, list) else args.title
 
     milestone = storage.get_milestone(title)
@@ -1541,14 +1905,90 @@ def cmd_project_delete(args) -> int:
         return 1
 
 
+def _check_tool(cmd: str) -> bool:
+    """Check if a CLI tool is available in PATH."""
+    import shutil
+
+    return shutil.which(cmd) is not None
+
+
+def _show_init_prompt() -> int:
+    """Show the initialization prompt (only time we reveal backends)."""
+    gh_ok = _check_tool("gh")
+    task_ok = _check_tool("task")
+
+    print(f"{BLUE}GTD CLI{NC} - Getting Things Done task management")
+    print()
+    print(f"{YELLOW}!{NC} No .gtd/config.json found. Choose a storage backend:")
+    print()
+
+    # GitHub option
+    gh_status = f"{GREEN}✓ ready{NC}" if gh_ok else f"{RED}✗ not found{NC}"
+    print(f"  {BOLD}gtd init github{NC}      - Store tasks as GitHub Issues")
+    print(f"                         gh CLI: {gh_status}")
+    if not gh_ok:
+        print(f"                         Install: {BOLD}brew install gh{NC}")
+    print()
+
+    # Taskwarrior option
+    task_status = f"{GREEN}✓ ready{NC}" if task_ok else f"{RED}✗ not found{NC}"
+    print(f"  {BOLD}gtd init taskwarrior{NC} - Store tasks locally")
+    print(f"                         task CLI: {task_status}")
+    if not task_ok:
+        print(f"                         Install: {BOLD}brew install task{NC}")
+    print()
+
+    print(f"Run {BOLD}gtd init{NC} for more details on each option.")
+    return 1
+
+
 def main() -> int:
+    # Check initialization state BEFORE building parser
+    initialized = is_initialized()
+
+    # If not initialized, handle specially
+    if not initialized:
+        # Allow 'init' command through, show prompt for everything else
+        if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
+            return _show_init_prompt()
+        if sys.argv[1] != "init":
+            return _show_init_prompt()
+
     parser = argparse.ArgumentParser(
         description="GTD CLI - Getting Things Done task management",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--repo", help="GitHub repo (owner/repo)")
+    # Hidden: backend-specific options (not shown in --help)
+    parser.add_argument(
+        "--repo",
+        help=argparse.SUPPRESS,  # GitHub-specific, hidden
+    )
+    parser.add_argument(
+        "--backend",
+        choices=["github", "taskwarrior"],
+        help=argparse.SUPPRESS,  # Use `gtd init` instead
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
+
+    # init - always available; behavior depends on initialization state
+    init_help = (
+        "Initialize GTD with a storage backend"
+        if not initialized
+        else "Initialize or reconfigure GTD with a storage backend"
+    )
+    p = subparsers.add_parser("init", help=init_help)
+    p.add_argument(
+        "backend_choice",
+        nargs="?",
+        help="Backend to use (run without args to see options)",
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help=argparse.SUPPRESS,  # Hidden: only revealed in output
+    )
+    p.set_defaults(func=cmd_init)
 
     # capture
     p = subparsers.add_parser("capture", help="Quick capture to inbox")
@@ -1561,8 +2001,41 @@ def main() -> int:
     p.set_defaults(func=cmd_inbox)
 
     # clarify
-    p = subparsers.add_parser("clarify", help="Clarify an inbox item")
+    p = subparsers.add_parser(
+        "clarify",
+        help="Clarify an inbox item (requires flags)",
+    )
     p.add_argument("id", help="Issue number")
+    # Non-actionable path
+    p.add_argument(
+        "--not-actionable",
+        action="store_true",
+        dest="not_actionable",
+        help="Item is not actionable (use with --delete, --someday, or --reference)",
+    )
+    p.add_argument("--delete", action="store_true", help="Delete non-actionable item")
+    p.add_argument(
+        "--someday", action="store_true", help="Keep non-actionable in someday/maybe"
+    )
+    p.add_argument(
+        "--reference",
+        action="store_true",
+        help="Non-actionable reference (move to notes)",
+    )
+    # Actionable path (using any of these implies actionable)
+    p.add_argument("--outcome", help="What 'done' looks like")
+    p.add_argument(
+        "--next-action", dest="next_action", help="Update title to next action"
+    )
+    p.add_argument(
+        "--status", "-s", choices=STATUSES, help="Set status (default: active)"
+    )
+    p.add_argument("--context", "-c", choices=CONTEXTS, help="Set context")
+    p.add_argument("--energy", "-e", choices=ENERGIES, help="Set energy level")
+    p.add_argument(
+        "--horizon", "-H", choices=HORIZONS, help="Set horizon (default: action)"
+    )
+    p.add_argument("--project", "-p", help="Assign to project")
     p.set_defaults(func=cmd_clarify)
 
     # add
@@ -1642,7 +2115,9 @@ def main() -> int:
     p.add_argument("--add-label", help="Add a label")
     p.add_argument("--remove-label", help="Remove a label")
     p.add_argument("--close", action="store_true", help="Close items")
-    p.add_argument("--force", "-f", action="store_true", help="Execute (no preview)")
+    p.add_argument(
+        "--force", "-f", action="store_true", help=argparse.SUPPRESS
+    )  # Hidden: revealed in output
     p.set_defaults(func=cmd_bulk)
 
     # next
@@ -1669,14 +2144,15 @@ def main() -> int:
     mode_group.add_argument(
         "--cleanup",
         action="store_true",
-        help="Preview stale label removal (use --force to execute)",
+        help="Preview stale label removal",
     )
     # --force modifies behavior (fix drift in setup mode, execute in cleanup mode)
+    # Hidden from help - revealed in command output
     p.add_argument(
         "--force",
         "-f",
         action="store_true",
-        help="Fix label drift or execute cleanup",
+        help=argparse.SUPPRESS,
     )
     p.set_defaults(func=cmd_setup)
 
@@ -1776,15 +2252,15 @@ def main() -> int:
     p = project_sub.add_parser("delete", help="Delete a project")
     p.add_argument("title", nargs="+", help="Project title")
     p.add_argument(
-        "--force", "-f", action="store_true", help="Delete even with open actions"
-    )
+        "--force", "-f", action="store_true", help=argparse.SUPPRESS
+    )  # Hidden: revealed in output when project has open actions
     p.set_defaults(func=cmd_project_delete)
 
     args = parser.parse_args()
 
     if not args.command:
-        parser.print_help()
-        return 1
+        # Default: show status (safe, read-only) — NOT help
+        return cmd_status(args)
 
     # Handle 'project' without subcommand - show help
     if args.command == "project" and not args.project_command:
