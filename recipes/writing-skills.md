@@ -75,18 +75,63 @@ skill-name/
 
 ## The Five Principles
 
-### 1. Standard Markdown Structure
+### 1. Choose Your Structure: Markdown or XML
 
-Use standard markdown headings (`#`, `##`, `###`) for skill body. This is the pattern used by all Anthropic production skills.
+Two valid approaches exist. Choose based on complexity:
 
-**Common sections:**
+#### Option A: Markdown Headings (Default)
 
-- `## Overview` — What the skill does
-- `## Quick Start` — Immediate actionable guidance
-- `## Workflow` — Step-by-step process
-- `## Key Guidelines` — Important rules
+Used by Anthropic's official skills and most community skills. Simpler and recommended for most cases.
 
-**Keep formatting clean:** Use bold, lists, code blocks within sections.
+```markdown
+## Overview
+What the skill does.
+
+## Quick Start
+Immediate actionable guidance.
+
+## Workflow
+### Step 1: First action
+### Step 2: Second action
+
+## Key Guidelines
+- Guideline 1
+- Guideline 2
+```
+
+#### Option B: XML Tags (Advanced)
+
+Used by some community skills (e.g., `xml-standards`) for complex multi-agent orchestration. Provides stronger semantic boundaries.
+
+```xml
+<role>
+Agent identity and expertise areas.
+</role>
+
+<instructions>
+Behavioral constraints and workflow phases.
+</instructions>
+
+<knowledge>
+Domain practices and reusable templates.
+</knowledge>
+
+<examples>
+Concrete usage scenarios.
+</examples>
+```
+
+**When to use XML:**
+
+- Complex multi-agent orchestration (dispatchers, planners, implementers)
+- Skills that need machine-parseable sections
+- Dense, structured instructions where clear boundaries matter
+
+**When to use Markdown:**
+
+- Single-purpose skills
+- Human-readable workflows
+- Following Anthropic's official patterns
 
 ### 2. Conciseness Is Key
 
@@ -294,7 +339,7 @@ Or gerund form: `processing-pdfs`, `analyzing-spreadsheets`, `testing-code`
 | Aspect | Guidance |
 |--------|----------|
 | **Structure** | Simple (single file) or Multi-file (with scripts/, references/, assets/) |
-| **Format** | Standard markdown headings (`#`, `##`, `###`) |
+| **Format** | Markdown headings (default) or XML tags (complex agents) |
 | **Length** | SKILL.md under 500 lines |
 | **Description** | Third person, what + when, specific triggers |
 | **References** | One level deep from SKILL.md |
@@ -319,7 +364,15 @@ The skill should only contain information needed for an AI agent to do the job.
 
 ## References
 
-- **Anthropic's `skill-creator` skill** — The authoritative guide in `anthropics/skills`
+**Official:**
+
 - [Anthropic Skills Best Practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices.md)
 - [Anthropic Skills Repository](https://github.com/anthropics/skills)
-- [Agent Skills Spec](https://agentskills.io)
+- **Anthropic's `skill-creator` skill** — The authoritative guide in `anthropics/skills`
+
+**Community:**
+
+- [obra/superpowers](https://github.com/obra/superpowers) — Popular skills collection (markdown approach)
+- [xml-standards skill](https://claude-plugins.dev/skills/@MadAppGang/claude-code/xml-standards) — XML tags for complex agents
+- [Claude Skills Deep Dive](https://leehanchung.github.io/blogs/2025/10/26/claude-skills-deep-dive/) — First principles analysis
+- [meta_skill best practices](https://github.com/Dicklesworthstone/meta_skill) — Skill authoring patterns
