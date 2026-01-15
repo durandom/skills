@@ -2,6 +2,8 @@
 
 Personal configuration as a simple key-value store. The schema is **loose** - any valid JSON is accepted; users own their config structure.
 
+**Reference:** [python-project-architecture.md](../../../../recipes/python-project-architecture.md) — Configuration patterns (Pydantic Settings, domain config)
+
 ## ADDED Requirements
 
 ### Requirement: Config file location
@@ -72,15 +74,15 @@ The `layton config init` command SHALL create a config file with sensible defaul
 
 The `layton config show` command SHALL display the entire config file.
 
-#### Scenario: Show dumps whole file
+#### Scenario: Show dumps config (default JSON)
 
 - **WHEN** user runs `layton config show`
-- **THEN** CLI SHALL output the entire config as formatted JSON
-
-#### Scenario: Show with json flag
-
-- **WHEN** user runs `layton config show --json`
 - **THEN** output SHALL be wrapped in standard response format with `success` and `config` fields
+
+#### Scenario: Show human-readable
+
+- **WHEN** user runs `layton config show --human`
+- **THEN** CLI SHALL output the config as formatted, syntax-highlighted JSON
 
 #### Scenario: Show when missing
 
@@ -94,20 +96,20 @@ The `layton config show` command SHALL display the entire config file.
 
 The `layton config keys` command SHALL list all keys for discovery.
 
-#### Scenario: Keys lists all paths
+#### Scenario: Keys lists all paths (default JSON)
 
 - **WHEN** user runs `layton config keys`
-- **THEN** CLI SHALL output all key paths (dot notation) one per line
+- **THEN** output SHALL be a JSON object with `success` and `keys` array
 
 #### Scenario: Keys example output
 
 - **WHEN** config contains `{"work": {"schedule": {"start": "09:00"}}}`
-- **THEN** `layton config keys` SHALL output `work.schedule.start`
+- **THEN** `layton config keys` SHALL include `"work.schedule.start"` in the `keys` array
 
-#### Scenario: Keys with json flag
+#### Scenario: Keys human-readable
 
-- **WHEN** user runs `layton config keys --json`
-- **THEN** output SHALL be a JSON array of key paths
+- **WHEN** user runs `layton config keys --human`
+- **THEN** CLI SHALL output all key paths (dot notation) one per line
 
 ---
 

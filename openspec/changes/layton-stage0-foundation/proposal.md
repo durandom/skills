@@ -1,6 +1,6 @@
 ## Why
 
-The original Layton planning (`001-pai-orchestrator/`) was too ambitious - spanning 27 functional requirements across GTD, Calendar, Jira, Email, and Slack integration. This stage establishes the foundation: a minimal CLI that verifies Beads integration and provides temporal context, before adding skill aggregation or AI synthesis.
+The original Layton vision was too ambitious — spanning GTD, Calendar, Jira, Email, and Slack integration all at once. This stage establishes the foundation: a minimal CLI that verifies Beads integration and provides temporal context, before adding skill aggregation or AI synthesis.
 
 Stage 0 proves the core architecture works: Beads as the "notepad" (state management), `.layton/` as the "filing cabinet" (config/preferences), and a thin CLI for deterministic operations.
 
@@ -18,9 +18,11 @@ Stage 0 proves the core architecture works: Beads as the "notepad" (state manage
 
 ### New Capabilities
 
-- `layton-cli`: The deterministic CLI providing doctor, context, and config commands
-- `layton-config`: Personal configuration schema and loading (work schedule, timezone, personality, interaction preferences)
-- `beads-conventions`: How Layton uses Beads for state management (tags, bead types, conventions)
+- `cli-framework`: Global CLI behavior (no-arg defaults, `--json`/`--verbose` flags, output format consistency, exit codes)
+- `cli-doctor`: Health check command verifying Beads availability and config validity, with hidden `--fix` flag
+- `cli-context`: Temporal context command (time-of-day classification, work hours calculation)
+- `cli-config`: Personal configuration as key-value store (init/show/keys/get/set commands)
+- `beads-conventions`: How Layton uses Beads for state management (labels: `watching`, `focus`, `layton`)
 
 ### Modified Capabilities
 
@@ -36,4 +38,3 @@ Stage 0 proves the core architecture works: Beads as the "notepad" (state manage
 ## References
 
 - **[.planning/layton.md](../../../.planning/layton.md)** - Exploration session summary with architecture decisions, the "secretary analogy" (notepad vs filing cabinet), and staged implementation plan
-- **[001-pai-orchestrator/](../../../001-pai-orchestrator/)** - Original planning documents (spec, user stories, data model, CLI contract)

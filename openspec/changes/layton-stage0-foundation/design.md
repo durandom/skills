@@ -2,7 +2,7 @@
 
 ## Context
 
-This is Stage 0 of a multi-stage implementation. The original planning (`001-pai-orchestrator/`) encompassed GTD, Calendar, Jira, Email, and Slack integration. That scope is too ambitious for initial delivery.
+This is Stage 0 of a multi-stage implementation. The original Layton vision encompassed GTD, Calendar, Jira, Email, and Slack integration. That scope is too ambitious for initial delivery.
 
 Stage 0 proves the core architecture:
 
@@ -14,7 +14,7 @@ Stage 0 proves the core architecture:
 
 - Beads (`bd` CLI) is a mature tool for AI-native task tracking
 - No Layton skill exists yet (greenfield)
-- Planning documents exist in `001-pai-orchestrator/` and `.planning/layton.md`
+- Planning documents exist in `.planning/layton.md`
 
 ### Constraints
 
@@ -84,45 +84,48 @@ Stage 0 proves the core architecture:
 - `layton` → runs `layton doctor` (useful no-arg default)
 - `layton config` → runs `layton config show` (safe default)
 - `layton doctor --fix` is hidden but suggested in `next_steps`
-- All `--json` output includes `success`, `next_steps` fields
+- All output includes `success`, `next_steps` fields (JSON by default)
 
-**Rationale**: AI agents parse CLI output; humans want sensible defaults. Hidden destructive flags prevent accidental data loss while remaining discoverable.
+**Rationale**: AI agents parse CLI output; humans can use `--human` flag. Hidden destructive flags prevent accidental data loss while remaining discoverable.
 
-### Decision 5: Simple labels over state machine
+### Decision 5: Simple labels for Beads integration
 
-**Choice**: Use `bd create ... -l watching,layton` instead of `bd state` machine
+**Choice**: Use Beads labels (`watching`, `focus`, `layton`) for categorization
+
+**Labels**:
+
+- `layton` — namespace label on all Layton-managed beads
+- `watching` — items the user wants tracked
+- `focus` — current work item (only one at a time)
+
+**Rationale**: Labels are simple and queryable via `bd list --label watching`. No custom state management needed — Beads handles persistence, git integration, and conflict resolution.
+
+### Decision 6: Python stdlib only (no external dependencies)
+
+**Choice**: Python CLI using stdlib only (`argparse`, `json`, `pathlib`)
 
 **Alternatives considered**:
 
-- Beads state machine (`bd state`) — deferred: overkill for Stage 0, adds complexity
-- Multiple label taxonomies — rejected: simple is better for now
-
-**Rationale**: Stage 0 only needs `watching`, `focus`, and `layton` labels. State machine pattern adds transitions, guards, and history tracking that aren't needed yet. Can evolve to state machine in Stage 3+ if warranted.
-
-### Decision 6: Python implementation using existing patterns
-
-**Choice**: Python CLI using uv, matching other skills (GTD)
-
-**Alternatives considered**:
-
+- Typer + Rich — rejected: adds dependencies for minimal benefit in Stage 0
 - Bash script — rejected: too limited for config management and JSON handling
-- TypeScript/Bun — rejected: this repo uses Python for CLI tools
 
-**Rationale**: Consistency with existing `gtd` skill and build infrastructure. Uses Typer for CLI, Pydantic for models (when needed).
+**Rationale**: Layton CLI is simple enough that stdlib is sufficient. No package manager setup needed — just a well-structured flat package. External dependencies can be added later if UX warrants it.
 
-**References**: [python-project-architecture.md](../../../../recipes/python-project-architecture.md) — flat package pattern
+**Structure follows** [python-project-architecture.md](../../../../recipes/python-project-architecture.md) — flat package pattern (core.py + cli.py separation)
 
-### Decision 7: Dual-mode output (human/JSON)
+### Decision 7: Agent-first output (JSON default)
 
-**Choice**: All commands support `--json` flag with consistent response structure
+**Choice**: JSON output is the default; `--human` flag enables human-readable output
 
-**Pattern applied** (from [agentic-cli.md](../../../../recipes/agentic-cli.md)):
+**Deviation from [agentic-cli.md](../../../../recipes/agentic-cli.md)**: The recipe recommends human-readable defaults with `--json` opt-in. Layton inverts this because its primary consumer is SKILL.md (an AI agent), not humans. Humans debugging the CLI can use `--human`.
 
-- Human output: Rich formatting, colors, readable tables
-- JSON output: Machine-parseable with `success`, `data`, `error`, `next_steps` fields
+**Pattern applied**:
+
+- JSON output (default): Machine-parseable with `success`, `data`, `error`, `next_steps` fields
+- Human output (`--human`): Rich formatting, colors, readable tables
 - Single `OutputFormatter` abstraction handles both modes
 
-**Rationale**: AI agents need structured JSON; humans want pretty output. The formatter abstraction (OCP) allows adding new output modes later without changing command logic.
+**Rationale**: SKILL.md will call `layton context` and `layton doctor` on every invocation — requiring `--json` every time is noisy. Default to what the primary consumer needs.
 
 ## Risks / Trade-offs
 
@@ -148,7 +151,7 @@ skills/layton/
 └── laytonlib/                # Flat package
     ├── __init__.py           # Package init, exports public API
     ├── __main__.py           # Enables: python -m laytonlib
-    ├── cli.py                # Typer app with commands
+    ├── cli.py                # argparse CLI with commands
     ├── core.py               # Business logic (no CLI deps)
     ├── config.py             # Config loading (key-value store)
     ├── context.py            # Temporal context
@@ -187,7 +190,7 @@ Follows patterns from [snapshot-testing.md](../../../../recipes/snapshot-testing
 
 **Snapshot testing** (syrupy):
 
-- **Level 1** (raw): Snapshot `layton context --json` output directly
+- **Level 1** (raw): Snapshot `layton context` output directly (JSON by default)
 - **Level 2** (printer): Format doctor check results for readable diffs
 - Use `AmberSnapshotExtension` for multi-line output
 
@@ -242,13 +245,13 @@ runner = CliRunner()
 def test_doctor_no_beads(isolated_env, monkeypatch):
     """Test doctor fails gracefully when bd CLI is missing."""
     monkeypatch.setattr(shutil, "which", lambda cmd: None)  # No bd
-    result = runner.invoke(app, ["doctor", "--json"])
+    result = runner.invoke(app, ["doctor"])  # JSON is default
     assert result.exit_code == 2
     assert "beads_available" in result.stdout
 
 def test_doctor_with_beads(isolated_env, real_beads_isolated):
     """Test doctor passes with bd available in isolated env."""
-    result = runner.invoke(app, ["doctor", "--json"])
+    result = runner.invoke(app, ["doctor"])  # JSON is default
     assert result.exit_code == 0  # or 1 if config missing (fixable)
 ```
 
