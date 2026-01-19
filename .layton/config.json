@@ -1,0 +1,9 @@
+{
+  "timezone": "CET",
+  "work": {
+    "schedule": {
+      "start": "09:00",
+      "end": "17:00"
+    }
+  }
+}
