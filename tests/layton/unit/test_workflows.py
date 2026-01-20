@@ -239,3 +239,65 @@ class TestWorkflowInfo:
         """Default triggers is empty list."""
         workflow = WorkflowInfo(name="test", description="Test")
         assert workflow.triggers == []
+
+
+# Path to the Layton skill directory
+LAYTON_SKILL_DIR = Path(__file__).parent.parent.parent.parent / "skills" / "layton"
+
+
+class TestBuiltinWorkflows:
+    """Tests for built-in workflow files in skills/layton/workflows/."""
+
+    def test_audit_workflow_exists(self):
+        """Audit workflow file exists at expected path."""
+        workflow_path = LAYTON_SKILL_DIR / "workflows" / "audit-project-instructions.md"
+        assert workflow_path.exists(), f"Missing workflow at {workflow_path}"
+
+    def test_audit_workflow_triggers(self):
+        """Audit workflow has appropriate triggers."""
+        workflow_path = LAYTON_SKILL_DIR / "workflows" / "audit-project-instructions.md"
+        content = workflow_path.read_text()
+        fm = parse_frontmatter(content)
+
+        assert fm is not None, "Workflow should have valid frontmatter"
+        assert "triggers" in fm, "Workflow should have triggers"
+
+        triggers_lower = [t.lower() for t in fm["triggers"]]
+        # Check for expected trigger phrases
+        assert any("audit" in t for t in triggers_lower), (
+            "Should have trigger with 'audit'"
+        )
+        assert any("claude" in t or "instruction" in t for t in triggers_lower), (
+            "Should have trigger mentioning claude or instructions"
+        )
+
+    def test_retrospect_workflow_exists(self):
+        """Retrospect workflow file exists at expected path."""
+        workflow_path = LAYTON_SKILL_DIR / "workflows" / "retrospect.md"
+        assert workflow_path.exists(), f"Missing workflow at {workflow_path}"
+
+    def test_retrospect_workflow_triggers(self):
+        """Retrospect workflow has appropriate triggers."""
+        workflow_path = LAYTON_SKILL_DIR / "workflows" / "retrospect.md"
+        content = workflow_path.read_text()
+        fm = parse_frontmatter(content)
+
+        assert fm is not None, "Workflow should have valid frontmatter"
+        assert "triggers" in fm, "Workflow should have triggers"
+
+        triggers_lower = [t.lower() for t in fm["triggers"]]
+        # Check for expected trigger phrases
+        assert any("retrospect" in t or "reflect" in t for t in triggers_lower), (
+            "Should have trigger with 'retrospect' or 'reflect'"
+        )
+
+    def test_setup_mentions_audit_workflow(self):
+        """Setup workflow mentions audit workflow as optional step."""
+        workflow_path = LAYTON_SKILL_DIR / "workflows" / "setup.md"
+        content = workflow_path.read_text().lower()
+
+        assert "audit" in content, "Setup workflow should mention audit workflow"
+        # Check it's presented as optional
+        assert "would you like" in content or "optional" in content, (
+            "Audit mention should be presented as optional"
+        )

@@ -92,6 +92,16 @@ layton workflows add <workflow-name>
 
 Point them to examples in `skills/layton/examples/` for inspiration.
 
+#### Optional: Audit Project Instructions
+
+If the repository has CLAUDE.md or AGENTS.md files:
+
+> "Would you like me to audit your project instruction files (CLAUDE.md, AGENTS.md) against best practices? This can help organize your AI assistant guidance."
+
+If user is interested, suggest running the audit after setup completes:
+
+> "After we finish setup, you can run the audit-project-instructions workflow to review your files."
+
 ### 5. Verify Setup
 
 Run a final check to confirm everything is configured:

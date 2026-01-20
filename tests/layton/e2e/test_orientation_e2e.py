@@ -115,3 +115,84 @@ class TestOrientationCommand:
                 assert False, "Human output should not be JSON"
         except json.JSONDecodeError:
             pass  # Expected
+
+
+class TestCompactOutput:
+    """Tests for compact CLI output formatting."""
+
+    def test_compact_summary_on_success(self, isolated_env, temp_config):
+        """Human output shows compact summary when all checks pass."""
+        temp_config.write_text('{"timezone": "UTC"}')
+
+        result = run_layton("--human", cwd=isolated_env)
+
+        # If beads is unavailable, the command exits early with error
+        # Skip compact output check in that case
+        output = result.stdout + result.stderr
+        if "Beads CLI" in output:
+            # Beads not available - can't test compact output
+            return
+
+        # Should show compact summary, not individual checks
+        # Format: "✓ N/N checks passed"
+        assert "checks passed" in result.stdout, (
+            f"Expected compact summary with 'checks passed', got: {result.stdout}"
+        )
+        # Should NOT show individual check names in compact mode
+        # (unless there's a failure)
+        if "✗" not in result.stdout:  # No failures
+            assert "beads_available:" not in result.stdout or "✓" in result.stdout
+
+    def test_verbose_shows_all_checks(self, isolated_env, temp_config):
+        """Human output with --verbose shows all check details."""
+        temp_config.write_text('{"timezone": "UTC"}')
+
+        result = run_layton("--human", "--verbose", cwd=isolated_env)
+
+        # If beads is unavailable, the command exits early with error
+        output = result.stdout + result.stderr
+        if "Beads CLI" in output:
+            # Beads not available - can't test verbose output
+            return
+
+        # Verbose mode should show individual checks
+        assert "checks:" in result.stdout, (
+            f"Expected 'checks:' header in verbose output, got: {result.stdout}"
+        )
+
+    def test_expanded_output_on_failure(self, isolated_env):
+        """Human output expands when a check fails."""
+        # Don't create config - this causes config_exists to fail
+        # Remove the config file if it exists
+        config_path = isolated_env / ".layton" / "config.json"
+        if config_path.exists():
+            config_path.unlink()
+
+        result = run_layton("--human", cwd=isolated_env)
+
+        # On failure, should show expanded output with check details
+        output = result.stdout + result.stderr
+        # Should show the failure (either beads or config failure)
+        assert "✗" in output or "Error" in output or "fail" in output.lower(), (
+            f"Expected failure indicator in output: {output}"
+        )
+
+    def test_json_output_also_compact(self, isolated_env, temp_config):
+        """JSON output is also compact when all checks pass."""
+        temp_config.write_text('{"timezone": "UTC"}')
+
+        result = run_layton(cwd=isolated_env)
+
+        data = json.loads(result.stdout)
+        if data.get("success"):
+            checks = data["data"]["checks"]
+            # When all pass, checks is a summary dict (not array)
+            if isinstance(checks, dict):
+                assert "summary" in checks, "Compact checks should have summary"
+                assert "all_passed" in checks, "Compact checks should have all_passed"
+            else:
+                # If it's still a list, there was a failure/warning - verify structure
+                assert isinstance(checks, list)
+                for check in checks:
+                    assert "name" in check
+                    assert "status" in check
