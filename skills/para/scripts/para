@@ -26,10 +26,10 @@ NC = "\033[0m"  # No Color
 
 # PARA folder names
 PARA_FOLDERS = {
-    "projects": "1 Projects",
-    "areas": "2 Areas",
-    "resources": "3 Resources",
-    "archive": "4 Archive",
+    "projects": "1_Projects",
+    "areas": "2_Areas",
+    "resources": "3_Resources",
+    "archive": "4_Archive",
 }
 
 
