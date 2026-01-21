@@ -14,7 +14,14 @@ from gtdlib.config import (
     load_config,
     save_config,
 )
+from gtdlib.history import format_entry_human, log_action, read_history
 from gtdlib.metadata import GTDMetadata
+from gtdlib.reviews import (
+    get_due_reviews,
+    get_review_status,
+    mark_review_complete,
+    reset_review,
+)
 from gtdlib.storage import GTDItem, GTDStorage
 
 # ANSI colors
@@ -168,6 +175,22 @@ def cmd_status(args) -> int:
         )
         return 0
 
+    # Check for overdue reviews first (top priority)
+    due_reviews = get_due_reviews()
+
+    print(f"{BLUE}GTD Status{NC}")
+    print("=" * 40)
+
+    # Show prominent banner if any reviews are overdue
+    if due_reviews:
+        most_overdue = due_reviews[0]
+        print(
+            f"\n{RED}🚨 REVIEW OVERDUE: {most_overdue.review_type.title()} review "
+            f"({most_overdue.days_overdue} days){NC}"
+        )
+        print(f"   Run: {BOLD}gtd {most_overdue.review_type}{NC}")
+        print(f"   📖 Agent guide: {most_overdue.workflow_path}")
+
     # Gather counts
     inbox_items = storage.list_inbox()
     active_items = storage.list_items(
@@ -175,32 +198,57 @@ def cmd_status(args) -> int:
     )
     overdue_items = [i for i in active_items if i.is_overdue]
 
-    print(f"{BLUE}GTD Status{NC}")
-    print("=" * 40)
-
     # Inbox
     if inbox_items:
         print(f"\n{YELLOW}📥 Inbox:{NC} {len(inbox_items)} items need clarifying")
     else:
         print(f"\n{GREEN}📥 Inbox:{NC} Empty ✓")
 
-    # Active actions
+    # Active actions with first action shown
     print(f"{BLUE}📋 Active:{NC} {len(active_items)} actions")
+    if active_items:
+        first_action = active_items[0]
+        print(f"  → #{first_action.id} {first_action.title}")
 
     # Overdue warning
     if overdue_items:
         print(f"{RED}⚠ Overdue:{NC} {len(overdue_items)} items past due")
 
+    # Review status section
+    review_status = get_review_status()
+    print(f"\n{BLUE}🔄 Reviews:{NC}")
+    for rtype in ["daily", "weekly", "quarterly", "yearly"]:
+        status = review_status[rtype]
+        if status["overdue"]:
+            if status["days_ago"] is None:
+                print(f"  {RED}⚠{NC} {rtype.title()}: never done")
+            else:
+                days = status["days_ago"]
+                print(f"  {RED}⚠{NC} {rtype.title()}: {days} days ago (overdue)")
+        else:
+            if status["days_ago"] == 0:
+                print(f"  {GREEN}✓{NC} {rtype.title()}: today")
+            else:
+                print(f"  {GREEN}✓{NC} {rtype.title()}: {status['days_ago']} days ago")
+
     # Build context-aware hints
     hints = []
+    if due_reviews:
+        # Overdue review is top priority
+        most_overdue = due_reviews[0]
+        hints.append(
+            (
+                f"gtd {most_overdue.review_type}",
+                f"{most_overdue.review_type.title()} review (OVERDUE - top priority)",
+            )
+        )
     if inbox_items:
         first_id = inbox_items[0].id
         hints.append((f"gtd clarify {first_id}", "Process first inbox item"))
     hints.append(("gtd capture <text>", "Quick capture to inbox"))
-    if active_items:
+    if active_items and not due_reviews:
         hints.append(("gtd next", "Get next action to work on"))
-    hints.append(("gtd list", "List all tasks"))
-    hints.append(("gtd --help", "Show all commands"))
+    hints.append(("gtd reviews", "View detailed review status"))
 
     print_next_steps(hints)
     return 0
@@ -214,6 +262,9 @@ def cmd_capture(args) -> int:
     item = storage.capture(title=text, body=args.body)
     print(f"{GREEN}✓{NC} Captured to inbox: #{item.id}")
     print(f"  {item.title}")
+
+    # Log to history
+    log_action("capture", item_id=str(item.id), title=item.title)
 
     print_next_steps(
         [
@@ -391,6 +442,9 @@ def cmd_clarify(args) -> int:
     print(f"{GREEN}✓{NC} Item clarified and organized!")
     print(format_item(updated, show_labels=True))
 
+    # Log to history
+    log_action("clarify", item_id=args.id, title=updated.title, labels=labels_to_add)
+
     print_next_steps(
         [
             ("gtd inbox", "Process next inbox item"),
@@ -436,6 +490,7 @@ def cmd_add(args) -> int:
     item = storage.create_item(
         title=title, labels=labels, body=args.body, project=project
     )
+    log_action("add", item_id=str(item.id), title=item.title, labels=labels)
     print(f"{GREEN}✓{NC} Created: #{item.id} {item.title}")
     if args.horizon == "project":
         print(f"  Project '{title}' created.")
@@ -578,6 +633,9 @@ def cmd_done(args) -> int:
 
     print(f"{GREEN}✓{NC} Completed: #{item.id} {item.title}")
 
+    # Log to history
+    log_action("done", item_id=str(item.id), title=item.title)
+
     print_next_steps(
         [
             ("gtd next", "Get next action to work on"),
@@ -619,6 +677,14 @@ def cmd_update(args) -> int:
 
     # Show result
     updated = storage.get_item(args.id)
+    log_action(
+        "update",
+        item_id=args.id,
+        title=updated.title,
+        labels_added=labels_to_add or None,
+        labels_removed=labels_to_remove or None,
+        project=args.project,
+    )
     print(f"{GREEN}✓{NC} Updated: #{updated.id} {updated.title}")
     print(format_item(updated, show_labels=True))
 
@@ -647,6 +713,7 @@ def cmd_comment(args) -> int:
     except Exception as e:
         print(f"{RED}Error:{NC} Failed to add comment to #{item.id}: {e}")
         return 1
+    log_action("comment", item_id=args.id, title=item.title)
     print(f"{GREEN}✓{NC} Comment added to #{item.id}")
     print(f"  {message[:80]}{'...' if len(message) > 80 else ''}")
 
@@ -747,13 +814,13 @@ def cmd_bulk(args) -> int:
             ids.extend(str(i) for i in range(start_int, end_int + 1))
         else:
             if not part.isdigit():
-                print(f"{RED}Error:{NC} Invalid issue number '{part}'.")
+                print(f"{RED}Error:{NC} Invalid item ID '{part}'.")
                 print("  Must be a positive integer.")
                 return 1
             ids.append(part)
 
     if not ids:
-        print(f"{RED}Error:{NC} No issue numbers provided.")
+        print(f"{RED}Error:{NC} No item IDs provided.")
         return 1
 
     # Determine operation (no existing_labels = bulk mode, filtered at execution)
@@ -817,6 +884,16 @@ def cmd_bulk(args) -> int:
             if close_items:
                 storage.close_item(item_id)
 
+            # Log each successful bulk operation
+            log_action(
+                "bulk",
+                item_id=item_id,
+                title=item.title,
+                labels_added=labels_to_add or None,
+                labels_removed=labels_to_remove_for_item if labels_to_remove else None,
+                project=args.project,
+                closed=close_items,
+            )
             print(f"  {GREEN}✓{NC} #{item_id} {(item.title or '')[:40]}...")
             success += 1
         except Exception as e:
@@ -1021,6 +1098,11 @@ def cmd_daily(args) -> int:
     if inbox:
         print(f"\n{YELLOW}📥 Inbox has {len(inbox)} items to clarify{NC}")
 
+    # Mark daily review as complete and log to history
+    mark_review_complete("daily")
+    log_action("review", review_type="daily")
+    print(f"\n{GREEN}✓ Daily review marked complete{NC}")
+
     # Build context-aware hints
     hints = []
     if inbox:
@@ -1088,6 +1170,11 @@ def cmd_weekly(args) -> int:
         print(f"  ... run {BOLD}gtd list --status someday{NC} for full list")
     else:
         print("  (none)")
+
+    # Mark weekly review as complete and log to history
+    mark_review_complete("weekly")
+    log_action("review", review_type="weekly")
+    print(f"\n{GREEN}✓ Weekly review marked complete{NC}")
 
     # Build context-aware hints
     hints = []
@@ -1401,7 +1488,7 @@ def cmd_quarterly(args) -> int:
             else:
                 print(f"  {title}: No actions")
     else:
-        print("  No milestones/projects to review.")
+        print("  No projects to review.")
 
     # 4. Someday/Maybe items
     print(f"\n{BOLD}4. Someday/Maybe Review{NC}")
@@ -1420,6 +1507,11 @@ def cmd_quarterly(args) -> int:
     print("  • What didn't get done? Why?")
     print("  • What do I want to focus on next quarter?")
     print("  • Are my goals still aligned with my vision?")
+
+    # Mark quarterly review as complete and log to history
+    mark_review_complete("quarterly")
+    log_action("review", review_type="quarterly")
+    print(f"\n{GREEN}✓ Quarterly review marked complete{NC}")
 
     print()
     return 0
@@ -1457,7 +1549,7 @@ def cmd_yearly(args) -> int:
             closed_issues = m.get("closed_issues", 0)
             print(f"  ✓ {title} ({closed_issues} actions completed)")
     else:
-        print("  No closed milestones this year.")
+        print("  No completed projects this year.")
 
     # 3. Higher horizons prompts
     print(f"\n{BOLD}3. Higher Horizons Review{NC}")
@@ -1481,7 +1573,96 @@ def cmd_yearly(args) -> int:
     print("  3. Define projects to achieve those goals")
     print(f"  Example: {BOLD}gtd add 'Achieve Python mastery' --horizon goal{NC}")
 
+    # Mark yearly review as complete and log to history
+    mark_review_complete("yearly")
+    log_action("review", review_type="yearly")
+    print(f"\n{GREEN}✓ Yearly review marked complete{NC}")
+
     print()
+    return 0
+
+
+def cmd_reviews(args) -> int:
+    """Show detailed review status."""
+    review_status = get_review_status()
+
+    print(f"\n{BLUE}🔄 Review Status{NC}")
+    print("=" * 40)
+
+    for rtype in ["daily", "weekly", "quarterly", "yearly"]:
+        status = review_status[rtype]
+        print()
+        if status["overdue"]:
+            if status["days_ago"] is None:
+                print(f"  {RED}⚠ {rtype.title()}{NC}")
+                print("    Last done: never")
+                print(f"    Status: {RED}OVERDUE{NC}")
+            else:
+                days_overdue = -status["due_in"]
+                print(f"  {RED}⚠ {rtype.title()}{NC}")
+                print(f"    Last done: {status['days_ago']} days ago")
+                print(f"    Status: {RED}{days_overdue} days overdue{NC}")
+        else:
+            if status["days_ago"] == 0:
+                print(f"  {GREEN}✓ {rtype.title()}{NC}")
+                print("    Last done: today")
+                print(f"    Next due: in {status['due_in']} days")
+            else:
+                print(f"  {GREEN}✓ {rtype.title()}{NC}")
+                print(f"    Last done: {status['days_ago']} days ago")
+                print(f"    Next due: in {status['due_in']} days")
+
+        # Show workflow path
+        print(f"    📖 Agent guide: .claude/skills/gtd/workflows/{rtype}-review.md")
+
+    # Handle reset if requested
+    if hasattr(args, "reset") and args.reset:
+        reset_review(args.reset)
+        print(f"\n{GREEN}✓{NC} Reset {args.reset} review timestamp (for testing)")
+
+    print()
+    return 0
+
+
+def cmd_history(args) -> int:
+    """Show action history."""
+    from datetime import date as date_type
+
+    # Parse since date if provided
+    since = None
+    if hasattr(args, "since") and args.since:
+        try:
+            since = date_type.fromisoformat(args.since)
+        except ValueError:
+            print(f"{RED}Error:{NC} Invalid date format. Use YYYY-MM-DD.")
+            return 1
+
+    # Get limit
+    limit = getattr(args, "limit", 20) or 20
+
+    # Read history
+    entries = read_history(limit=limit, since=since)
+
+    if not entries:
+        print("No history entries found.")
+        return 0
+
+    # Output format
+    if hasattr(args, "json") and args.json:
+        # Raw JSONL output
+        import json as json_mod
+
+        for entry in entries:
+            print(json_mod.dumps(entry.to_dict()))
+    else:
+        # Human-readable output
+        print(f"\n{BLUE}📜 Action History{NC}")
+        print("=" * 40)
+        print()
+        for entry in entries:
+            print(f"  {format_entry_human(entry)}")
+        print()
+
     return 0
 
 
@@ -1526,6 +1707,13 @@ def cmd_defer(args) -> int:
         storage.remove_labels(args.id, ["status/active", "status/waiting"])
         storage.add_labels(args.id, ["status/someday"])
 
+    log_action(
+        "defer",
+        item_id=args.id,
+        title=item.title,
+        defer_until=defer_date.isoformat(),
+        someday=args.someday,
+    )
     print(f"{GREEN}✓{NC} Deferred #{item.id} until {defer_date}")
     if args.someday:
         print("  Status changed to someday")
@@ -1565,6 +1753,13 @@ def cmd_waiting(args) -> int:
     storage.remove_labels(args.id, ["status/active", "status/someday"])
     storage.add_labels(args.id, ["status/waiting"])
 
+    log_action(
+        "waiting",
+        item_id=args.id,
+        title=item.title,
+        waiting_for=args.person,
+        reason=args.reason,
+    )
     print(f"{GREEN}✓{NC} #{item.id} now waiting on {args.person}")
     if args.reason:
         print(f"  Reason: {args.reason}")
@@ -1595,6 +1790,7 @@ def cmd_due(args) -> int:
             blocked_by=metadata.blocked_by,
         )
         storage.update_metadata(args.id, new_metadata)
+        log_action("due", item_id=args.id, title=item.title, due_date="cleared")
         print(f"{GREEN}✓{NC} Cleared due date for #{item.id}")
         return 0
 
@@ -1627,6 +1823,7 @@ def cmd_due(args) -> int:
         blocked_by=metadata.blocked_by,
     )
     storage.update_metadata(args.id, new_metadata)
+    log_action("due", item_id=args.id, title=item.title, due_date=due_date.isoformat())
 
     days_until = (due_date - date.today()).days
     print(f"{GREEN}✓{NC} Set due date for #{item.id}: {due_date}")
@@ -1640,7 +1837,7 @@ def cmd_due(args) -> int:
 
 
 def cmd_blocked(args) -> int:
-    """Mark an item as blocked by other issues.
+    """Mark an item as blocked by other items.
 
     Usage:
       gtd blocked <id> <blocker-ids>   # Set blockers (comma-separated)
@@ -1665,6 +1862,7 @@ def cmd_blocked(args) -> int:
         storage.update_metadata(args.id, new_metadata)
         storage.remove_labels(args.id, ["status/waiting"])
         storage.add_labels(args.id, ["status/active"])
+        log_action("blocked", item_id=args.id, title=item.title, blocked_by="cleared")
         print(f"{GREEN}✓{NC} Cleared blockers for #{item.id}")
         return 0
 
@@ -1725,6 +1923,7 @@ def cmd_blocked(args) -> int:
     storage.remove_labels(args.id, ["status/active", "status/someday"])
     storage.add_labels(args.id, ["status/waiting"])
 
+    log_action("blocked", item_id=args.id, title=item.title, blocked_by=blocker_ids)
     blockers_str = ", ".join(f"#{x}" for x in blocker_ids)
     print(f"{GREEN}✓{NC} #{item.id} now blocked by: {blockers_str}")
     return 0
@@ -1815,6 +2014,7 @@ def cmd_project_create(args) -> int:
         description=args.desc,
         due_on=args.due,
     )
+    log_action("project_create", project=title, due=args.due)
     print(f"{GREEN}✓{NC} Created project: {milestone.get('title')}")
     if args.due:
         print(f"  Due: {args.due}")
@@ -1866,6 +2066,16 @@ def cmd_project_update(args) -> int:
         print(f"{RED}Error:{NC} Project '{title}' not found.")
         return 1
 
+    orig_title = args.title
+    if isinstance(orig_title, list):
+        orig_title = " ".join(orig_title)
+    log_action(
+        "project_update",
+        project=title,
+        renamed_from=orig_title if args.rename else None,
+        due=args.due,
+        state=args.state,
+    )
     print(f"{GREEN}✓{NC} Updated project: {title}")
     if args.desc:
         print("  Description updated")
@@ -1896,6 +2106,7 @@ def cmd_project_delete(args) -> int:
         return 1
 
     if storage.delete_milestone(title):
+        log_action("project_delete", project=title, orphaned_items=open_issues)
         print(f"{GREEN}✓{NC} Deleted project: {title}")
         if open_issues > 0:
             print(f"  {open_issues} action(s) are now unassigned")
@@ -1946,12 +2157,15 @@ def main() -> int:
     # Check initialization state BEFORE building parser
     initialized = is_initialized()
 
+    # Commands that don't require storage initialization
+    storage_free_commands = {"init", "reviews", "history"}
+
     # If not initialized, handle specially
     if not initialized:
-        # Allow 'init' command through, show prompt for everything else
+        # Allow storage-free commands through, show prompt for everything else
         if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
             return _show_init_prompt()
-        if sys.argv[1] != "init":
+        if sys.argv[1] not in storage_free_commands:
             return _show_init_prompt()
 
     parser = argparse.ArgumentParser(
@@ -2005,7 +2219,7 @@ def main() -> int:
         "clarify",
         help="Clarify an inbox item (requires flags)",
     )
-    p.add_argument("id", help="Issue number")
+    p.add_argument("id", help="Item ID")
     # Non-actionable path
     p.add_argument(
         "--not-actionable",
@@ -2063,7 +2277,7 @@ def main() -> int:
     p.add_argument("--horizon", "-H", choices=HORIZONS, help="Filter by horizon")
     p.add_argument("--project", "-p", help="Filter by project")
     p.add_argument(
-        "--state", choices=["open", "closed", "all"], default="open", help="Issue state"
+        "--state", choices=["open", "closed", "all"], default="open", help="Item state"
     )
     p.add_argument("--limit", "-l", type=int, default=100, help="Max items")
     p.add_argument("--raw", "-r", action="store_true", help="Raw list (no grouping)")
@@ -2079,13 +2293,13 @@ def main() -> int:
 
     # done
     p = subparsers.add_parser("done", help="Mark task complete")
-    p.add_argument("id", help="Issue number")
+    p.add_argument("id", help="Item ID")
     p.add_argument("--comment", "-m", help="Add completion comment")
     p.set_defaults(func=cmd_done)
 
     # update
     p = subparsers.add_parser("update", help="Update task GTD labels")
-    p.add_argument("id", help="Issue number")
+    p.add_argument("id", help="Item ID")
     p.add_argument("--status", "-s", choices=STATUSES, help="Set status")
     p.add_argument("--context", "-c", choices=CONTEXTS, help="Set context")
     p.add_argument("--energy", "-e", choices=ENERGIES, help="Set energy")
@@ -2095,18 +2309,18 @@ def main() -> int:
 
     # comment
     p = subparsers.add_parser("comment", help="Add comment to task")
-    p.add_argument("id", help="Issue number")
+    p.add_argument("id", help="Item ID")
     p.add_argument("message", nargs="+", help="Comment message")
     p.set_defaults(func=cmd_comment)
 
     # view
     p = subparsers.add_parser("view", help="View task with GTD info")
-    p.add_argument("id", help="Issue number")
+    p.add_argument("id", help="Item ID")
     p.set_defaults(func=cmd_view)
 
     # bulk
     p = subparsers.add_parser("bulk", help="Bulk operations on multiple tasks")
-    p.add_argument("ids", help="Issue numbers (comma-separated, or ranges like 1-5)")
+    p.add_argument("ids", help="Item IDs (comma-separated, or ranges like 1-5)")
     p.add_argument("--status", "-s", choices=STATUSES, help="Set status")
     p.add_argument("--context", "-c", choices=CONTEXTS, help="Set context")
     p.add_argument("--energy", "-e", choices=ENERGIES, help="Set energy")
@@ -2171,9 +2385,27 @@ def main() -> int:
     p = subparsers.add_parser("yearly", help="Yearly review")
     p.set_defaults(func=cmd_yearly)
 
+    # reviews - detailed review status
+    p = subparsers.add_parser("reviews", help="Show detailed review status")
+    p.add_argument(
+        "--reset",
+        choices=["daily", "weekly", "quarterly", "yearly"],
+        help="Reset a review timestamp (for testing)",
+    )
+    p.set_defaults(func=cmd_reviews)
+
+    # history - action history
+    p = subparsers.add_parser("history", help="Show action history")
+    p.add_argument("--limit", "-l", type=int, default=20, help="Max entries to show")
+    p.add_argument("--since", help="Only show entries since date (YYYY-MM-DD)")
+    p.add_argument(
+        "--json", action="store_true", help="Output as raw JSONL (machine-readable)"
+    )
+    p.set_defaults(func=cmd_history)
+
     # defer - GTD workaround for deferred items
     p = subparsers.add_parser("defer", help="Defer an item until a future date")
-    p.add_argument("id", help="Issue number")
+    p.add_argument("id", help="Item ID")
     p.add_argument("date", help="Defer until date (YYYY-MM-DD)")
     p.add_argument(
         "--someday", "-s", action="store_true", help="Also set status to someday"
@@ -2182,21 +2414,21 @@ def main() -> int:
 
     # waiting - GTD workaround for tracking who you're waiting on
     p = subparsers.add_parser("waiting", help="Mark item as waiting on someone")
-    p.add_argument("id", help="Issue number")
+    p.add_argument("id", help="Item ID")
     p.add_argument("person", help="Person you're waiting on (NO @mentions)")
     p.add_argument("reason", nargs="?", help="What you're waiting for")
     p.set_defaults(func=cmd_waiting)
 
     # due - GTD workaround for due dates
     p = subparsers.add_parser("due", help="Set or view due date")
-    p.add_argument("id", help="Issue number")
+    p.add_argument("id", help="Item ID")
     p.add_argument("date", nargs="?", help="Due date (YYYY-MM-DD)")
     p.add_argument("--clear", action="store_true", help="Remove due date")
     p.set_defaults(func=cmd_due)
 
     # blocked - GTD workaround for dependencies
-    p = subparsers.add_parser("blocked", help="Mark item as blocked by other issues")
-    p.add_argument("id", help="Issue number")
+    p = subparsers.add_parser("blocked", help="Mark item as blocked by other items")
+    p.add_argument("id", help="Item ID")
     p.add_argument("blockers", nargs="?", help="Blocker IDs (comma-separated)")
     p.add_argument("--clear", action="store_true", help="Remove all blockers")
     p.set_defaults(func=cmd_blocked)
