@@ -1,4 +1,9 @@
 <workflow name="track-item">
+<required_reading>
+**Read if unfamiliar with bd commands:**
+1. references/beads-commands.md - bd CLI reference
+</required_reading>
+
 <objective>Add an item to Layton's attention list.</objective>
 
 <steps>

@@ -1,4 +1,9 @@
 <workflow name="set-focus">
+<required_reading>
+**Read if unfamiliar with bd commands:**
+1. references/beads-commands.md - bd CLI reference
+</required_reading>
+
 <objective>Set current focus (only one at a time).</objective>
 
 <steps>

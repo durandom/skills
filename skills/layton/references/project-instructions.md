@@ -1,22 +1,20 @@
-# Project Instructions Best Practices
-
+<overview>
 Reference guide for structuring CLAUDE.md and AGENTS.md files in knowledge repositories using Layton.
-
-## Overview
 
 Project instruction files help AI assistants work effectively in your repository. The recommended pattern is simple:
 
 - **CLAUDE.md**: Contains only `@AGENTS.md` to load the agent instructions
 - **AGENTS.md**: Contains all instructions (context, commands, protocols)
+</overview>
 
-### Why This Pattern?
+<why_this_pattern>
 
 1. **Single source of truth** - All instructions in one file
 2. **No duplication** - CLAUDE.md just includes AGENTS.md
 3. **Easy maintenance** - Update one file, not two
+</why_this_pattern>
 
-## CLAUDE.md
-
+<claude_md_structure>
 CLAUDE.md should be minimal - just include the agent instructions:
 
 ```markdown
@@ -26,31 +24,33 @@ CLAUDE.md should be minimal - just include the agent instructions:
 ```
 
 That's it. The `@AGENTS.md` directive tells Claude Code to load the agent instructions automatically.
+</claude_md_structure>
 
-## AGENTS.md
+<agents_md_structure>
+AGENTS.md contains everything the AI assistant needs to know.
 
-AGENTS.md contains everything the AI assistant needs to know:
-
-### Required Sections
+**Required Sections:**
 
 | Section | Purpose |
-|---------|---------|
+| --- | --- |
 | Session Start Protocol | What to do first (e.g., run `/layton`) |
 | Primary Entry Point | How to get oriented (Layton) |
 | Issue Tracking | Commands for Beads (`bd ready`, etc.) |
 | Session Completion | "Landing the Plane" protocol |
 | Critical Rules | Hard constraints that must be followed |
 
-### Optional Sections (Add If Relevant)
+**Optional Sections (Add If Relevant):**
 
 | Section | When to Add |
-|---------|-------------|
+| --- | --- |
 | What This Repository Is | If it's not obvious from context |
 | Folder Structure | If there's a specific organization (e.g., PARA) |
 | Key Files | If there are important files to know about |
 | Language Preferences | If responses should be in a specific language |
 
-### Example Structure
+</agents_md_structure>
+
+<example_structure>
 
 ```markdown
 # Agent Instructions
@@ -80,31 +80,29 @@ bd close <id>         # Complete work
 - NEVER stop before pushing
 
 ```
+</example_structure>
 
-## Anti-Patterns
+<anti_patterns>
+Common anti-patterns to avoid:
 
-### Duplication Between Files
+**Duplication Between Files:**
+- ❌ **Problem**: Content in both CLAUDE.md and AGENTS.md
+- ✓ **Solution**: Put everything in AGENTS.md, CLAUDE.md just has `@AGENTS.md`
 
-❌ **Problem**: Content in both CLAUDE.md and AGENTS.md
-✓ **Solution**: Put everything in AGENTS.md, CLAUDE.md just has `@AGENTS.md`
+**Assuming Unknown Structure:**
+- ❌ **Problem**: Prescribing folder structures or key files you don't know about
+- ✓ **Solution**: Only document what you actually know; omit sections that don't apply
 
-### Assuming Unknown Structure
+**Missing Session Protocol:**
+- ❌ **Problem**: No guidance on how to start or end sessions
+- ✓ **Solution**: Always include Session Start and Session Completion sections
 
-❌ **Problem**: Prescribing folder structures or key files you don't know about
-✓ **Solution**: Only document what you actually know; omit sections that don't apply
+**Verbose Explanations:**
+- ❌ **Problem**: Long paragraphs explaining concepts
+- ✓ **Solution**: Terse, actionable instructions. Commands, not essays.
+</anti_patterns>
 
-### Missing Session Protocol
-
-❌ **Problem**: No guidance on how to start or end sessions
-✓ **Solution**: Always include Session Start and Session Completion sections
-
-### Verbose Explanations
-
-❌ **Problem**: Long paragraphs explaining concepts
-✓ **Solution**: Terse, actionable instructions. Commands, not essays.
-
-## File Locations
-
+<file_locations>
 ```
 
 repository/
@@ -116,10 +114,11 @@ repository/
     └── workflows/      # Workflow definitions
 
 ```
+</file_locations>
 
-## Examples
-
+<examples>
 See the `examples/` directory for:
 
 - `CLAUDE.md` - Minimal file with just `@AGENTS.md`
 - `AGENTS.md` - Complete agent instructions (~50 lines)
+</examples>

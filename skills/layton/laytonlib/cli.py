@@ -142,7 +142,8 @@ def run_orientation(formatter: OutputFormatter) -> int:
         checks.append(config_valid_check)
 
     if config_exists_check.status == "fail":
-        next_steps.append("Run 'layton config init' to create config")
+        next_steps.append("Follow workflows/setup.md for guided onboarding")
+        next_steps.append("Or run 'layton config init' for quick setup")
 
     # Get skills inventory
     skills = list_skills()

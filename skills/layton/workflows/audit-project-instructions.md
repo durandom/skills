@@ -9,21 +9,19 @@ triggers:
   - review project instructions
 ---
 
-## Objective
+<required_reading>
+**Read before starting:**
 
+1. references/project-instructions.md - Best practices for instruction files
+</required_reading>
+
+<objective>
 Analyze the target repository's CLAUDE.md and AGENTS.md files against best practices from `references/project-instructions.md`, then present actionable suggestions without making automatic changes.
+</objective>
 
-## Prerequisites
+<process>
 
-Load the reference document:
-
-```
-references/project-instructions.md
-```
-
-## Steps
-
-### 1. Read Target Files
+## Step 1: Read Target Files
 
 Read the target repository's instruction files (from repo root):
 
@@ -32,7 +30,7 @@ Read the target repository's instruction files (from repo root):
 
 If either file is missing, note this as a finding.
 
-### 2. Check for Missing Files
+## Step 2: Check for Missing Files
 
 **If CLAUDE.md is missing:**
 
@@ -44,7 +42,7 @@ If either file is missing, note this as a finding.
 > "**Suggestion**: Create an AGENTS.md file for quick command references and session protocols.
 > See `skills/layton/examples/AGENTS.md` for a concise example."
 
-### 3. Analyze Verbosity
+## Step 3: Analyze Verbosity
 
 For CLAUDE.md, check line count and content density:
 
@@ -56,7 +54,7 @@ For CLAUDE.md, check line count and content density:
 > "**Consider**: Your CLAUDE.md is {N} lines. Files over 200 lines can be hard to scan.
 > Move detailed code examples to separate reference docs and keep CLAUDE.md navigational."
 
-### 4. Analyze Duplication
+## Step 4: Analyze Duplication
 
 Compare CLAUDE.md and AGENTS.md for overlapping content:
 
@@ -72,7 +70,7 @@ Compare CLAUDE.md and AGENTS.md for overlapping content:
 >
 > **Suggestion**: Keep commands in AGENTS.md only. CLAUDE.md can say 'See AGENTS.md for command reference.'"
 
-### 5. Check for Missing Sections
+## Step 5: Check for Missing Sections
 
 **CLAUDE.md should have:**
 
@@ -92,7 +90,7 @@ For each missing section:
 > "**Suggestion**: Add a {section name} section to {file}.
 > This helps agents {reason for section}."
 
-### 6. Present Findings
+## Step 6: Present Findings
 
 Summarize findings in a structured format:
 
@@ -115,7 +113,7 @@ Summarize findings in a structured format:
 - See examples from the reference doc
 ```
 
-### 7. User Decides Next Steps
+## Step 7: User Decides Next Steps
 
 Wait for user input. Do NOT auto-apply changes.
 
@@ -124,15 +122,19 @@ If user wants to apply a suggestion:
 - Show the proposed edit
 - Ask for confirmation before making changes
 
-## Context Adaptation
+</process>
+
+<context_adaptation>
 
 - **If CLAUDE.md is well-structured**: Focus audit on AGENTS.md or congratulate and skip
 - **If user is in a hurry**: Give top 3 suggestions only
 - **If this is a new project**: Offer to help create files from examples
+</context_adaptation>
 
-## Success Criteria
+<success_criteria>
 
 - [ ] Both files (if they exist) were analyzed
 - [ ] Findings presented with rationale (not just "fix this")
 - [ ] No automatic modifications made
 - [ ] User guided on next steps
+</success_criteria>

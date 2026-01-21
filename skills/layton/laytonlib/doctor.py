@@ -275,8 +275,8 @@ def run_doctor(formatter: OutputFormatter, fix: bool = False) -> int:
 
     # Build next_steps
     if config_missing:
-        next_steps.append("Run 'layton doctor --fix' to create config with defaults")
-        next_steps.append("Or run 'layton config init' to create config manually")
+        next_steps.append("Follow workflows/setup.md for guided onboarding")
+        next_steps.append("Or run 'layton doctor --fix' for quick setup with defaults")
 
     if config_invalid:
         next_steps.append("Fix the JSON syntax error in .layton/config.json")

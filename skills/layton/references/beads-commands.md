@@ -1,7 +1,8 @@
-# Beads Command Reference
+<overview>
+Command reference for the `bd` (beads) CLI used by Layton for state operations.
+</overview>
 
-## Creating beads
-
+<creating_beads>
 **Track external item:**
 
 ```bash
@@ -14,17 +15,20 @@ Output:
 {"id": "beads-abc", "title": "JIRA-1234: blocking release", "labels": ["watching", "jira", "layton"]}
 ```
 
-## Querying beads
+</creating_beads>
+
+<querying_beads>
 
 | Query | Command |
-|-------|---------|
+| --- | --- |
 | Watched items | `bd list --label watching --json` |
 | Current focus | `bd list --label focus --json` |
 | All Layton beads | `bd list --label layton --json` |
 | Ready work | `bd ready --json` |
 
-## Updating beads
+</querying_beads>
 
+<updating_beads>
 **Add label:**
 
 ```bash
@@ -37,17 +41,23 @@ bd update <id> --add-label <label> --json
 bd update <id> --remove-label <label> --json
 ```
 
-## Closing beads
+</updating_beads>
+
+<closing_beads>
 
 ```bash
 bd close <id> --reason "..." --json
 ```
 
-## Label conventions
+</closing_beads>
+
+<label_conventions>
 
 | Label | Purpose |
-|-------|---------|
+| --- | --- |
 | `layton` | Namespace - all Layton-managed beads |
 | `watching` | Items user wants tracked |
 | `focus` | Current work item (only one) |
 | `jira`, `github`, etc. | Source system |
+
+</label_conventions>

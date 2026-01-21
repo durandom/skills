@@ -9,17 +9,17 @@ triggers:
   - workflow retro
 ---
 
-## Objective
-
+<objective>
 Guide structured reflection on a workflow that was just executed, identify what worked and what didn't, and optionally capture improvements to the workflow file.
+</objective>
 
-## Prerequisites
-
+<prerequisites>
 A workflow should have been recently completed in this session.
+</prerequisites>
 
-## Steps
+<process>
 
-### 1. Identify the Workflow
+## Step 1: Identify the Workflow
 
 Ask the user:
 
@@ -30,7 +30,7 @@ Accept either:
 - Workflow name (e.g., "setup")
 - Description (e.g., "the morning status check")
 
-### 2. Evaluate Goal Achievement
+## Step 2: Evaluate Goal Achievement
 
 Ask:
 
@@ -44,7 +44,7 @@ For "Partial" or "No", follow up:
 
 > "What was missing or didn't work as expected?"
 
-### 3. Identify Friction Points
+## Step 3: Identify Friction Points
 
 Ask:
 
@@ -59,7 +59,7 @@ Ask:
 
 Capture specific pain points with quotes or examples when possible.
 
-### 4. Suggest Improvements
+## Step 4: Suggest Improvements
 
 Based on the feedback, brainstorm improvements:
 
@@ -80,7 +80,7 @@ Types of improvements to consider:
 - Changing the order of operations
 - Adding conditional paths ("if X, then Y")
 
-### 5. Offer to Capture Changes
+## Step 5: Offer to Capture Changes
 
 If the user identified actionable improvements:
 
@@ -99,7 +99,7 @@ If the user identified actionable improvements:
 
 > "No problem! Your feedback is noted. You can always update the workflow later or run this retrospect again."
 
-### 6. Summarize
+## Step 6: Summarize
 
 Provide a brief summary:
 
@@ -120,14 +120,17 @@ Provide a brief summary:
 **Changes applied:** {Yes/No/Deferred}
 ```
 
-## Context Adaptation
+</process>
+
+<context_adaptation>
 
 - **If workflow was successful**: Keep it brief, ask if there's anything to improve anyway
 - **If workflow had issues**: Dig deeper into specifics, offer to fix
 - **If user is frustrated**: Acknowledge the frustration, focus on constructive improvements
 - **If it's a new workflow**: Feedback is especially valuable—suggest capturing learnings
+</context_adaptation>
 
-## Success Criteria
+<success_criteria>
 
 - [ ] Workflow identified
 - [ ] Goal achievement evaluated
@@ -135,3 +138,4 @@ Provide a brief summary:
 - [ ] Improvements discussed
 - [ ] User offered chance to capture changes
 - [ ] Summary provided
+</success_criteria>

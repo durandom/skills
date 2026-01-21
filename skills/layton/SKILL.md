@@ -16,6 +16,48 @@ Layton is your personal secretary—managing attention, synthesizing information
 - AI orientation (combined status in one command)
 </objective>
 
+<essential_principles>
+
+- Use `bd` directly for all state operations (never wrap it)
+- Always include `--json` flag for machine-readable output
+- Always include `layton` label on beads Layton creates
+- Only ONE bead should have `focus` label at any time
+- Workflows are AI instructions—Layton follows them, not executes them as code
+- Skill files in `.layton/skills/` define how to query external tools
+- User workflows in `.layton/workflows/` are customizable by users
+</essential_principles>
+
+<intake>
+What would you like to do?
+
+1. Get oriented (full status check)
+2. Track something (add to attention list)
+3. Set focus (designate current work item)
+4. Retrospect on workflow (reflect on what worked)
+5. Something else
+
+**Wait for response before proceeding.**
+</intake>
+
+<routing>
+| Response | Workflow |
+| --- | --- |
+| 1, "orient", "status", "check" | Run `layton` CLI (no args) |
+| 2, "track", "watch", "monitor" | `workflows/track-item.md` |
+| 3, "focus", "working on" | `workflows/set-focus.md` |
+| 4, "retrospect", "reflect", "retro" | `workflows/retrospect.md` |
+| 5, other | Clarify intent, then select |
+
+**Intent-based routing (bypass menu):**
+
+| Intent | Workflow |
+| --- | --- |
+| "setup", "configure", "onboard" | `workflows/setup.md` |
+| "audit", "review instructions" | `workflows/audit-project-instructions.md` |
+
+**After selecting a workflow, read and follow it exactly.**
+</routing>
+
 <quick_start>
 
 **Get oriented** (full status):
@@ -35,20 +77,7 @@ Layton is your personal secretary—managing attention, synthesizing information
 **Gather data from skills**: Follow `examples/gather.md`
 
 **Focus suggestions**: Follow `examples/focus-suggestion.md`
-
-For bd command details, see `references/beads-commands.md`.
 </quick_start>
-
-<principles>
-
-- Use `bd` directly for all state operations (never wrap it)
-- Always include `--json` flag for machine-readable output
-- Always include `layton` label on beads Layton creates
-- Only ONE bead should have `focus` label at any time
-- Workflows are AI instructions—Layton follows them, not executes them as code
-- Skill files in `.layton/skills/` define how to query external tools
-- User workflows in `.layton/workflows/` are customizable by users
-</principles>
 
 <cli_commands>
 
@@ -106,30 +135,41 @@ $LAYTON workflows add <name>   # Create new workflow file from template
 
 </cli_commands>
 
-<workflow_invocation>
+<workflows_index>
 
-Layton provides two types of workflows:
+| Workflow | Purpose |
+| --- | --- |
+| setup.md | Interactive onboarding for new users |
+| track-item.md | Add item to attention list |
+| set-focus.md | Set current focus (only one at a time) |
+| retrospect.md | Reflect on a completed workflow |
+| audit-project-instructions.md | Review CLAUDE.md/AGENTS.md against best practices |
 
-**Core Workflows** (in `workflows/`):
+</workflows_index>
 
-- `setup.md` - Interactive onboarding for new users
-- `track-item.md` - Add item to attention list
-- `set-focus.md` - Set current focus
+<reference_index>
 
+| Reference | Content |
+| --- | --- |
+| persona.md | Layton's voice and persona characteristics |
+| beads-commands.md | bd CLI command reference for state operations |
+| project-instructions.md | Best practices for CLAUDE.md/AGENTS.md files |
+
+</reference_index>
+
+<examples_index>
 **Example Workflows** (in `examples/`):
 
 - `morning-briefing.md` - Context-aware daily briefing
 - `gather.md` - Aggregate data from all skills
 - `focus-suggestion.md` - Help user decide what to work on
 
-To use an example workflow:
+To use an example:
 
 1. Study it in `examples/` for patterns
 2. Create user version: `layton workflows add <name>`
-3. Customize the user version in `.layton/workflows/`
-4. Follow the workflow instructions
-
-</workflow_invocation>
+3. Customize in `.layton/workflows/`
+</examples_index>
 
 <skill_integration>
 
