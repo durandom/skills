@@ -71,6 +71,47 @@ skill-name/
 - **references/** — Documentation Claude reads for context (e.g., `schema.md`, `api_docs.md`)
 - **assets/** — Files used in output, not loaded into context (e.g., templates, logos)
 
+### Script Path Resolution
+
+When skills are installed as plugins, Claude Code copies them to a cache directory (`~/.claude/plugins/cache/<name>/<version>/`). Hardcoded paths won't work.
+
+**Use `${CLAUDE_PLUGIN_ROOT}` for portable paths:**
+
+```markdown
+<!-- BAD: Hardcoded path breaks when installed as plugin -->
+```bash
+.claude/skills/my-skill/scripts/process.py
+```
+
+<!-- GOOD: Portable path works everywhere -->
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/process.py
+```
+
+```
+
+**In SKILL.md, define a variable for convenience:**
+
+```markdown
+## CLI Commands
+
+Set the variable for this session:
+
+```bash
+MYCLI="${CLAUDE_PLUGIN_ROOT}/scripts/mycli"
+```
+
+Then use throughout:
+
+```bash
+$MYCLI --help
+$MYCLI process file.txt
+```
+
+```
+
+**Known issue:** First script execution may fail with "No such file or directory" due to a [Claude Code bug](https://github.com/anthropics/claude-code/issues/11011). Second attempt succeeds. This is not fixable on the skill side.
+
 ---
 
 ## The Five Principles
@@ -343,6 +384,7 @@ Or gerund form: `processing-pdfs`, `analyzing-spreadsheets`, `testing-code`
 | **Length** | SKILL.md under 500 lines |
 | **Description** | Third person, what + when, specific triggers |
 | **References** | One level deep from SKILL.md |
+| **Script Paths** | Use `${CLAUDE_PLUGIN_ROOT}/scripts/...` for portability |
 | **Freedom** | High for creative, Low for fragile operations |
 | **Validation** | Verbose scripts with actionable error messages |
 | **Testing** | All target models (Haiku needs more detail) |
@@ -368,6 +410,7 @@ The skill should only contain information needed for an AI agent to do the job.
 
 - [Anthropic Skills Best Practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices.md)
 - [Anthropic Skills Repository](https://github.com/anthropics/skills)
+- [Claude Code Plugins Reference](https://code.claude.com/docs/en/plugins-reference) — `${CLAUDE_PLUGIN_ROOT}` and path resolution
 - **Anthropic's `skill-creator` skill** — The authoritative guide in `anthropics/skills`
 
 **Community:**
