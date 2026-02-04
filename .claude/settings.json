@@ -1,5 +1,6 @@
 {
   "enabledPlugins": {
-    "essentials@essentials-claude-code": true
+    "essentials@essentials-claude-code": true,
+    "tcrd@tcrd": true
   }
 }
