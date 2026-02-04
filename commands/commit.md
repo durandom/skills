@@ -29,7 +29,7 @@ Create a well-formatted git commit with conventional commit messages and emoji.
 
 <context>
 Git status: !`git status --short`
-Recent commits (for style matching): !`git log --oneline -5`
+Recent commits (for style matching): !`git log --oneline -5 2>/dev/null || echo "FIRST_COMMIT"`
 Pre-commit config exists: !`test -f .pre-commit-config.yaml && echo "yes" || echo "no"`
 Staged files: !`git diff --cached --name-only`
 </context>
@@ -46,6 +46,17 @@ Parse `$ARGUMENTS` to determine mode and optional message:
 4. **If "split"**: Interactive splitting (go to Split Mode)
 5. **If "dry-run"**: Preview only, no commit (go to Dry-Run Mode)
 6. **Remaining args**: Treat as custom commit message
+
+---
+
+## First Commit Detection
+
+If recent commits context shows `FIRST_COMMIT`:
+
+1. **Skip style matching** — no prior commits to reference
+2. **Use standard initial commit format**: `🎉 init: <project-name>` or user-provided message
+3. **Amend mode is unavailable** — warn and exit if requested
+4. **Proceed directly** to staging and pre-commit hooks
 
 ---
 
@@ -240,6 +251,7 @@ Preview what would be committed without actually committing.
 
 <commit_types>
 
+- 🎉 `init`: Initial commit
 - ✨ `feat`: New feature
 - 🐛 `fix`: Bug fix
 - 📝 `docs`: Documentation
