@@ -8,10 +8,10 @@ Audit the PARA structure for stale, misplaced, or forgotten items.
 
    ```bash
    # Overview of PARA structure
-   echo "=== Projects ===" && ls -la "1 Projects/" 2>/dev/null
-   echo "=== Areas ===" && ls -la "2 Areas/" 2>/dev/null
-   echo "=== Resources ===" && ls -la "3 Resources/" 2>/dev/null
-   echo "=== Archive ===" && ls -la "4 Archive/" 2>/dev/null
+   echo "=== Projects ===" && ls -la "1_Projects/" 2>/dev/null
+   echo "=== Areas ===" && ls -la "2_Areas/" 2>/dev/null
+   echo "=== Resources ===" && ls -la "3_Resources/" 2>/dev/null
+   echo "=== Archive ===" && ls -la "4_Archive/" 2>/dev/null
    ```
 
 2. **Check for staleness**

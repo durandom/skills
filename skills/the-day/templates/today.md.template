@@ -1,0 +1,44 @@
+# 🌟 Your Day - {{DATE_FULL}}
+
+## 🌤️ Weather in {{LOCATION}}
+{{WEATHER_CONTENT}}
+
+---
+
+## 📅 Today's Calendar
+
+{{CALENDAR_EVENTS}}
+
+---
+
+## 🎯 GTD Tasks (Active Work)
+
+{{GTD_TASKS}}
+
+---
+
+## 📧 Starred Emails (Action Needed)
+
+{{STARRED_EMAILS}}
+
+---
+
+## 💡 Inspiration
+
+{{INSPIRATION}}
+
+---
+
+## 📚 Wikipedia Featured Article of the Day
+
+{{WIKIPEDIA_ARTICLE}}
+
+---
+
+## 📊 Progress Today
+
+_This section will be updated by /focus as you complete work blocks_
+
+---
+
+*Generated at {{TIME}} on {{DATE_FULL}}*

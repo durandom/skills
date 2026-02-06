@@ -1,0 +1,408 @@
+#!/usr/bin/env python3
+"""Day CLI - Daily overview management following agentic CLI patterns.
+
+Provides deterministic components for the-day skill:
+- Status overview (default command)
+- GTD task formatting
+- Calendar event formatting
+- TODAY.md archiving
+- Template generation
+
+Usage:
+    day                     # Show status (default)
+    day status              # Same as above
+    day archive             # Archive TODAY.md to logs/
+    day format-gtd          # Format GTD tasks
+    day format-calendar     # Format calendar JSON
+    day generate            # Generate TODAY.md
+"""
+
+import argparse
+import json
+import sys
+from datetime import date
+from pathlib import Path
+
+# Add script directory to path for imports
+SCRIPT_DIR = Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
+from daylib.config import DayConfig, is_gtd_initialized, today_md_exists  # noqa: E402
+from daylib.formatters.calendar import (  # noqa: E402
+    format_calendar_events,
+    parse_calendar_json,
+)
+from daylib.formatters.gtd import (  # noqa: E402
+    format_gtd_tasks,
+    get_github_repo_from_gtd_config,
+    group_tasks_by_section,
+    parse_gtd_output,
+    run_gtd_list,
+)
+from daylib.models import DayStatus  # noqa: E402
+from daylib.services.archive import archive_today  # noqa: E402
+from daylib.services.generator import generate_today  # noqa: E402
+
+# ANSI color codes
+BOLD = "\033[1m"
+RED = "\033[91m"
+GREEN = "\033[92m"
+YELLOW = "\033[93m"
+BLUE = "\033[94m"
+NC = "\033[0m"  # No color
+
+
+def print_next_steps(hints: list[tuple[str, str]]) -> None:
+    """Print next-step hints at the end of output.
+
+    Following agentic CLI pattern: every command ends with guidance.
+
+    Args:
+        hints: List of (command, description) tuples.
+    """
+    print(f"\n{BOLD}Next steps:{NC}")
+    for cmd, desc in hints:
+        print(f"  {BOLD}{cmd:<24}{NC} {desc}")
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    """Show status overview. Default command."""
+    config = DayConfig.discover()
+
+    # Gather status information
+    gtd_init = is_gtd_initialized(config)
+    today_exists = today_md_exists(config)
+
+    # Get GTD task counts if initialized
+    gtd_total = 0
+    gtd_high = 0
+    gtd_low = 0
+
+    if gtd_init:
+        output = run_gtd_list(config.gtd_cli_path)
+        if output:
+            github_repo = get_github_repo_from_gtd_config(config.repo_root)
+            tasks = parse_gtd_output(output, github_repo)
+            gtd_total = len(tasks)
+            gtd_high = sum(1 for t in tasks if t.energy == "high")
+            gtd_low = sum(1 for t in tasks if t.energy == "low")
+
+    status = DayStatus(
+        date=date.today(),
+        today_md_exists=today_exists,
+        today_md_path=str(config.today_md_path) if today_exists else None,
+        gtd_initialized=gtd_init,
+        gtd_task_count=gtd_total,
+        gtd_high_energy=gtd_high,
+        gtd_low_energy=gtd_low,
+    )
+
+    if args.json:
+        print(json.dumps(status.to_dict(), indent=2))
+        return 0
+
+    # Human-readable output
+    print(f"{BLUE}Today: {status.date.strftime('%A, %B %d, %Y')}{NC}")
+    print("=" * 40)
+
+    if gtd_init:
+        print(f"\n{BOLD}📋 GTD Tasks:{NC} {gtd_total} active", end="")
+        if gtd_high or gtd_low:
+            print(f" ({gtd_high} high energy, {gtd_low} low energy)")
+        else:
+            print()
+    else:
+        print(f"\n{YELLOW}📋 GTD:{NC} Not initialized")
+
+    if today_exists:
+        print(f"{GREEN}📝 TODAY.md:{NC} exists")
+    else:
+        print(f"{YELLOW}📝 TODAY.md:{NC} not generated")
+
+    # Build context-aware hints
+    hints = []
+
+    if today_exists:
+        hints.append(("day archive", "Archive existing TODAY.md"))
+
+    if gtd_init:
+        hints.append(("day format-gtd", "Format GTD tasks as markdown"))
+        hints.append(("gtd daily", "Run GTD daily review"))
+
+    if not today_exists:
+        hints.append(("day generate", "Create TODAY.md"))
+    else:
+        hints.append(("/the-day", "Run full AI workflow"))
+
+    print_next_steps(hints)
+    return 0
+
+
+def cmd_archive(args: argparse.Namespace) -> int:
+    """Archive existing TODAY.md."""
+    config = DayConfig.discover()
+
+    result = archive_today(
+        today_path=config.today_md_path,
+        archive_dir=config.logs_dir,
+        dry_run=not args.force,
+    )
+
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+        return 0 if result.success else 1
+
+    if result.success:
+        print(f"{GREEN}✓{NC} {result.message}")
+    else:
+        print(f"{RED}✗{NC} {result.message}")
+        return 1
+
+    # Hints
+    hints = []
+    if not args.force and result.archive_path:
+        hints.append(("day archive --force", "Execute the archive"))
+    else:
+        hints.append(("day generate", "Create new TODAY.md"))
+        hints.append(("gtd daily", "Run GTD daily review"))
+
+    print_next_steps(hints)
+    return 0
+
+
+def cmd_format_gtd(args: argparse.Namespace) -> int:
+    """Format GTD tasks as markdown."""
+    config = DayConfig.discover()
+
+    if not is_gtd_initialized(config):
+        if args.json:
+            print(json.dumps({"error": "GTD not initialized"}))
+            return 1
+        print(f"{YELLOW}⚠️{NC} GTD not initialized")
+        print_next_steps([("gtd init github", "Initialize GTD with GitHub backend")])
+        return 1
+
+    output = run_gtd_list(config.gtd_cli_path)
+    if not output:
+        if args.json:
+            print(json.dumps({"sections": [], "message": "No active tasks"}))
+            return 0
+        print("No active tasks found")
+        print_next_steps(
+            [
+                ("gtd capture <text>", "Capture a new task"),
+                ("gtd inbox", "View inbox items"),
+            ]
+        )
+        return 0
+
+    github_repo = get_github_repo_from_gtd_config(config.repo_root)
+    tasks = parse_gtd_output(output, github_repo)
+
+    if args.json:
+        sections = group_tasks_by_section(tasks)
+        result = {
+            "total_tasks": len(tasks),
+            "sections": [s.to_dict() for s in sections],
+        }
+        print(json.dumps(result, indent=2))
+        return 0
+
+    # Human-readable markdown
+    markdown = format_gtd_tasks(tasks=tasks)
+    print(markdown)
+
+    print_next_steps(
+        [
+            ("day generate", "Create TODAY.md with these tasks"),
+            ("gtd daily", "Run GTD daily review"),
+        ]
+    )
+    return 0
+
+
+def cmd_format_calendar(args: argparse.Namespace) -> int:
+    """Format calendar events as markdown."""
+    # Read from stdin or file
+    if args.file:
+        try:
+            with open(args.file) as f:
+                json_data = f.read()
+        except FileNotFoundError:
+            print(f"{RED}✗{NC} File not found: {args.file}")
+            return 1
+    else:
+        # Read from stdin
+        if sys.stdin.isatty():
+            print(f"{YELLOW}⚠️{NC} No input provided. Pipe JSON or use --file")
+            print_next_steps(
+                [
+                    ("echo '$json' | day format-calendar", "Pipe JSON data"),
+                    ("day format-calendar --file events.json", "Read from file"),
+                ]
+            )
+            return 1
+        json_data = sys.stdin.read()
+
+    try:
+        events = parse_calendar_json(json_data)
+    except json.JSONDecodeError as e:
+        print(f"{RED}✗{NC} Invalid JSON: {e}")
+        return 1
+
+    if args.json:
+        result = {
+            "total_events": len(events),
+            "events": [e.to_dict() for e in events],
+        }
+        print(json.dumps(result, indent=2))
+        return 0
+
+    # Human-readable markdown
+    markdown = format_calendar_events(events=events)
+    print(markdown)
+
+    print_next_steps(
+        [
+            ("day generate", "Create TODAY.md"),
+        ]
+    )
+    return 0
+
+
+def cmd_generate(args: argparse.Namespace) -> int:
+    """Generate TODAY.md from template."""
+    config = DayConfig.discover()
+
+    # Get GTD tasks if available
+    gtd_tasks = ""
+    if is_gtd_initialized(config):
+        output = run_gtd_list(config.gtd_cli_path)
+        if output:
+            github_repo = get_github_repo_from_gtd_config(config.repo_root)
+            gtd_tasks = format_gtd_tasks(output=output, github_repo=github_repo)
+
+    result = generate_today(
+        template_path=config.template_path,
+        output_path=config.today_md_path,
+        gtd_tasks=gtd_tasks,
+        location="Kiel, Germany",  # Could come from AGENT.md
+        timezone=config.timezone,
+        dry_run=not args.force,
+    )
+
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+        return 0 if result.success else 1
+
+    if not result.success:
+        print(f"{RED}✗{NC} {result.message}")
+        return 1
+
+    if args.force:
+        print(f"{GREEN}✓{NC} {result.message}")
+        print(f"\n  Filled: {', '.join(result.filled_placeholders)}")
+        if result.remaining_placeholders:
+            print(
+                f"  {YELLOW}Remaining:{NC} {', '.join(result.remaining_placeholders)}"
+            )
+    else:
+        print(f"{BLUE}Preview:{NC} {result.message}")
+        print(f"\n  {GREEN}✓{NC} Would fill: {', '.join(result.filled_placeholders)}")
+        if result.remaining_placeholders:
+            remaining = ", ".join(result.remaining_placeholders)
+            print(f"  {YELLOW}⏳{NC} AI will fill: {remaining}")
+
+    # Hints
+    hints = []
+    if not args.force:
+        hints.append(("day generate --force", "Create the file"))
+    else:
+        if result.remaining_placeholders:
+            hints.append(("/the-day", "Run AI workflow to fill remaining"))
+        hints.append(("cat TODAY.md", "View generated file"))
+
+    hints.append(("gtd daily", "Run GTD daily review"))
+
+    print_next_steps(hints)
+    return 0
+
+
+def main() -> int:
+    """Main entry point."""
+    parser = argparse.ArgumentParser(
+        description="Day CLI - Daily overview management",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  day                     Show today's status
+  day archive             Archive existing TODAY.md
+  day format-gtd          Format GTD tasks as markdown
+  day generate --force    Create TODAY.md
+""",
+    )
+
+    # Global flags
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output as JSON",
+    )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Verbose output",
+    )
+
+    # Subcommands
+    subparsers = parser.add_subparsers(dest="command", help="Command to run")
+
+    # status (default)
+    p = subparsers.add_parser("status", help="Show status overview")
+    p.set_defaults(func=cmd_status)
+
+    # archive
+    p = subparsers.add_parser("archive", help="Archive TODAY.md to logs/")
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help=argparse.SUPPRESS,  # Hidden: discovered through dry-run
+    )
+    p.set_defaults(func=cmd_archive)
+
+    # format-gtd
+    p = subparsers.add_parser("format-gtd", help="Format GTD tasks as markdown")
+    p.set_defaults(func=cmd_format_gtd)
+
+    # format-calendar
+    p = subparsers.add_parser(
+        "format-calendar", help="Format calendar JSON as markdown"
+    )
+    p.add_argument(
+        "--file",
+        "-f",
+        help="Read calendar JSON from file",
+    )
+    p.set_defaults(func=cmd_format_calendar)
+
+    # generate
+    p = subparsers.add_parser("generate", help="Generate TODAY.md from template")
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help=argparse.SUPPRESS,  # Hidden: discovered through dry-run
+    )
+    p.set_defaults(func=cmd_generate)
+
+    args = parser.parse_args()
+
+    # Default to status if no command
+    if not args.command:
+        args.func = cmd_status
+
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

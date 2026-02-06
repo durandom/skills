@@ -10,7 +10,7 @@ Ensure PARA project folders stay in sync with GTD milestones.
 
    ```bash
    # List PARA project folders
-   ls -1 "1 Projects/" 2>/dev/null | grep -v "^_" || echo "No PARA projects folder"
+   ls -1 "1_Projects/" 2>/dev/null | grep -v "^_" || echo "No PARA projects folder"
 
    # List GTD projects (milestones)
    ./.claude/skills/gtd/scripts/gtd project list
@@ -19,7 +19,7 @@ Ensure PARA project folders stay in sync with GTD milestones.
 2. **Identify mismatches**
 
    Compare the two lists:
-   - **PARA-only:** Folders in `1 Projects/` with no matching GTD milestone
+   - **PARA-only:** Folders in `1_Projects/` with no matching GTD milestone
    - **GTD-only:** GTD milestones with no matching PARA folder
    - **Synced:** Items present in both
 
@@ -55,7 +55,7 @@ Ensure PARA project folders stay in sync with GTD milestones.
    - Creating PARA folder:
 
      ```bash
-     mkdir -p "1 Projects/Project-Name"
+     mkdir -p "1_Projects/Project-Name"
      # Create _INDEX.md with project overview
      ```
 
@@ -68,7 +68,7 @@ Ensure PARA project folders stay in sync with GTD milestones.
    - Archiving PARA folder:
 
      ```bash
-     mv "1 Projects/Project-Name" "4 Archive/projects/"
+     mv "1_Projects/Project-Name" "4_Archive/projects/"
      ```
 
 ## Naming Convention

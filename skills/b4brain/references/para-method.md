@@ -36,9 +36,9 @@ This simple shift eliminates the question "Where would I look for this?" because
 
 **Examples in b4brain:**
 
-- `1 Projects/API-Redesign-v2/` - Active development initiative
-- `1 Projects/Team-Onboarding/` - Specific onboarding program
-- `1 Projects/Security-Audit-Q4/` - Time-bound audit
+- `1_Projects/API-Redesign-v2/` - Active development initiative
+- `1_Projects/Team-Onboarding/` - Specific onboarding program
+- `1_Projects/Security-Audit-Q4/` - Time-bound audit
 
 **Signals it's a Project:**
 
@@ -59,9 +59,9 @@ This simple shift eliminates the question "Where would I look for this?" because
 
 **Examples in b4brain:**
 
-- `2 Areas/Engineering-Management.md` - Ongoing leadership responsibility
-- `2 Areas/Architecture-Reviews.md` - Recurring responsibility
-- `2 Areas/Team-Health.md` - Continuous monitoring
+- `2_Areas/Engineering-Management.md` - Ongoing leadership responsibility
+- `2_Areas/Architecture-Reviews.md` - Recurring responsibility
+- `2_Areas/Team-Health.md` - Continuous monitoring
 
 **Signals it's an Area:**
 
@@ -87,9 +87,9 @@ This simple shift eliminates the question "Where would I look for this?" because
 
 **Examples in b4brain:**
 
-- `3 Resources/kubernetes/` - Learning materials and references
-- `3 Resources/system-design-patterns/` - Architectural knowledge
-- `3 Resources/rhdh-backstage-resources.md` - Product documentation
+- `3_Resources/kubernetes/` - Learning materials and references
+- `3_Resources/system-design-patterns/` - Architectural knowledge
+- `3_Resources/rhdh-backstage-resources.md` - Product documentation
 
 **Signals it's a Resource:**
 
@@ -112,8 +112,8 @@ This simple shift eliminates the question "Where would I look for this?" because
 
 **Examples in b4brain:**
 
-- `4 Archive/projects/API-Redesign-v1/` - Completed project
-- `4 Archive/2023/` - Time-based archival
+- `4_Archive/projects/API-Redesign-v1/` - Completed project
+- `4_Archive/2023/` - Time-based archival
 - Items no longer maintained but potentially useful
 
 **When to archive:**
@@ -153,10 +153,10 @@ PARA avoids over-organization through "just-in-time" structuring:
 **Folder naming conventions:**
 
 ```
-1 Projects/     # Numbered prefix for sort order
-2 Areas/
-3 Resources/
-4 Archive/
+1_Projects/     # Numbered prefix for sort order
+2_Areas/
+3_Resources/
+4_Archive/
 ```
 
 **Index files:**
@@ -170,7 +170,7 @@ Each PARA folder contains `_INDEX.md` for navigation and overview.
 
 **Integration with Zettelkasten:**
 
-- Resources contain the Zettelkasten (`3 Resources/zettelkasten/`)
+- Resources contain the Zettelkasten (`3_Resources/zettelkasten/`)
 - Project learnings get synthesized via `/connect`
 - Knowledge persists even after projects archive
 </b4brain_implementation>

@@ -21,28 +21,28 @@ PARA organizes information by **when you'll need it**:
 ## Folder Structure
 
 ```
-1 Projects/           # Active work with deadlines
+1_Projects/           # Active work with deadlines
 ├── _INDEX.md         # Project overview
 └── [Project-Name]/   # One folder per project (synced with GTD)
 
-2 Areas/              # Ongoing responsibilities
+2_Areas/              # Ongoing responsibilities
 ├── _INDEX.md         # Area overview
 └── [area-name].md    # One file per area (or folder if complex)
 
-3 Resources/          # Reference material
+3_Resources/          # Reference material
 ├── _INDEX.md         # Resource overview
 └── [topic]/          # Topic-based resources
 
-4 Archive/            # Inactive items
+4_Archive/            # Inactive items
 ├── _INDEX.md         # Archive overview
 └── [archived items]  # Completed/inactive content
 ```
 
 ## GTD Sync
 
-PARA projects (`1 Projects/` folders) stay in sync with GTD projects (GitHub milestones):
+PARA projects (`1_Projects/` folders) stay in sync with GTD projects (GitHub milestones):
 
-- **Same names**: `1 Projects/API-Redesign/` ↔ GTD milestone "API-Redesign"
+- **Same names**: `1_Projects/API-Redesign/` ↔ GTD milestone "API-Redesign"
 - **Sync command**: `para sync` shows mismatches and offers to fix them
 - **One source of truth**: GTD manages project lifecycle, PARA holds the notes
 
@@ -153,19 +153,19 @@ PARA root is resolved in order:
 
 ```
 Is this actively being worked on with a deadline?
-├── YES → 1 Projects/
+├── YES → 1_Projects/
 └── NO ↓
 
 Is this an ongoing responsibility I maintain?
-├── YES → 2 Areas/
+├── YES → 2_Areas/
 └── NO ↓
 
 Is this something I might reference later?
-├── YES → 3 Resources/
+├── YES → 3_Resources/
 └── NO ↓
 
 Is this completed/inactive but worth keeping?
-├── YES → 4 Archive/
+├── YES → 4_Archive/
 └── NO → Delete it
 ```
 

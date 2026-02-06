@@ -29,7 +29,7 @@ David Allen's GTD methodology defines 6 "Horizons of Focus" - different altitude
 
 **Integration with PARA:**
 
-- H2 Areas already exist in your `2_Areas/` folder - don't duplicate them here
+- H2_Areas already exist in your `2_Areas/` folder - don't duplicate them here
 - H3 Goals are tracked via gtd CLI so you can link projects and actions to them
 - H4/H5 are strategic and rarely change - they live in this file
 
@@ -233,7 +233,7 @@ When faced with a tough choice, I ask:
 
 Fill in the sections below during your yearly review.
 
-**Note:** H2 Areas live in `2_Areas/` folder, H3 Goals are GitHub Issues.
+**Note:** H2_Areas live in `2_Areas/` folder, H3 Goals are GitHub Issues.
 
 ---
 

@@ -799,8 +799,8 @@ Output Fields (for LLM parsing):
         "init",
         help="Initialize PARA folder structure",
         description=(
-            "Create the standard PARA folder structure (1 Projects, 2 Areas, "
-            "3 Resources, 4 Archive)."
+            "Create the standard PARA folder structure (1_Projects, 2_Areas, "
+            "3_Resources, 4_Archive)."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -816,13 +816,13 @@ Examples:
 
 Created Structure:
   <root>/
-    1 Projects/    # Active work with outcomes
+    1_Projects/    # Active work with outcomes
       _INDEX.md    # Index file for Projects
-    2 Areas/       # Ongoing responsibilities
+    2_Areas/       # Ongoing responsibilities
       _INDEX.md
-    3 Resources/   # Reference materials
+    3_Resources/   # Reference materials
       _INDEX.md
-    4 Archive/     # Completed/inactive items
+    4_Archive/     # Completed/inactive items
       _INDEX.md
 
 Notes:
@@ -857,11 +857,11 @@ Examples:
 
 Output Format:
   Shows the resolved PARA root, then lists each folder with item counts:
-    1 Projects (3 items)
+    1_Projects (3 items)
       📁 Project-A/
       📁 Project-B/
       📄 notes.md
-    2 Areas (2 items)
+    2_Areas (2 items)
       ...
 
 Notes:
@@ -890,7 +890,7 @@ Examples:
   para sync --fix
 
 How It Works:
-  1. Lists all folders in "1 Projects/" (excluding _ and . prefixed)
+  1. Lists all folders in "1_Projects/" (excluding _ and . prefixed)
   2. Lists all open GTD milestones via 'gtd project list --state open'
   3. Compares the two sets and reports:
      - Synced: exists in both PARA and GTD
@@ -958,7 +958,7 @@ Output Format:
   Project-B  [⚠ no GTD]    # No GTD milestone found
 
 Notes:
-  - Projects are folders in "1 Projects/" (excluding _ and . prefixed)
+  - Projects are folders in "1_Projects/" (excluding _ and . prefixed)
   - Sync status is checked against 'gtd project list --state open'
 """,
     )
@@ -979,7 +979,7 @@ Examples:
   para project create "Quick-Experiment" --no-gtd
 
 Created Structure:
-  1 Projects/
+  1_Projects/
     Website-Redesign/
       _INDEX.md    # Template with Outcome, Status, Key Files, Notes sections
 
@@ -1022,7 +1022,7 @@ Examples:
   para project archive "Completed-Project" --no-gtd
 
 Result:
-  Moves: 1 Projects/Completed-Project/ → 4 Archive/projects/Completed-Project/
+  Moves: 1_Projects/Completed-Project/ → 4_Archive/projects/Completed-Project/
 
 Notes:
   - Fails if source project folder doesn't exist
@@ -1032,7 +1032,7 @@ Notes:
     )
     p_proj_archive.add_argument(
         "name",
-        help="Project name to archive (must exist in 1 Projects/)",
+        help="Project name to archive (must exist in 1_Projects/)",
     )
     p_proj_archive.add_argument(
         "--no-gtd",

@@ -155,7 +155,7 @@ Saving information feels productive, but without processing:
 - Page/section references
 - Basis for permanent notes
 
-**In b4brain:** May live in `3 Resources/` or project folders
+**In b4brain:** May live in `3_Resources/` or project folders
 </type>
 
 <type name="Permanent Notes">
@@ -166,7 +166,7 @@ Saving information feels productive, but without processing:
 - Connected to other permanent notes
 - Standalone and evergreen
 
-**In b4brain:** `3 Resources/zettelkasten/concepts/`
+**In b4brain:** `3_Resources/zettelkasten/concepts/`
 </type>
 
 <type name="Structure Notes (MOCs)">
@@ -177,7 +177,7 @@ Saving information feels productive, but without processing:
 - Provide navigation for complex areas
 - Updated as knowledge grows
 
-**In b4brain:** `3 Resources/zettelkasten/connections/`
+**In b4brain:** `3_Resources/zettelkasten/connections/`
 </type>
 </note_types>
 
@@ -188,7 +188,7 @@ Saving information feels productive, but without processing:
 **Folder structure:**
 
 ```
-3 Resources/zettelkasten/
+3_Resources/zettelkasten/
 ├── concepts/           # Atomic permanent notes
 │   ├── 20240115-microservices-coupling.md
 │   └── 20240115-fault-tolerance-patterns.md
@@ -213,9 +213,9 @@ Saving information feels productive, but without processing:
 **Integration with PARA:**
 
 - Fleeting notes: `inbox/` (GTD capture)
-- Literature notes: `3 Resources/` (PARA reference)
-- Permanent notes: `3 Resources/zettelkasten/` (Zettelkasten core)
-- Application: `1 Projects/` and `2 Areas/` link to concepts
+- Literature notes: `3_Resources/` (PARA reference)
+- Permanent notes: `3_Resources/zettelkasten/` (Zettelkasten core)
+- Application: `1_Projects/` and `2_Areas/` link to concepts
 
 **The knowledge extraction loop:**
 

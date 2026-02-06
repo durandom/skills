@@ -1,0 +1,1766 @@
+#!/usr/bin/env python3
+"""
+Meeting Notes - Sync meeting transcripts using JSONL database.
+
+Syncs Google Calendar meetings with Gemini transcripts and organizes
+them into a structured directory hierarchy.
+
+Database stored at repository root: .meeting-notes/
+
+Usage:
+    meeting_notes init              # Initialize database
+    meeting_notes sync              # Discover meetings
+    meeting_notes decide            # Apply classifications
+    meeting_notes download          # Download assets
+    meeting_notes status            # Show status
+"""
+
+import argparse
+import json
+import logging
+import os
+import sys
+from pathlib import Path
+from typing import Any
+
+# Add script directory to path for imports
+script_dir = Path(__file__).parent
+if script_dir not in sys.path:
+    sys.path.insert(0, str(script_dir))
+
+from meeting_notes_lib.db import MeetingNotesDB, find_repo_root  # noqa: E402
+from meeting_notes_lib.gwt import GWTInvoker  # noqa: E402
+from meeting_notes_lib.models import GWTConfig  # noqa: E402
+from meeting_notes_lib.repositories import (  # noqa: E402
+    MeetingRepository,
+    PatternRepository,
+    SyncStateRepository,
+    TagRepository,
+)
+from meeting_notes_lib.repositories.meeting_repo import (  # noqa: E402
+    generate_short_id,
+)
+from meeting_notes_lib.services import (  # noqa: E402
+    DecisionService,
+    DiscoveryService,
+    DownloadService,
+)
+from meeting_notes_lib.services.calendar_utils import (  # noqa: E402
+    create_directory_path,
+)
+
+__version__ = "2.0.0"
+
+# Default configuration
+DEFAULT_CONFIG = {
+    "gwt_path": os.getcwd(),
+    "gwt_command": (
+        "/Users/mhild/src/rhdh/sidekick/google-workspace-tools/.venv/bin/gwt"
+    ),
+    "gwt_output_dir": "exports",
+    "calendar_id": "primary",
+    "default_lookback_days": 7,
+    "user_email": None,
+}
+
+
+def load_config(config_path: Path | None = None) -> dict:
+    """Load configuration from file or create defaults."""
+    if config_path is None:
+        try:
+            repo_root = find_repo_root()
+            config_path = repo_root / ".meeting-notes.json"
+        except FileNotFoundError:
+            config_path = Path.cwd() / ".meeting-notes.json"
+
+    if config_path.exists():
+        with open(config_path) as f:
+            user_config = json.load(f)
+        config = DEFAULT_CONFIG.copy()
+        config.update(user_config)
+        return config
+
+    return DEFAULT_CONFIG.copy()
+
+
+def save_config(config: dict, config_path: Path | None = None) -> None:
+    """Save configuration to file."""
+    if config_path is None:
+        try:
+            repo_root = find_repo_root()
+            config_path = repo_root / ".meeting-notes.json"
+        except FileNotFoundError:
+            config_path = Path.cwd() / ".meeting-notes.json"
+
+    with open(config_path, "w") as f:
+        json.dump(config, f, indent=2)
+
+
+class OutputRenderer:
+    """Handles human-readable and JSON output."""
+
+    def __init__(self, json_mode: bool = False):
+        self.json_mode = json_mode
+        self._json_data: dict[str, Any] = {}
+        self._next_steps: list[dict[str, str]] = []
+
+    def info(self, message: str) -> None:
+        if not self.json_mode:
+            print(message)
+
+    def error(self, message: str) -> None:
+        if not self.json_mode:
+            print(f"Error: {message}", file=sys.stderr)
+
+    def set_json(self, key: str, value: Any) -> None:
+        self._json_data[key] = value
+
+    def add_next_step(self, command: str, description: str) -> None:
+        """Add a next step hint (shown in both human and JSON output)."""
+        self._next_steps.append({"command": command, "description": description})
+
+    def render_next_steps(self) -> None:
+        """Render next steps section (human output only)."""
+        if not self.json_mode and self._next_steps:
+            print("")
+            print("Next steps:")
+            for step in self._next_steps:
+                # Pad command to align descriptions
+                cmd = f"meeting_notes {step['command']}"
+                print(f"  {cmd:<35} {step['description']}")
+
+    def output_json(self) -> None:
+        if self.json_mode:
+            if self._next_steps:
+                self._json_data["next_steps"] = self._next_steps
+            print(json.dumps(self._json_data, indent=2))
+
+
+class MeetingNotesCLI:
+    """Main CLI application."""
+
+    def __init__(self, config: dict, json_mode: bool = False, debug: bool = False):
+        self.config = config
+        self.output = OutputRenderer(json_mode)
+        self.debug = debug
+
+        # Initialize database and repositories
+        try:
+            repo_root = find_repo_root()
+        except FileNotFoundError:
+            repo_root = Path.cwd()
+
+        self.repo_root = repo_root
+        self.db = MeetingNotesDB()
+        self.meeting_repo = MeetingRepository(self.db)
+        self.pattern_repo = PatternRepository(self.db)
+        self.sync_repo = SyncStateRepository(self.db)
+        self.tag_repo = TagRepository(self.db)
+
+        # GWT configuration (pass debug flag for gwt --debug)
+        self.gwt_config = GWTConfig(
+            gwt_path=Path(config.get("gwt_path", os.getcwd())),
+            gwt_command=config["gwt_command"],
+            gwt_output_dir=Path(config.get("gwt_output_dir", "exports")),
+            debug=debug,
+        )
+
+    def cmd_init(self, args: argparse.Namespace) -> int:
+        """Initialize database and configuration."""
+        self.output.info("Initializing meeting notes database...")
+
+        self.db.initialize()
+        self.output.info(f"  Database: {self.db.db_dir}")
+
+        config_path = self.repo_root / ".meeting-notes.json"
+        if not config_path.exists():
+            save_config(self.config, config_path)
+            self.output.info(f"  Config: {config_path}")
+
+        self.output.info("Done!")
+
+        self.output.set_json("success", True)
+        self.output.set_json("database_path", str(self.db.db_dir))
+        self.output.output_json()
+        return 0
+
+    def cmd_status(self, args: argparse.Namespace) -> int:
+        """Show sync status."""
+        self.db.initialize()
+
+        stats = self.db.get_stats()
+        sync_state = self.sync_repo.get_state()
+        counts = self.meeting_repo.count_by_status()
+
+        self.output.info("Meeting Notes Status")
+        self.output.info("=" * 40)
+        self.output.info(f"Database: {self.db.db_dir}")
+        self.output.info("")
+
+        self.output.info("Meetings:")
+        self.output.info(f"  Total: {stats['meetings']}")
+        for status, count in sorted(counts.items()):
+            self.output.info(f"  {status}: {count}")
+
+        self.output.info("")
+        self.output.info("Patterns:")
+        self.output.info(f"  Cached: {stats['patterns']}")
+        self.output.info(f"  Ignored: {stats['ignored']}")
+
+        self.output.info("")
+        self.output.info("Tags:")
+        self.output.info(f"  Defined: {stats['tags']}")
+
+        self.output.info("")
+        self.output.info("Sync State:")
+        self.output.info(
+            f"  Last calendar check: {sync_state.last_calendar_check or 'Never'}"
+        )
+        self.output.info(
+            f"  Last email check: {sync_state.last_email_check or 'Never'}"
+        )
+        self.output.info(f"  Total processed: {sync_state.total_processed}")
+
+        # Context-aware next steps (agentic-cli pattern)
+        pending_discovered = counts.get("discovered", 0)
+        pending_decided = counts.get("decided", 0)
+        synced_count = counts.get("synced", 0)
+
+        if pending_discovered > 0:
+            self.output.add_next_step(
+                "decide", f"Classify {pending_discovered} pending meeting(s)"
+            )
+        if pending_decided > 0:
+            self.output.add_next_step(
+                "download", f"Download {pending_decided} ready meeting(s)"
+            )
+        if synced_count > 0:
+            self.output.add_next_step(
+                "list", f"Browse {synced_count} synced meeting(s)"
+            )
+        self.output.add_next_step("sync", "Check for new meetings")
+        self.output.add_next_step("tags", "Manage tag definitions")
+        self.output.add_next_step("--help", "Show all commands")
+        self.output.render_next_steps()
+
+        self.output.set_json("success", True)
+        self.output.set_json("stats", stats)
+        self.output.set_json("sync_state", sync_state.to_dict())
+        self.output.set_json("by_status", counts)
+        self.output.output_json()
+        return 0
+
+    def cmd_sync(self, args: argparse.Namespace) -> int:
+        """Discover meetings from calendar and email."""
+        self.db.initialize()
+
+        # Handle --id option: reset a specific meeting for re-processing
+        meeting_id = getattr(args, "meeting_id", None)
+        if meeting_id:
+            meeting = self.meeting_repo.resolve_id(meeting_id)
+            if not meeting:
+                self.output.error(f"Meeting not found: {meeting_id}")
+                self.output.set_json("success", False)
+                self.output.set_json("error", "Meeting not found")
+                self.output.output_json()
+                return 1
+
+            # Reset meeting status so it can be re-downloaded
+            old_status = meeting.status
+            meeting.status = (
+                "decided"  # Skip discovery, go straight to ready-for-download
+            )
+            self.meeting_repo.upsert(meeting)
+
+            self.output.info(f"Reset meeting for re-download: {meeting.title}")
+            self.output.info(f"  Status: {old_status} → decided")
+            self.output.info(f"  ID: {meeting_id}")
+            self.output.info("")
+            self.output.info("Next step:")
+            self.output.info(f"  meeting_notes download --id {meeting_id} --force")
+
+            self.output.set_json("success", True)
+            self.output.set_json("meeting_id", meeting.stable_id)
+            self.output.set_json("old_status", old_status)
+            self.output.set_json("new_status", "decided")
+            self.output.output_json()
+            return 0
+
+        gwt = GWTInvoker(self.gwt_config)
+
+        try:
+            gwt.ensure_authenticated()
+        except RuntimeError as e:
+            self.output.error(str(e))
+            return 1
+
+        discovery = DiscoveryService(
+            gwt=gwt,
+            meeting_repo=self.meeting_repo,
+            pattern_repo=self.pattern_repo,
+            sync_repo=self.sync_repo,
+            config=self.config,
+        )
+
+        # --refresh implies --force (re-fetch metadata for existing meetings)
+        force = args.force or getattr(args, "refresh", False)
+        refresh_mode = getattr(args, "refresh", False)
+
+        # For refresh mode, auto-detect date range from existing meetings
+        after_date = args.after
+        before_date = args.before
+        if refresh_mode and not after_date:
+            synced = self.meeting_repo.get_by_status("synced")
+            if synced:
+                dates = [m.date for m in synced if m.date]
+                if dates:
+                    after_date = min(dates)
+                    self.output.info(
+                        f"Refreshing metadata from Google Calendar"
+                        f" (since {after_date})..."
+                    )
+                else:
+                    self.output.info("Refreshing metadata from Google Calendar...")
+            else:
+                self.output.info("No synced meetings to refresh.")
+                return 0
+        elif refresh_mode:
+            self.output.info("Refreshing metadata from Google Calendar...")
+        else:
+            self.output.info("Syncing meetings...")
+
+        meetings = discovery.sync(
+            after_date=after_date,
+            before_date=before_date,
+            force=force,
+        )
+
+        # In refresh mode, also update synced meetings with new API metadata
+        if refresh_mode:
+            synced = self.meeting_repo.get_by_status("synced")
+            verbose = args.verbose or args.debug
+
+            if verbose:
+                self.output.info(f"  Synced meetings to refresh: {len(synced)}")
+                self.output.info(f"  Fresh meetings from API: {len(meetings)}")
+
+            # Build lookup by stable_id
+            fresh_by_id = {m.stable_id: m for m in meetings if m.calendar_metadata}
+
+            refreshed = 0
+            skipped_no_match = 0
+            skipped_no_metadata = 0
+
+            for m in synced:
+                fresh = fresh_by_id.get(m.stable_id)
+                if fresh and fresh.calendar_metadata:
+                    if m.calendar_metadata:
+                        m.calendar_metadata.is_api_recurring = (
+                            fresh.calendar_metadata.is_api_recurring
+                        )
+                        self.meeting_repo.upsert(m)
+                        refreshed += 1
+                        if verbose:
+                            api_val = (
+                                "recurring"
+                                if fresh.calendar_metadata.is_api_recurring
+                                else "one-off"
+                            )
+                            self.output.info(f"    ✓ {m.title[:40]} → {api_val}")
+                    else:
+                        skipped_no_metadata += 1
+                else:
+                    skipped_no_match += 1
+
+            self.output.info(f"Refreshed metadata for {refreshed} synced meeting(s)")
+            if verbose and (skipped_no_match or skipped_no_metadata):
+                self.output.info(
+                    f"  Skipped: {skipped_no_match} no match in API,"
+                    f" {skipped_no_metadata} no calendar metadata"
+                )
+
+        summary = discovery.get_summary()
+        pending = discovery.get_pending_decisions()
+
+        self.output.info("")
+        self.output.info(f"Discovered {len(meetings)} meetings")
+        self.output.info(f"Pending decisions: {len(pending)}")
+
+        if pending:
+            self.output.info("")
+            self.output.info("Meetings needing classification:")
+            for i, m in enumerate(pending[:10], 1):
+                assets = "has Gemini" if m.gemini_assets else "no Gemini"
+                self.output.info(f"  {i}. {m.title} ({m.date}) [{assets}]")
+            if len(pending) > 10:
+                self.output.info(f"  ... and {len(pending) - 10} more")
+
+        self.output.info("")
+        self.output.info("Next steps:")
+        if pending:
+            self.output.info("  Run: meeting_notes decide --accept-all")
+        else:
+            self.output.info("  Run: meeting_notes download")
+
+        self.output.set_json("success", True)
+        self.output.set_json("discovered", len(meetings))
+        self.output.set_json("pending_decisions", len(pending))
+        self.output.set_json("summary", summary)
+        self.output.set_json(
+            "meetings",
+            [
+                {"stable_id": m.stable_id, "title": m.title, "date": m.date}
+                for m in meetings[:20]
+            ],
+        )
+        self.output.output_json()
+        return 0
+
+    def cmd_decide(self, args: argparse.Namespace) -> int:
+        """Apply meeting classifications."""
+        self.db.initialize()
+
+        decision_service = DecisionService(
+            meeting_repo=self.meeting_repo,
+            pattern_repo=self.pattern_repo,
+        )
+
+        pending = decision_service.get_pending()
+
+        if not pending:
+            self.output.info("No meetings pending classification.")
+            self.output.set_json("success", True)
+            self.output.set_json("applied", 0)
+            self.output.output_json()
+            return 0
+
+        if args.accept_all:
+            count = decision_service.accept_all_suggestions()
+            self.output.info(f"Applied suggestions to {count} meetings.")
+            self.output.set_json("success", True)
+            self.output.set_json("applied", count)
+            self.output.output_json()
+            return 0
+
+        if args.decisions:
+            decisions = decision_service.parse_inline_decisions(args.decisions)
+            count = decision_service.apply_decisions_batch(decisions)
+            self.output.info(f"Applied {count} manual decisions.")
+
+            remaining = decision_service.get_pending()
+            if remaining:
+                self.output.info(f"{len(remaining)} meetings still pending.")
+                self.output.info(
+                    "Run with --accept-all to apply suggestions to remaining."
+                )
+
+            self.output.set_json("success", True)
+            self.output.set_json("applied", count)
+            self.output.set_json("remaining", len(remaining))
+            self.output.output_json()
+            return 0
+
+        # Show decision table
+        table = decision_service.get_decision_table()
+
+        self.output.info(f"Pending classifications: {len(table)}")
+        self.output.info("")
+        self.output.info(
+            "NUM  DATE        TITLE                          TAG           RECURRING"
+        )
+        self.output.info("-" * 80)
+
+        for row in table:
+            title = (
+                row["title"][:30] + "..." if len(row["title"]) > 30 else row["title"]
+            )
+            r = "r" if row["suggested_recurring"] else "o"
+            self.output.info(
+                f"{row['number']:3}  {row['date']}  {title:33}"
+                f" {row['suggested_tag']:13} {r}"
+            )
+
+        self.output.info("")
+        self.output.info("Usage:")
+        self.output.info("  meeting_notes decide --accept-all")
+        self.output.info("  meeting_notes decide 1=rhdh,r 2=team,o")
+
+        self.output.set_json("success", True)
+        self.output.set_json("pending", len(table))
+        self.output.set_json("decision_table", table)
+        self.output.output_json()
+        return 0
+
+    def cmd_download(self, args: argparse.Namespace) -> int:
+        """Download meeting assets."""
+        self.db.initialize()
+
+        gwt = GWTInvoker(self.gwt_config)
+
+        download_service = DownloadService(
+            gwt=gwt,
+            meeting_repo=self.meeting_repo,
+            output_dir=self.repo_root,
+            config=self.config,
+        )
+
+        # Handle --id option: download a specific meeting regardless of status
+        meeting_id = getattr(args, "meeting_id", None)
+        if meeting_id:
+            meeting = self.meeting_repo.resolve_id(meeting_id)
+            if not meeting:
+                self.output.error(f"Meeting not found: {meeting_id}")
+                self.output.set_json("success", False)
+                self.output.set_json("error", "Meeting not found")
+                self.output.output_json()
+                return 1
+
+            # Ensure meeting has directory set
+            if not meeting.directory:
+                from meeting_notes_lib.services.calendar_utils import (
+                    create_directory_path,
+                )
+
+                meeting.directory = create_directory_path(meeting)
+                self.meeting_repo.upsert(meeting)
+
+            self.output.info(f"Downloading assets for: {meeting.title}")
+            meetings = [meeting]
+        else:
+            meetings = download_service.get_ready_for_download()
+
+            if not meetings:
+                self.output.info("No meetings ready for download.")
+                self.output.info("Run 'decide' first to classify meetings.")
+                self.output.set_json("success", True)
+                self.output.set_json("downloaded", 0)
+                self.output.output_json()
+                return 0
+
+        self.output.info(f"Downloading assets for {len(meetings)} meetings...")
+
+        summary = download_service.download_all(
+            meetings=meetings,
+            dry_run=args.dry_run,
+            force=args.force,
+        )
+
+        # Print downloaded files
+        if summary.downloaded_files:
+            for filepath in summary.downloaded_files:
+                self.output.info(f"  ✓ {filepath}")
+        elif summary.successful > 0:
+            self.output.info("  (no new files - already up to date)")
+
+        self.output.info("")
+        self.output.info(
+            f"Download complete: {summary.successful}/{summary.total} successful"
+        )
+
+        if summary.failed_downloads:
+            self.output.info("")
+            self.output.info(f"Failed downloads ({summary.failed}):")
+            for fail in summary.failed_downloads[:5]:
+                self.output.info(f"  - {fail.title}: {fail.error}")
+
+        self.output.set_json("success", True)
+        self.output.set_json("total", summary.total)
+        self.output.set_json("successful", summary.successful)
+        self.output.set_json("failed", summary.failed)
+        self.output.output_json()
+        return 0
+
+    def cmd_compact(self, args: argparse.Namespace) -> int:
+        """Compact the JSONL database."""
+        self.db.initialize()
+
+        self.output.info("Compacting database...")
+        removed = self.db.compact()
+        self.output.info(f"Removed {removed} obsolete records.")
+
+        self.output.set_json("success", True)
+        self.output.set_json("removed", removed)
+        self.output.output_json()
+        return 0
+
+    def cmd_list(self, args: argparse.Namespace) -> int:
+        """List meetings with filters."""
+        self.db.initialize()
+
+        # Build query parameters
+        is_recurring = None
+        if getattr(args, "recurring", False):
+            is_recurring = True
+        elif getattr(args, "one_off", False):
+            is_recurring = False
+
+        has_gemini = None
+        if getattr(args, "has_gemini", False):
+            has_gemini = True
+        elif getattr(args, "no_gemini", False):
+            has_gemini = False
+
+        # Query meetings
+        meetings = self.meeting_repo.query(
+            tag=getattr(args, "tag", None),
+            is_recurring=is_recurring,
+            status=getattr(args, "status", None),
+            since=getattr(args, "since", None),
+            until=getattr(args, "until", None),
+            has_gemini=has_gemini,
+            is_orphaned=getattr(args, "orphaned", None)
+            if getattr(args, "orphaned", False)
+            else None,
+            is_one_on_one=True if getattr(args, "one_on_ones", False) else None,
+        )
+
+        # Sort by date (newest first by default)
+        sort_key = getattr(args, "sort", "date")
+        reverse = not getattr(args, "oldest", False)
+        if sort_key == "title":
+            meetings.sort(key=lambda m: m.title.lower(), reverse=reverse)
+        else:
+            meetings.sort(key=lambda m: (m.date, m.time), reverse=reverse)
+
+        # Apply limit
+        total_count = len(meetings)
+        limit = getattr(args, "limit", None)
+        if limit:
+            meetings = meetings[:limit]
+
+        if not meetings:
+            self.output.info("No meetings found matching filters.")
+            self.output.set_json("success", True)
+            self.output.set_json("total", 0)
+            self.output.set_json("meetings", [])
+            self.output.output_json()
+            return 0
+
+        # Build short_id index for collision handling
+        short_id_index = self.meeting_repo.build_short_id_index()
+        # Reverse lookup: stable_id -> short_id
+        stable_to_short = {m.stable_id: sid for sid, m in short_id_index.items()}
+
+        # Display table
+        self.output.info("Meetings")
+        self.output.info("=" * 90)
+        self.output.info(f"{'DATE':<12} {'TAG':<12} {'R':<2} {'G':<2} {'ID':<11} TITLE")
+        self.output.info("-" * 90)
+
+        for m in meetings:
+            tag = (m.tag or "-")[:12]
+            recurring = (
+                "r" if m.is_recurring else ("o" if m.is_recurring is False else "?")
+            )
+            gemini = "✓" if m.gemini_assets else "-"
+            short_id = stable_to_short.get(m.stable_id, "???")
+
+            # Show alias relationship (never truncate IDs)
+            if m.alias_of:
+                primary_short = stable_to_short.get(m.alias_of, "???")
+                id_display = f"{short_id}→{primary_short}"
+            else:
+                id_display = short_id
+
+            title = m.title[:45] + "..." if len(m.title) > 45 else m.title
+            self.output.info(
+                f"{m.date:<12} {tag:<12} {recurring:<2} {gemini:<2}"
+                f" {id_display:<11} {title}"
+            )
+
+        # Summary
+        self.output.info("")
+        if limit and total_count > limit:
+            self.output.info(f"Showing {len(meetings)} of {total_count} meetings.")
+        else:
+            self.output.info(f"Total: {total_count} meeting(s)")
+
+        # Next steps
+        self.output.add_next_step("show <id>", "View details")
+        self.output.add_next_step("edit <id> -t/-r/-o", "Change tag/recurring")
+        self.output.add_next_step("link <primary> <alias>", "Link related meetings")
+        if total_count > 20 and not limit:
+            self.output.add_next_step("list --limit 20", "Limit results")
+        tags = self.meeting_repo.get_all_tags()
+        if tags and not getattr(args, "tag", None):
+            self.output.add_next_step(
+                "list --tag <tag>", f"Filter ({', '.join(tags[:3])}...)"
+            )
+        self.output.render_next_steps()
+
+        # JSON output
+        self.output.set_json("success", True)
+        self.output.set_json("total", total_count)
+        self.output.set_json("shown", len(meetings))
+        # Build meeting list based on verbosity
+        verbose = getattr(args, "verbose", False)
+        full = getattr(args, "full", False)
+
+        def meeting_to_json(m):
+            # Default: matches table columns
+            data = {
+                "id": stable_to_short.get(m.stable_id, "???"),
+                "date": m.date,
+                "tag": m.tag,
+                "r": "r" if m.is_recurring else "o",
+                "g": bool(m.gemini_assets),
+                "title": m.title,
+            }
+            if m.alias_of:
+                data["alias_of"] = stable_to_short.get(m.alias_of)
+
+            # Verbose: add context for categorization
+            if verbose or full:
+                data["attendee_count"] = (
+                    m.calendar_metadata.attendee_count if m.calendar_metadata else 0
+                )
+                if m.calendar_metadata and m.calendar_metadata.description:
+                    data["description"] = m.calendar_metadata.description[:200]
+                # Extract unique domains from attendees
+                if m.calendar_metadata and m.calendar_metadata.attendees:
+                    domains = set()
+                    for att in m.calendar_metadata.attendees:
+                        email = att.get("email", "")
+                        if "@" in email:
+                            domains.add(email.split("@")[1])
+                    data["attendee_domains"] = sorted(domains)
+
+            # Full: everything
+            if full:
+                data["stable_id"] = m.stable_id
+                data["time"] = m.time
+                data["status"] = m.status
+                data["directory"] = m.directory
+                data["is_one_on_one"] = m.is_one_on_one
+
+            return data
+
+        self.output.set_json("meetings", [meeting_to_json(m) for m in meetings])
+        self.output.output_json()
+        return 0
+
+    def cmd_edit(self, args: argparse.Namespace) -> int:
+        """Edit meeting metadata (tag, recurring)."""
+        self.db.initialize()
+
+        id_str = args.stable_id
+
+        meeting = self.meeting_repo.resolve_id(id_str)
+        if not meeting:
+            self.output.error(f"Meeting not found: {id_str}")
+            self.output.set_json("success", False)
+            self.output.set_json("error", "Meeting not found")
+            self.output.output_json()
+            return 1
+
+        # Track changes
+        changes = []
+
+        # Update tag
+        new_tag = getattr(args, "tag", None)
+        if new_tag is not None:
+            old_tag = meeting.tag or "-"
+            meeting.tag = new_tag
+            changes.append(f"Tag: {old_tag} → {new_tag}")
+
+        # Update recurring
+        if getattr(args, "recurring", False):
+            old_val = "Yes" if meeting.is_recurring else "No"
+            meeting.is_recurring = True
+            meeting.is_recurring_override = True  # Mark as manual override
+            changes.append(f"Recurring: {old_val} → Yes (override)")
+        elif getattr(args, "one_off", False):
+            old_val = "Yes" if meeting.is_recurring else "No"
+            meeting.is_recurring = False
+            meeting.is_recurring_override = True  # Mark as manual override
+            changes.append(f"Recurring: {old_val} → No (override)")
+
+        # Update slug
+        new_slug = getattr(args, "slug", None)
+        if new_slug is not None:
+            old_slug = meeting.slug or "-"
+            meeting.slug = new_slug
+            changes.append(f"Slug: {old_slug} → {new_slug}")
+
+        if not changes:
+            self.output.error(
+                "No changes specified. Use --tag, --recurring, --one-off, or --slug."
+            )
+            self.output.set_json("success", False)
+            self.output.set_json("error", "No changes specified")
+            self.output.output_json()
+            return 1
+
+        # Save changes
+        self.meeting_repo.upsert(meeting)
+
+        # Also update pattern cache if this is a recurring meeting
+        if meeting.is_recurring and meeting.slug:
+            pattern = self.pattern_repo.get_pattern(meeting.stable_id)
+            if pattern:
+                pattern.tag = meeting.tag
+                pattern.is_recurring = meeting.is_recurring
+                pattern.slug = meeting.slug
+                self.pattern_repo.upsert_pattern(pattern)
+
+        self.output.info(f"Updated: {meeting.title}")
+        self.output.info("")
+        for change in changes:
+            self.output.info(f"  {change}")
+
+        # Calculate expected path and sync filesystem if needed
+        new_dir = create_directory_path(meeting)
+        old_dir = meeting.directory
+
+        if old_dir and old_dir != new_dir:
+            import shutil
+
+            old_path = self.repo_root / old_dir
+            new_path = self.repo_root / new_dir
+
+            if old_path.exists():
+                # Move directory
+                new_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(old_path), str(new_path))
+
+                # Update DB with new path
+                meeting.directory = new_dir
+                self.meeting_repo.upsert(meeting)
+
+                # Clean up empty parent directories
+                self._cleanup_empty_dirs(old_path.parent)
+
+                self.output.info(f"  Moved: {old_dir}")
+                self.output.info(f"      → {new_dir}")
+            elif new_path.exists():
+                # Already at new location, just update DB
+                meeting.directory = new_dir
+                self.meeting_repo.upsert(meeting)
+                self.output.info(f"  Path: {new_dir}")
+            else:
+                self.output.info(f"  Path: {new_dir} (directory not found)")
+        else:
+            self.output.info(f"  Path: {new_dir}")
+
+        self.output.set_json("success", True)
+        self.output.set_json("meeting", meeting.to_dict())
+        self.output.set_json("changes", changes)
+        self.output.output_json()
+        return 0
+
+    def cmd_show(self, args: argparse.Namespace) -> int:
+        """Show detailed information about a single meeting."""
+        self.db.initialize()
+
+        id_str = args.stable_id
+
+        meeting = self.meeting_repo.resolve_id(id_str)
+        if not meeting:
+            self.output.error(f"Meeting not found: {id_str}")
+            self.output.set_json("success", False)
+            self.output.set_json("error", "Meeting not found")
+            self.output.output_json()
+            return 1
+
+        # Get short_id
+        short_id = generate_short_id(meeting.stable_id)
+
+        # Display meeting details
+        self.output.info(f"Meeting: {meeting.title}")
+        self.output.info("=" * 60)
+        self.output.info("")
+
+        self.output.info("Core Information:")
+        self.output.info(f"  ID:           {short_id} ({meeting.stable_id[:30]}...)")
+        self.output.info(f"  Date:         {meeting.date}")
+        self.output.info(f"  Time:         {meeting.time or '-'}")
+        self.output.info(f"  Tag:          {meeting.tag or '-'}")
+        recurring_str = (
+            "Yes"
+            if meeting.is_recurring
+            else ("No" if meeting.is_recurring is False else "Unset")
+        )
+        self.output.info(f"  Recurring:    {recurring_str}")
+        self.output.info(f"  Status:       {meeting.status}")
+        self.output.info(f"  Slug:         {meeting.slug or '-'}")
+        self.output.info(f"  Directory:    {meeting.directory or '-'}")
+
+        # Flags
+        self.output.info("")
+        self.output.info("Flags:")
+        self.output.info(f"  One-on-One:   {'Yes' if meeting.is_one_on_one else 'No'}")
+        self.output.info(f"  Orphaned:     {'Yes' if meeting.is_orphaned else 'No'}")
+        self.output.info(
+            f"  Manual Needed: {'Yes' if meeting.manual_capture_needed else 'No'}"
+        )
+
+        # Gemini assets
+        self.output.info("")
+        self.output.info("Gemini Assets:")
+        if meeting.gemini_assets:
+            if meeting.gemini_assets.transcript:
+                self.output.info(
+                    f"  Transcript:   {meeting.gemini_assets.transcript.doc_url}"
+                )
+            else:
+                self.output.info("  Transcript:   -")
+            if meeting.gemini_assets.summary:
+                self.output.info(
+                    f"  Summary:      {meeting.gemini_assets.summary.doc_url}"
+                )
+            else:
+                self.output.info("  Summary:      -")
+        else:
+            self.output.info("  (none)")
+
+        # Calendar metadata
+        if meeting.calendar_metadata:
+            self.output.info("")
+            self.output.info("Calendar Metadata:")
+            cm = meeting.calendar_metadata
+            self.output.info(f"  Attendees:    {cm.attendee_count}")
+            if cm.organizer:
+                org_email = cm.organizer.get("email", "-")
+                self.output.info(f"  Organizer:    {org_email}")
+            if cm.location:
+                self.output.info(f"  Location:     {cm.location}")
+            if cm.has_video_conference:
+                self.output.info("  Video:        Yes")
+            if cm.calendar_link:
+                self.output.info(f"  Calendar:     {cm.calendar_link}")
+            if cm.calendar_attachments:
+                self.output.info(f"  Attachments:  {len(cm.calendar_attachments)}")
+                for att in cm.calendar_attachments[:3]:
+                    self.output.info(f"    - {att.get('title', 'Untitled')}")
+
+            # Description
+            if cm.description:
+                self.output.info("")
+                self.output.info("Description:")
+                desc = cm.description.strip()
+                verbose = getattr(args, "verbose", False)
+                if verbose or len(desc) <= 200:
+                    # Show full description, wrapped
+                    for line in desc.split("\n")[:15]:
+                        self.output.info(f"  {line[:80]}")
+                    if desc.count("\n") > 15:
+                        self.output.info("  ...")
+                else:
+                    # Truncate to ~200 chars
+                    truncated = desc[:200].rsplit(" ", 1)[0] + "..."
+                    self.output.info(f"  {truncated}")
+                    self.output.info("  (use --verbose for full description)")
+
+            # Verbose: show attendee list
+            verbose = getattr(args, "verbose", False)
+            if verbose and cm.attendees:
+                self.output.info("")
+                self.output.info("Attendee List:")
+                for att in cm.attendees[:10]:
+                    email = att.get("email", "")
+                    name = att.get("displayName", "")
+                    if name:
+                        self.output.info(f"  {name} <{email}>")
+                    else:
+                        self.output.info(f"  {email}")
+                if len(cm.attendees) > 10:
+                    self.output.info(f"  ... and {len(cm.attendees) - 10} more")
+
+        # Next steps
+        self.output.info("")
+        self.output.info("Next steps:")
+        self.output.info(f"  meeting_notes edit {short_id} -t <tag>   Change tag")
+        self.output.info(f"  meeting_notes edit {short_id} -r         Mark recurring")
+        if meeting.directory:
+            self.output.info(f"  open {meeting.directory}")
+        self.output.info("  meeting_notes list               List all meetings")
+
+        # JSON output
+        self.output.set_json("success", True)
+        self.output.set_json("meeting", meeting.to_dict())
+        self.output.output_json()
+        return 0
+
+    def cmd_link(self, args: argparse.Namespace) -> int:
+        """Link two meetings (make one an alias of the other)."""
+        self.db.initialize()
+
+        primary = self.meeting_repo.resolve_id(args.primary_id)
+        alias = self.meeting_repo.resolve_id(args.alias_id)
+
+        if not primary:
+            self.output.error(f"Primary meeting not found: {args.primary_id}")
+            return 1
+        if not alias:
+            self.output.error(f"Alias meeting not found: {args.alias_id}")
+            return 1
+
+        if primary.stable_id == alias.stable_id:
+            self.output.error("Cannot link a meeting to itself")
+            return 1
+
+        # Get short IDs for display
+        primary_short = generate_short_id(primary.stable_id)
+        alias_short = generate_short_id(alias.stable_id)
+
+        # Store old directory for moving
+        old_dir = alias.directory
+
+        # Perform the link
+        success = self.meeting_repo.link_meetings(primary.stable_id, alias.stable_id)
+        if not success:
+            self.output.error("Failed to link meetings")
+            return 1
+
+        # Reload alias to get updated metadata
+        alias = self.meeting_repo.get_by_stable_id(alias.stable_id)
+
+        self.output.info(f"Linked: {alias_short} → {primary_short}")
+        self.output.info("")
+        self.output.info(f"  Primary: {primary.title}")
+        self.output.info(f"  Alias:   {alias.title}")
+        self.output.info("")
+        recurring_marker = "r" if alias.is_recurring else "o"
+        self.output.info(
+            f"  Inherited: tag={alias.tag}, slug={alias.slug},"
+            f" recurring={recurring_marker}"
+        )
+
+        # Calculate and sync directory
+        new_dir = create_directory_path(alias)
+
+        if old_dir and old_dir != new_dir:
+            import shutil
+
+            old_path = self.repo_root / old_dir
+            new_path = self.repo_root / new_dir
+
+            if old_path.exists():
+                new_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(old_path), str(new_path))
+                alias.directory = new_dir
+                self.meeting_repo.upsert(alias)
+                self._cleanup_empty_dirs(old_path.parent)
+                self.output.info(f"  Moved: {old_dir} → {new_dir}")
+            else:
+                alias.directory = new_dir
+                self.meeting_repo.upsert(alias)
+                self.output.info(f"  Path: {new_dir}")
+
+        self.output.set_json("success", True)
+        self.output.set_json("primary", primary.to_dict())
+        self.output.set_json("alias", alias.to_dict())
+        self.output.output_json()
+        return 0
+
+    def cmd_unlink(self, args: argparse.Namespace) -> int:
+        """Remove alias relationship from a meeting."""
+        self.db.initialize()
+
+        meeting = self.meeting_repo.resolve_id(args.meeting_id)
+        if not meeting:
+            self.output.error(f"Meeting not found: {args.meeting_id}")
+            return 1
+
+        if not meeting.alias_of:
+            self.output.error("Meeting is not an alias")
+            return 1
+
+        primary = self.meeting_repo.get_by_stable_id(meeting.alias_of)
+        primary_short = generate_short_id(primary.stable_id) if primary else "???"
+        meeting_short = generate_short_id(meeting.stable_id)
+
+        success = self.meeting_repo.unlink_meeting(meeting.stable_id)
+        if not success:
+            self.output.error("Failed to unlink meeting")
+            return 1
+
+        self.output.info(f"Unlinked: {meeting_short} (was alias of {primary_short})")
+        self.output.info("")
+        self.output.info(f"  {meeting.title}")
+        self.output.info("")
+        self.output.info("  Note: tag/slug unchanged. Use 'edit' to modify if needed.")
+
+        self.output.set_json("success", True)
+        self.output.set_json("meeting", meeting.to_dict())
+        self.output.output_json()
+        return 0
+
+    def cmd_doctor(self, args: argparse.Namespace) -> int:
+        """Check and fix inconsistencies between DB and filesystem."""
+        self.db.initialize()
+
+        fix_mode = getattr(args, "fix", False)
+        meetings_dir = self.repo_root / "meetings"
+
+        issues = []
+        fixed = []
+        missing_api_data = []
+
+        # Check all synced meetings
+        meetings = self.meeting_repo.get_by_status("synced")
+
+        for meeting in meetings:
+            # Calculate expected path using canonical logic
+            expected_path = create_directory_path(meeting)
+            current_path = meeting.directory
+
+            # Check if paths match
+            if current_path != expected_path:
+                current_full = self.repo_root / current_path if current_path else None
+                expected_full = self.repo_root / expected_path
+
+                issue = {
+                    "type": "path_mismatch",
+                    "stable_id": meeting.stable_id,
+                    "title": meeting.title,
+                    "current": current_path,
+                    "expected": expected_path,
+                }
+
+                if fix_mode:
+                    # Move directory if current exists
+                    if current_full and current_full.exists():
+                        import shutil
+
+                        expected_full.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.move(str(current_full), str(expected_full))
+
+                        # Update DB
+                        meeting.directory = expected_path
+                        self.meeting_repo.upsert(meeting)
+
+                        # Clean up empty parent directories
+                        self._cleanup_empty_dirs(current_full.parent)
+
+                        issue["fixed"] = True
+                        fixed.append(issue)
+                    elif expected_full.exists():
+                        # Directory already at expected location, just update DB
+                        meeting.directory = expected_path
+                        self.meeting_repo.upsert(meeting)
+                        issue["fixed"] = True
+                        issue["note"] = "DB updated (files already in place)"
+                        fixed.append(issue)
+                    else:
+                        issue["error"] = "Source directory not found"
+                        issues.append(issue)
+                else:
+                    issues.append(issue)
+
+            # Check for recurring mismatch (our setting vs Google API)
+            # Only check if we have authoritative API data (no inference)
+            # Skip if user has manually overridden the recurring flag
+            if (
+                meeting.calendar_metadata
+                and meeting.calendar_metadata.is_api_recurring is not None
+            ):
+                api_recurring = meeting.calendar_metadata.is_api_recurring
+                if (
+                    api_recurring != meeting.is_recurring
+                    and not meeting.is_recurring_override
+                ):
+                    short_id = generate_short_id(meeting.stable_id)
+                    issue = {
+                        "type": "recurring_mismatch",
+                        "id": short_id,
+                        "stable_id": meeting.stable_id,
+                        "title": meeting.title,
+                        "our_value": "recurring" if meeting.is_recurring else "one-off",
+                        "api_value": "recurring" if api_recurring else "one-off",
+                    }
+                    # Don't auto-fix - requires user decision
+                    issues.append(issue)
+            elif (
+                meeting.calendar_metadata
+                and meeting.calendar_metadata.is_api_recurring is None
+            ):
+                # Track meetings missing API recurring data
+                missing_api_data.append(meeting)
+
+        # Check for orphaned directories (on filesystem but not in DB)
+        if meetings_dir.exists():
+            db_paths = {m.directory for m in meetings if m.directory}
+            for tag_dir in meetings_dir.iterdir():
+                if not tag_dir.is_dir():
+                    continue
+                for sub_dir in tag_dir.iterdir():
+                    if not sub_dir.is_dir():
+                        continue
+                    # Could be recurring (tag/slug/date) or one-off (tag/date-slug)
+                    rel_path = str(sub_dir.relative_to(self.repo_root))
+                    # Check if it's a date directory (recurring pattern)
+                    for date_dir in sub_dir.iterdir():
+                        if (
+                            date_dir.is_dir()
+                            and len(date_dir.name) == 10
+                            and date_dir.name[4] == "-"
+                        ):
+                            inner_rel = str(date_dir.relative_to(self.repo_root))
+                            if inner_rel not in db_paths:
+                                issues.append(
+                                    {
+                                        "type": "orphaned_directory",
+                                        "path": inner_rel,
+                                    }
+                                )
+                    # Check one-off pattern
+                    if rel_path not in db_paths and not any(
+                        rel_path.startswith(p.rsplit("/", 1)[0] + "/")
+                        for p in db_paths
+                        if p
+                    ):
+                        # Only flag if it looks like a meeting dir (has README.md)
+                        if (sub_dir / "README.md").exists():
+                            issues.append(
+                                {
+                                    "type": "orphaned_directory",
+                                    "path": rel_path,
+                                }
+                            )
+
+        # Output
+        if not issues and not fixed:
+            self.output.info("✓ No issues found. Database and filesystem are in sync.")
+            self.output.set_json("success", True)
+            self.output.set_json("issues", [])
+            self.output.set_json("fixed", [])
+            self.output.output_json()
+            return 0
+
+        if fix_mode and fixed:
+            self.output.info(f"Fixed {len(fixed)} issue(s):")
+            self.output.info("")
+            for f in fixed:
+                if f["type"] == "path_mismatch":
+                    self.output.info(f"  ✓ {f['title'][:40]}")
+                    self.output.info(f"    {f['current']} → {f['expected']}")
+            self.output.info("")
+
+        if issues:
+            self.output.info(f"Found {len(issues)} issue(s):")
+            self.output.info("")
+
+            path_issues = [i for i in issues if i["type"] == "path_mismatch"]
+            orphan_issues = [i for i in issues if i["type"] == "orphaned_directory"]
+            recurring_issues = [i for i in issues if i["type"] == "recurring_mismatch"]
+
+            if path_issues:
+                self.output.info("Path mismatches (DB ≠ filesystem):")
+                for issue in path_issues[:10]:
+                    self.output.info(f"  • {issue['title'][:40]}")
+                    self.output.info(f"    Current:  {issue['current']}")
+                    self.output.info(f"    Expected: {issue['expected']}")
+                if len(path_issues) > 10:
+                    self.output.info(f"  ... and {len(path_issues) - 10} more")
+                self.output.info("")
+
+            if recurring_issues:
+                self.output.info(
+                    "Recurring mismatches (your setting ≠ Google Calendar):"
+                )
+                for issue in recurring_issues[:10]:
+                    self.output.info(f"  • [{issue['id']}] {issue['title'][:35]}")
+                    self.output.info(
+                        f"    You: {issue['our_value']:<10}"
+                        f"  Google: {issue['api_value']}"
+                    )
+                if len(recurring_issues) > 10:
+                    self.output.info(f"  ... and {len(recurring_issues) - 10} more")
+                self.output.info("")
+                self.output.info(
+                    "  To accept Google's value: meeting_notes edit <id> -r (or -o)"
+                )
+                self.output.info("  To keep your override: no action needed")
+                self.output.info("")
+
+        # Show hint about missing API data
+        if missing_api_data:
+            self.output.info(
+                f"Note: {len(missing_api_data)} meeting(s) missing API recurring data."
+            )
+            self.output.info(
+                "  Run: meeting_notes sync --refresh   to update metadata from Google"
+            )
+            self.output.info("")
+
+            if orphan_issues:
+                self.output.info("Orphaned directories (no DB record):")
+                for issue in orphan_issues[:5]:
+                    self.output.info(f"  • {issue['path']}")
+                if len(orphan_issues) > 5:
+                    self.output.info(f"  ... and {len(orphan_issues) - 5} more")
+                self.output.info("")
+
+            if not fix_mode and path_issues:
+                self.output.info("Run with --fix to resolve path mismatches.")
+
+        self.output.set_json("success", True)
+        self.output.set_json("issues", issues)
+        self.output.set_json("fixed", fixed)
+        self.output.output_json()
+        return 0 if not issues else 1
+
+    def _cleanup_empty_dirs(self, path: Path) -> None:
+        """Remove empty parent directories up to meetings/."""
+        meetings_dir = self.repo_root / "meetings"
+        while path != meetings_dir and path.exists():
+            if not any(path.iterdir()):
+                path.rmdir()
+                path = path.parent
+            else:
+                break
+
+    def cmd_tags(self, args: argparse.Namespace) -> int:
+        """Manage tag definitions."""
+        self.db.initialize()
+
+        # Default to list if no subcommand
+        tags_action = getattr(args, "tags_action", None) or "list"
+
+        if tags_action == "list":
+            return self._tags_list(args)
+        elif tags_action == "add":
+            return self._tags_add(args)
+        elif tags_action == "edit":
+            return self._tags_edit(args)
+        elif tags_action == "rename":
+            return self._tags_rename(args)
+        elif tags_action == "delete":
+            return self._tags_delete(args)
+        else:
+            return self._tags_list(args)
+
+    def _tags_list(self, args: argparse.Namespace) -> int:
+        """List all tag definitions."""
+        tags = self.tag_repo.get_all()
+
+        if not tags:
+            self.output.info("No tags defined.")
+            self.output.info("")
+            self.output.info("Next steps:")
+            self.output.info("  meeting_notes tags add <name>    Create a new tag")
+            self.output.info("  meeting_notes tags --help        Show tag commands")
+
+            self.output.set_json("success", True)
+            self.output.set_json("tags", [])
+            self.output.output_json()
+            return 0
+
+        # Count meetings per tag
+        meetings = self.meeting_repo.get_all()
+        tag_counts: dict[str, int] = {}
+        for m in meetings:
+            if m.tag:
+                tag_counts[m.tag] = tag_counts.get(m.tag, 0) + 1
+
+        self.output.info("Tag Definitions")
+        self.output.info("=" * 60)
+        self.output.info(f"{'NAME':<15} {'MEETINGS':<10} {'COLOR':<10} DESCRIPTION")
+        self.output.info("-" * 60)
+
+        for tag in sorted(tags, key=lambda t: t.name):
+            count = tag_counts.get(tag.name, 0)
+            color = tag.color or "-"
+            desc = (
+                tag.description[:30] + "..."
+                if len(tag.description) > 30
+                else (tag.description or "-")
+            )
+            self.output.info(f"{tag.name:<15} {count:<10} {color:<10} {desc}")
+
+        self.output.info("")
+        self.output.info("Next steps:")
+        self.output.info("  meeting_notes tags add <name>       Create a new tag")
+        self.output.info("  meeting_notes tags edit <name>      Edit tag metadata")
+        self.output.info("  meeting_notes tags rename <old> <new>  Rename a tag")
+
+        self.output.set_json("success", True)
+        self.output.set_json(
+            "tags",
+            [
+                {
+                    "name": t.name,
+                    "description": t.description,
+                    "color": t.color,
+                    "meeting_count": tag_counts.get(t.name, 0),
+                }
+                for t in tags
+            ],
+        )
+        self.output.output_json()
+        return 0
+
+    def _tags_add(self, args: argparse.Namespace) -> int:
+        """Add a new tag definition."""
+        name = args.name
+        description = getattr(args, "description", "") or ""
+        color = getattr(args, "color", None)
+
+        if self.tag_repo.exists(name):
+            self.output.error(
+                f"Tag '{name}' already exists. Use 'tags edit' to modify it."
+            )
+            self.output.set_json("success", False)
+            self.output.set_json("error", f"Tag '{name}' already exists")
+            self.output.output_json()
+            return 1
+
+        tag = self.tag_repo.create(name, description, color)
+        self.output.info(f"Created tag: {tag.name}")
+        if description:
+            self.output.info(f"  Description: {description}")
+        if color:
+            self.output.info(f"  Color: {color}")
+
+        self.output.info("")
+        self.output.info("Next steps:")
+        self.output.info("  meeting_notes tags            List all tags")
+        self.output.info(f"  meeting_notes tags edit {name}   Edit this tag")
+
+        self.output.set_json("success", True)
+        self.output.set_json("tag", tag.to_dict())
+        self.output.output_json()
+        return 0
+
+    def _tags_edit(self, args: argparse.Namespace) -> int:
+        """Edit an existing tag."""
+        name = args.name
+        description = getattr(args, "description", None)
+        color = getattr(args, "color", None)
+
+        if not self.tag_repo.exists(name):
+            self.output.error(f"Tag '{name}' not found. Use 'tags add' to create it.")
+            self.output.set_json("success", False)
+            self.output.set_json("error", f"Tag '{name}' not found")
+            self.output.output_json()
+            return 1
+
+        tag = self.tag_repo.update(name, description, color)
+        self.output.info(f"Updated tag: {tag.name}")
+        self.output.info(f"  Description: {tag.description or '-'}")
+        self.output.info(f"  Color: {tag.color or '-'}")
+
+        self.output.set_json("success", True)
+        self.output.set_json("tag", tag.to_dict())
+        self.output.output_json()
+        return 0
+
+    def _tags_rename(self, args: argparse.Namespace) -> int:
+        """Rename a tag."""
+        old_name = args.old_name
+        new_name = args.new_name
+
+        if not self.tag_repo.exists(old_name):
+            self.output.error(f"Tag '{old_name}' not found.")
+            self.output.set_json("success", False)
+            self.output.set_json("error", f"Tag '{old_name}' not found")
+            self.output.output_json()
+            return 1
+
+        if self.tag_repo.exists(new_name):
+            self.output.error(f"Tag '{new_name}' already exists.")
+            self.output.set_json("success", False)
+            self.output.set_json("error", f"Tag '{new_name}' already exists")
+            self.output.output_json()
+            return 1
+
+        tag = self.tag_repo.rename(old_name, new_name)
+        self.output.info(f"Renamed tag: {old_name} → {new_name}")
+
+        # Note: This doesn't update meetings using the old tag name
+        # That would need to be a separate migration
+        self.output.info("")
+        self.output.info("⚠️  Note: Existing meetings still reference the old tag name.")
+        self.output.info("    A migration may be needed to update meeting records.")
+
+        self.output.set_json("success", True)
+        self.output.set_json("old_name", old_name)
+        self.output.set_json("new_name", new_name)
+        self.output.set_json("tag", tag.to_dict())
+        self.output.output_json()
+        return 0
+
+    def _tags_delete(self, args: argparse.Namespace) -> int:
+        """Delete a tag definition."""
+        name = args.name
+
+        if not self.tag_repo.exists(name):
+            self.output.error(f"Tag '{name}' not found.")
+            self.output.set_json("success", False)
+            self.output.set_json("error", f"Tag '{name}' not found")
+            self.output.output_json()
+            return 1
+
+        # Check if any meetings use this tag
+        meetings = self.meeting_repo.get_all()
+        usage_count = sum(1 for m in meetings if m.tag == name)
+
+        if usage_count > 0 and not getattr(args, "force", False):
+            self.output.error(f"Tag '{name}' is used by {usage_count} meeting(s).")
+            self.output.error(
+                "Use --force to delete anyway, or rename/migrate meetings first."
+            )
+            self.output.set_json("success", False)
+            self.output.set_json("error", f"Tag in use by {usage_count} meetings")
+            self.output.set_json("usage_count", usage_count)
+            self.output.output_json()
+            return 1
+
+        self.tag_repo.delete(name)
+        self.output.info(f"Deleted tag: {name}")
+
+        if usage_count > 0:
+            self.output.info(f"⚠️  {usage_count} meeting(s) still reference this tag.")
+
+        self.output.set_json("success", True)
+        self.output.set_json("deleted", name)
+        self.output.output_json()
+        return 0
+
+
+def main():
+    """Main entry point."""
+    parser = argparse.ArgumentParser(
+        description="Meeting Notes - JSONL-based meeting sync",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="Output JSON instead of text"
+    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+    parser.add_argument("--debug", action="store_true", help="Debug output")
+
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # init
+    subparsers.add_parser("init", help="Initialize database and configuration")
+
+    # status
+    subparsers.add_parser("status", help="Show sync status")
+
+    # sync
+    sync_parser = subparsers.add_parser(
+        "sync", help="Discover meetings from calendar and email"
+    )
+    sync_parser.add_argument("--after", help="Start date (YYYY-MM-DD)")
+    sync_parser.add_argument("--before", help="End date (YYYY-MM-DD)")
+    sync_parser.add_argument(
+        "--force", action="store_true", help="Re-process already synced meetings"
+    )
+    sync_parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Refresh metadata for existing meetings from Google API",
+    )
+    sync_parser.add_argument(
+        "--id", dest="meeting_id", help="Re-sync a specific meeting by ID"
+    )
+
+    # decide
+    decide_parser = subparsers.add_parser(
+        "decide", help="Apply meeting classifications"
+    )
+    decide_parser.add_argument(
+        "--accept-all", action="store_true", help="Accept all suggestions"
+    )
+    decide_parser.add_argument(
+        "decisions", nargs="*", help="Inline decisions: NUM=TAG,r|o"
+    )
+
+    # download
+    download_parser = subparsers.add_parser("download", help="Download meeting assets")
+    download_parser.add_argument(
+        "--dry-run", action="store_true", help="Show what would be downloaded"
+    )
+    download_parser.add_argument(
+        "--force", action="store_true", help="Re-download existing files"
+    )
+    download_parser.add_argument(
+        "--id",
+        dest="meeting_id",
+        help="Download a specific meeting by ID (skips status check)",
+    )
+
+    # compact
+    subparsers.add_parser("compact", help="Compact JSONL database")
+
+    # list
+    list_parser = subparsers.add_parser("list", help="List meetings with filters")
+    list_parser.add_argument("--tag", "-t", help="Filter by tag")
+    list_parser.add_argument(
+        "--recurring", "-r", action="store_true", help="Show only recurring meetings"
+    )
+    list_parser.add_argument(
+        "--one-off", "-o", action="store_true", help="Show only one-off meetings"
+    )
+    list_parser.add_argument(
+        "--status", "-s", help="Filter by status (discovered, decided, synced)"
+    )
+    list_parser.add_argument("--since", help="Show meetings after date (YYYY-MM-DD)")
+    list_parser.add_argument("--until", help="Show meetings before date (YYYY-MM-DD)")
+    list_parser.add_argument(
+        "--has-gemini",
+        action="store_true",
+        help="Show only meetings with Gemini transcripts",
+    )
+    list_parser.add_argument(
+        "--no-gemini",
+        action="store_true",
+        help="Show only meetings without Gemini transcripts",
+    )
+    list_parser.add_argument(
+        "--orphaned",
+        action="store_true",
+        help="Show orphaned meetings (Gemini without calendar)",
+    )
+    list_parser.add_argument(
+        "--one-on-ones", action="store_true", help="Show only 1:1 meetings"
+    )
+    list_parser.add_argument("--limit", "-n", type=int, help="Limit number of results")
+    list_parser.add_argument(
+        "--sort", choices=["date", "title"], default="date", help="Sort by field"
+    )
+    list_parser.add_argument(
+        "--oldest", action="store_true", help="Sort oldest first (default: newest)"
+    )
+    list_parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Include description snippet and attendee domains (JSON)",
+    )
+    list_parser.add_argument(
+        "--full", action="store_true", help="Include all fields (JSON)"
+    )
+
+    # show
+    show_parser = subparsers.add_parser("show", help="Show meeting details")
+    show_parser.add_argument(
+        "stable_id", metavar="ID", help="Short ID (e.g., a3k) or full stable_id"
+    )
+    show_parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Show full description and attendee list",
+    )
+
+    # edit
+    edit_parser = subparsers.add_parser("edit", help="Edit meeting metadata")
+    edit_parser.add_argument(
+        "stable_id", metavar="ID", help="Short ID (e.g., a3k) or full stable_id"
+    )
+    edit_parser.add_argument("--tag", "-t", help="Set tag")
+    edit_parser.add_argument(
+        "--recurring", "-r", action="store_true", help="Mark as recurring"
+    )
+    edit_parser.add_argument(
+        "--one-off", "-o", action="store_true", help="Mark as one-off"
+    )
+    edit_parser.add_argument("--slug", help="Set slug")
+
+    # link
+    link_parser = subparsers.add_parser(
+        "link", help="Link meetings (make one an alias of another)"
+    )
+    link_parser.add_argument("primary_id", metavar="PRIMARY", help="Primary meeting ID")
+    link_parser.add_argument(
+        "alias_id", metavar="ALIAS", help="Meeting to become alias"
+    )
+
+    # unlink
+    unlink_parser = subparsers.add_parser("unlink", help="Remove alias relationship")
+    unlink_parser.add_argument(
+        "meeting_id", metavar="ID", help="Alias meeting to unlink"
+    )
+
+    # doctor
+    doctor_parser = subparsers.add_parser(
+        "doctor", help="Check/fix DB vs filesystem inconsistencies"
+    )
+    doctor_parser.add_argument(
+        "--fix", action="store_true", help="Fix issues (move files to match DB)"
+    )
+
+    # tags (with subcommands)
+    tags_parser = subparsers.add_parser("tags", help="Manage tag definitions")
+    tags_subparsers = tags_parser.add_subparsers(
+        dest="tags_action", help="Tag commands"
+    )
+
+    # tags list (default)
+    tags_subparsers.add_parser("list", help="List all tags")
+
+    # tags add
+    tags_add = tags_subparsers.add_parser("add", help="Add a new tag")
+    tags_add.add_argument("name", help="Tag name")
+    tags_add.add_argument("-d", "--description", help="Tag description")
+    tags_add.add_argument("-c", "--color", help="Tag color (hex, e.g., #e63946)")
+
+    # tags edit
+    tags_edit = tags_subparsers.add_parser("edit", help="Edit tag metadata")
+    tags_edit.add_argument("name", help="Tag name")
+    tags_edit.add_argument("-d", "--description", help="New description")
+    tags_edit.add_argument("-c", "--color", help="New color (hex)")
+
+    # tags rename
+    tags_rename = tags_subparsers.add_parser("rename", help="Rename a tag")
+    tags_rename.add_argument("old_name", help="Current tag name")
+    tags_rename.add_argument("new_name", help="New tag name")
+
+    # tags delete
+    tags_delete = tags_subparsers.add_parser("delete", help="Delete a tag")
+    tags_delete.add_argument("name", help="Tag name to delete")
+    tags_delete.add_argument(
+        "--force", action="store_true", help="Delete even if in use"
+    )
+
+    args = parser.parse_args()
+
+    # Setup logging
+    log_level = (
+        logging.DEBUG
+        if args.debug
+        else (logging.INFO if args.verbose else logging.WARNING)
+    )
+    logging.basicConfig(level=log_level, format="%(message)s")
+
+    # Load config and create CLI
+    config = load_config()
+    cli = MeetingNotesCLI(config, json_mode=args.json, debug=args.debug)
+
+    # Default: run status (sensible default per agentic-cli pattern)
+    if not args.command:
+        args.command = "status"
+
+    # Dispatch command
+    command_map = {
+        "init": cli.cmd_init,
+        "status": cli.cmd_status,
+        "sync": cli.cmd_sync,
+        "decide": cli.cmd_decide,
+        "download": cli.cmd_download,
+        "compact": cli.cmd_compact,
+        "list": cli.cmd_list,
+        "show": cli.cmd_show,
+        "edit": cli.cmd_edit,
+        "link": cli.cmd_link,
+        "unlink": cli.cmd_unlink,
+        "doctor": cli.cmd_doctor,
+        "tags": cli.cmd_tags,
+    }
+
+    handler = command_map.get(args.command)
+    if handler:
+        return handler(args)
+    else:
+        parser.print_help()
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

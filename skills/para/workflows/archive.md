@@ -43,22 +43,22 @@ Move completed or inactive items to the Archive.
    ```bash
    # Archive project
    PROJECT_NAME="Project-Name"
-   mkdir -p "4 Archive/projects"
-   mv "1 Projects/$PROJECT_NAME" "4 Archive/projects/"
+   mkdir -p "4_Archive/projects"
+   mv "1_Projects/$PROJECT_NAME" "4_Archive/projects/"
 
    # Close GTD milestone
    ./.claude/skills/gtd/scripts/gtd project update "$PROJECT_NAME" --state closed
 
    # Archive area
    AREA_NAME="area-name"
-   mkdir -p "4 Archive/areas"
-   mv "2 Areas/$AREA_NAME.md" "4 Archive/areas/"
-   # or mv "2 Areas/$AREA_NAME/" "4 Archive/areas/"
+   mkdir -p "4_Archive/areas"
+   mv "2_Areas/$AREA_NAME.md" "4_Archive/areas/"
+   # or mv "2_Areas/$AREA_NAME/" "4_Archive/areas/"
 
    # Archive resource
    TOPIC_NAME="topic-name"
-   mkdir -p "4 Archive/resources"
-   mv "3 Resources/$TOPIC_NAME" "4 Archive/resources/"
+   mkdir -p "4_Archive/resources"
+   mv "3_Resources/$TOPIC_NAME" "4_Archive/resources/"
    ```
 
 4. **Add archive note (optional)**
@@ -76,7 +76,7 @@ Move completed or inactive items to the Archive.
 
    ```
    Archived: [item]
-   - Moved to: 4 Archive/[category]/
+   - Moved to: 4_Archive/[category]/
    - GTD milestone: [closed/n/a]
 
    The item is now in cold storage but remains searchable.
@@ -85,7 +85,7 @@ Move completed or inactive items to the Archive.
 ## Archive Structure
 
 ```
-4 Archive/
+4_Archive/
 ├── _INDEX.md           # Archive overview (optional)
 ├── projects/           # Completed/abandoned projects
 ├── areas/              # Ended responsibilities

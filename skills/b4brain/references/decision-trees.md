@@ -13,7 +13,7 @@ Start with the item to organize
            │
            ▼
 Is there active work on this with a deadline?
-├── YES → 1 Projects/
+├── YES → 1_Projects/
 │         • Has clear outcome
 │         • Has timeline
 │         • Can be "completed"
@@ -21,7 +21,7 @@ Is there active work on this with a deadline?
 └── NO ──▼
 
 Is this an ongoing responsibility I maintain?
-├── YES → 2 Areas/
+├── YES → 2_Areas/
 │         • No end date
 │         • Has standards to maintain
 │         • Part of a role/responsibility
@@ -29,7 +29,7 @@ Is this an ongoing responsibility I maintain?
 └── NO ──▼
 
 Could this be useful reference material later?
-├── YES → 3 Resources/
+├── YES → 3_Resources/
 │         • Topic of interest
 │         • No immediate use
 │         • Reference value
@@ -37,7 +37,7 @@ Could this be useful reference material later?
 └── NO ──▼
 
 Is this completed/historical but worth keeping?
-├── YES → 4 Archive/
+├── YES → 4_Archive/
 │         • Completed project
 │         • Past reference
 │         • Historical record
@@ -57,14 +57,14 @@ Examine the inbox item
            ▼
 Does this require action from me?
 ├── NO ──┬── Is it trash? ──────────── YES → Delete
-│        ├── Is it reference? ─────── YES → 3 Resources/
+│        ├── Is it reference? ─────── YES → 3_Resources/
 │        └── Might I want to later? ── YES → Someday/Maybe list
 │
 └── YES ──▼
 
 Will it take more than one step?
 ├── YES → It's a PROJECT
-│         1. Create in 1 Projects/
+│         1. Create in 1_Projects/
 │         2. Define successful outcome
 │         3. Add tasks to _GTD_TASKS.md
 │
