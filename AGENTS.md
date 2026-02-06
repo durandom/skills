@@ -1,49 +1,44 @@
-<!-- OPENSPEC:START -->
-# OpenSpec Instructions
+# Agent Instructions
 
-These instructions are for AI assistants working in this project.
+Claude Code skills, commands, agents, and recipes. Skills extend Claude's capabilities with specialized knowledge and workflows.
 
-Always open `@/openspec/AGENTS.md` when the request:
+## Build & Test
 
-- Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
+```bash
+uv sync --dev                    # Install deps
+uv run pytest                    # All tests
+uv run pytest --snapshot-update  # Update syrupy snapshots
+uv run ruff check --fix && uv run ruff format  # Lint + format
+pre-commit run --all-files       # Pre-commit hooks
+```
 
-Use `@/openspec/AGENTS.md` to learn:
+## Architecture
 
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
+```
+skills/               # SKILL.md + references/ + workflows/ + scripts/
+├── code-mapping/     # Hierarchical codebase documentation
+├── gtd/              # GTD task management via GitHub issues
+├── para/             # PARA organization with GTD sync
+└── recipes/          # Reusable development patterns
 
-Keep this managed block so 'openspec update' can refresh the instructions.
+commands/             # Slash commands (.md with YAML frontmatter)
+agents/               # Subagent configurations (.md with YAML frontmatter)
+fixtures/             # Test fixtures
+tests/                # Pytest + syrupy snapshots (.ambr files)
+```
 
-<!-- OPENSPEC:END -->
+## Session Completion
 
-## Landing the Plane (Session Completion)
+Work is NOT complete until `git push` succeeds.
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
+1. File issues for remaining work
+2. Run quality gates if code changed (tests, linters)
+3. Update issue status (close finished, update in-progress)
+4. Push:
 
    ```bash
-   git pull --rebase
-   bd sync
-   git push
+   git pull --rebase && bd sync && git push
    git status  # MUST show "up to date with origin"
    ```
 
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+5. Hand off context for next session
