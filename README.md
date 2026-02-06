@@ -13,8 +13,13 @@ This repository contains **reusable skills and patterns** for Claude Code that h
 | 🗺️ **Code Mapping** | Navigate codebases like a pro with hierarchical documentation |
 | ✅ **GTD** | Getting Things Done task management via CLI |
 | 🧠 **b4brain** | Personal knowledge management using PARA + GTD |
-| ⚡ **Commands** | Slash commands like `/commit` and `/catchup` |
-| 📖 **Recipes** | Reusable patterns for AI-safe development |
+| 📂 **PARA** | Organize notes by actionability (Projects/Areas/Resources/Archive) |
+| 🐙 **GitHub** | GitHub CLI operations for issues, PRs, reviews, and CI |
+| 🕷️ **crawl4ai** | Web crawling and data extraction via `crwl` CLI |
+| 📝 **Meeting Notes** | Sync meeting transcripts from Google Calendar + Gemini |
+| 🌅 **The Day** | Daily overview generation with calendar, tasks, and weather |
+| 📖 **Recipes** | Reusable patterns and guides for AI-assisted development |
+| ⚡ **Commands** | Slash commands like `/commit`, `/catchup`, `/jira`, `/research` |
 
 ---
 
@@ -102,6 +107,70 @@ Combines two powerful methodologies:
 
 ---
 
+### 📂 PARA
+
+> 🗂️ *Organize by actionability, not topic*
+
+The PARA method for organizing notes into four categories based on **when you'll need them**:
+
+| Category | Purpose |
+|----------|---------|
+| 📁 **Projects** | Active goals with deadlines |
+| 🔄 **Areas** | Ongoing responsibilities |
+| 📚 **Resources** | Topics of interest |
+| 🗄️ **Archive** | Inactive items |
+
+Syncs PARA projects with GTD milestones for unified task and knowledge management.
+
+📚 [Full Documentation →](skills/para/SKILL.md)
+
+---
+
+### 🐙 GitHub
+
+> 🔧 *Unified interface for GitHub operations*
+
+GitHub CLI operations using `gh`:
+
+- 📋 **Issue Triage** — prioritize and label issues
+- 🔍 **PR Review** — review workflows and checklists
+- 🚀 **CI Monitoring** — check pipeline status
+- 🤖 **Copilot Iteration** — track Copilot-assisted workflows
+
+📚 [Full Documentation →](skills/github/SKILL.md)
+
+---
+
+### 🕷️ crawl4ai
+
+> 🌐 *Extract web content as clean markdown*
+
+Web crawling and data extraction using the `crwl` CLI. Handles static sites, JavaScript-rendered SPAs, and structured data extraction.
+
+📚 [Full Documentation →](skills/crawl4ai/SKILL.md)
+
+---
+
+### 📝 Meeting Notes
+
+> 🎙️ *Sync and manage meeting transcripts*
+
+Syncs Google Calendar meetings with Gemini transcripts, organizing them into a meetings directory with tag-based categorization.
+
+📚 [Full Documentation →](skills/meeting-notes/SKILL.md)
+
+---
+
+### 🌅 The Day
+
+> ☀️ *Morning planning and day organization*
+
+Generates a daily overview document (TODAY.md) with calendar, tasks, weather, and motivational content. Supports interactive time-blocked planning.
+
+📚 [Full Documentation →](skills/the-day/SKILL.md)
+
+---
+
 ## ⚡ Commands
 
 ### `/commit` 📝
@@ -125,6 +194,27 @@ Session restart orientation:
 /catchup HEAD~3  # 🕐 Review specific commit
 ```
 
+### `/jira` 🎫
+
+JIRA issue management with local caching:
+
+```bash
+/jira sync           # 🔄 Sync issues locally
+/jira work PROJ-123  # 🎯 Start working on an issue
+/jira create         # ➕ Create a new issue
+/jira search         # 🔍 Search issues
+```
+
+### `/research` 🔬
+
+Parallel research with synthesized output:
+
+```bash
+/research "topic"            # 📊 Standard research
+/research "topic" --quick    # ⚡ Quick overview
+/research "topic" --thorough # 🔍 Deep dive
+```
+
 ---
 
 ## 📖 Recipes
@@ -135,6 +225,7 @@ Reusable patterns for better development — now a proper skill with router and 
 |----------|---------|
 | 🤖 **AI Agent Patterns** | Agentic CLI, Extract Deterministic, Semantic Zoom |
 | 🛠️ **Development Practices** | Comments, Writing Skills, Claude Tools, Snapshot Testing |
+| 📦 **Distribution** | Claude Plugin Authoring |
 | 🏗️ **Architecture** | Python Project Architecture, Keyring Credential Storage |
 
 📚 [Full Documentation →](skills/recipes/SKILL.md)
@@ -190,10 +281,15 @@ skills/
 ├── 📂 skills/           # 🧠 Core skills
 │   ├── code-mapping/    # 🗺️ Hierarchical code navigation
 │   ├── gtd/             # ✅ Task management
-│   └── b4brain/         # 🧠 Knowledge management
+│   ├── b4brain/         # 🧠 Knowledge management
+│   ├── para/            # 📂 PARA organization
+│   ├── github/          # 🐙 GitHub CLI operations
+│   ├── crawl4ai/        # 🕷️ Web crawling
+│   ├── meeting-notes/   # 📝 Meeting transcript sync
+│   ├── the-day/         # 🌅 Daily planning
+│   └── recipes/         # 📖 Development patterns and guides
 ├── 📂 commands/         # ⚡ Slash commands
 ├── 📂 agents/           # 🤖 Subagents
-│   ├── recipes/         # 📖 Reusable development patterns
 ├── 📂 fixtures/         # 🧪 Test fixtures
 └── 📂 tests/            # ✅ Project tests
 ```
