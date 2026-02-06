@@ -1,0 +1,12 @@
+{
+  "gwt_path": "/Users/mhild/src/durandom/pensieve-rhdh/.claude/skills/meeting-notes/scripts",
+  "gwt_command": "/Users/mhild/src/rhdh/sidekick/google-workspace-tools/.venv/bin/gwt",
+  "state_file": ".meeting-notes-state.json",
+  "meetings_dir": "meetings",
+  "session_dir": ".tmp",
+  "gwt_output_dir": "exports",
+  "calendar_id": "primary",
+  "default_lookback_days": 7,
+  "keep_session_files": true,
+  "debug": false
+}

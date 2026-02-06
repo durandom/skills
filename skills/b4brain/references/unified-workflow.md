@@ -39,14 +39,14 @@ The b4brain system integrates GTD and PARA into a simple two-layer system optimi
 ┌──────────────────────────────────────────────┐
 │                 PARA LAYER                   │
 │                                              │
-│  1 Projects/    2 Areas/    3 Resources/    │
+│  1_Projects/    2_Areas/    3_Resources/    │
 │  (active work)  (ongoing)   (reference)     │
 │                                              │
 │            ──► Searchable & Retrievable     │
 └──────────────────────────────────────────────┘
                        │
                        ▼
-                 4 Archive/
+                 4_Archive/
                  (inactive)
 ```
 
@@ -86,9 +86,9 @@ You configure your NAS with a new share
 
 **Flow:**
 
-1. Is it actionable with a deadline? → `1 Projects/`
-2. Is it an ongoing responsibility? → `2 Areas/`
-3. Is it reference material for later? → `3 Resources/`
+1. Is it actionable with a deadline? → `1_Projects/`
+2. Is it an ongoing responsibility? → `2_Areas/`
+3. Is it reference material for later? → `3_Resources/`
 4. Is it trash? → Delete
 
 **Example:**
@@ -96,7 +96,7 @@ You configure your NAS with a new share
 ```
 Processing: "Set up new media share on NAS, used SMB with guest access"
 Clarify: Not actionable, it's documentation of what I did
-Organize: → 3 Resources/nas-configuration/media-shares.md
+Organize: → 3_Resources/nas-configuration/media-shares.md
 ```
 
 </interaction>
@@ -115,7 +115,7 @@ Organize: → 3 Resources/nas-configuration/media-shares.md
 ```
 Need: "How did I set up that NAS share again?"
 Search: "NAS share SMB"
-Find: 3 Resources/nas-configuration/media-shares.md
+Find: 3_Resources/nas-configuration/media-shares.md
 ```
 
 </interaction>

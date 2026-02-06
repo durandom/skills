@@ -73,11 +73,11 @@ GTD's insight: Your mind is for having ideas, not holding them.
 
 | GTD List | b4brain Location | Contents |
 |----------|------------------|----------|
-| Projects | `1 Projects/` | Multi-step outcomes |
+| Projects | `1_Projects/` | Multi-step outcomes |
 | Next Actions | `_GTD_TASKS.md` | Concrete tasks by context |
 | Waiting For | `_GTD_TASKS.md` @waiting | Delegated items |
-| Someday/Maybe | `3 Resources/` | Future possibilities |
-| Reference | `3 Resources/` | Non-actionable info |
+| Someday/Maybe | `3_Resources/` | Future possibilities |
+| Reference | `3_Resources/` | Non-actionable info |
 
 **Context tags in b4brain:**
 
@@ -153,13 +153,13 @@ INBOX ITEM
     ▼
 Is it actionable?
 ├── NO ──┬── Is it trash? ──── YES → Delete
-│        ├── Reference? ────── YES → 3 Resources/
+│        ├── Reference? ────── YES → 3_Resources/
 │        └── Someday/Maybe? ── YES → S/M list
 │
 └── YES ─┬── What's the outcome?
          │
          ├── Multi-step (Project)
-         │   └── Create in 1 Projects/
+         │   └── Create in 1_Projects/
          │       Define next action → _GTD_TASKS.md
          │
          └── Single-step (Task)

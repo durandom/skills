@@ -363,6 +363,133 @@ def get_content(args):
 - The `-` convention (read from stdin) is widely understood
 - Avoid auto-detecting stdin (can cause hangs if agent doesn't pipe anything)
 
+### Pattern 11: Doctor/Validate
+
+Provide a `doctor` or `validate` command that proactively diagnoses configuration, state, and environment issues. This is distinct from error handling (reactive) — doctor is **proactive health checking**.
+
+```
+CLI Definition:
+  doctor        "Check configuration and environment health"   # Visible
+  --fix         HIDDEN                                         # Auto-fix safe issues
+```
+
+**Output structure:**
+
+```
+$ cmd doctor
+Checking configuration...
+
+Errors (must fix):
+  ✗ Config file missing: ~/.cmdrc
+    → Run: cmd init
+
+  ✗ Invalid API key format in $CMD_API_KEY
+    → Check: echo $CMD_API_KEY | head -c 10
+
+Warnings (should fix):
+  ⚠ Cache directory is 2.3GB (recommend < 500MB)
+    → Run: cmd cache prune
+
+  ⚠ Using deprecated config key 'old_name' (use 'new_name')
+    → Run: cmd doctor --fix (auto-migrates)
+
+Info:
+  ✓ Version: 2.1.0 (latest)
+  ✓ Remote: connected (api.example.com)
+  ✓ Auth: valid (expires in 29 days)
+
+Summary: 2 errors, 2 warnings
+
+Next steps:
+  cmd init              Create missing config file
+  cmd doctor --fix      Auto-fix 1 warning
+  cmd doctor --verbose  Show all checks performed
+```
+
+**Issue categories:**
+
+| Category | Symbol | Meaning | Auto-fixable? |
+|----------|--------|---------|---------------|
+| **Error** | ✗ | Blocking, must fix to proceed | Rarely |
+| **Warning** | ⚠ | Non-blocking, should fix | Often |
+| **Info** | ✓ | Healthy status | N/A |
+
+**The `--fix` flag:**
+
+Following Pattern 2 (hidden destructive flags), `--fix` is not shown in `--help`. It's revealed in doctor output only when auto-fixable issues exist:
+
+```
+$ cmd doctor --fix
+Checking configuration...
+
+Auto-fixing safe issues:
+  ✓ Migrated config key 'old_name' → 'new_name'
+
+Still need manual attention:
+  ✗ Config file missing: ~/.cmdrc
+    → Run: cmd init
+
+Summary: 1 fixed, 1 error remaining
+
+Next steps:
+  cmd init        Create missing config file
+  cmd doctor      Re-check after fixing
+```
+
+**What makes a good doctor check:**
+
+1. **Environment** — required tools, versions, PATH entries
+2. **Configuration** — file existence, syntax validity, deprecated keys
+3. **State** — cache health, stale locks, orphaned temp files
+4. **Connectivity** — API reachability, auth token validity
+5. **Resources** — disk space, memory, file descriptor limits
+
+**Integration with other patterns:**
+
+- **Pattern 1 (Sensible Defaults):** Consider making `cmd` with no args run a lightweight health check
+- **Pattern 5 (Verbose):** `cmd doctor --verbose` shows every check, not just failures
+- **Pattern 6 (JSON):** `cmd doctor --json` for CI/automation pipelines
+- **Pattern 7 (Errors):** When commands fail, suggest `cmd doctor` in error output
+
+**Example implementation:**
+
+```python
+def do_doctor(args):
+    """Run health checks and report issues."""
+    checks = [
+        check_config_file,
+        check_api_key,
+        check_cache_size,
+        check_deprecated_keys,
+        check_connectivity,
+    ]
+
+    errors, warnings, info = [], [], []
+
+    for check in checks:
+        result = check()
+        if args.verbose or result.status != "ok":
+            {
+                "error": errors,
+                "warning": warnings,
+                "ok": info,
+            }[result.status].append(result)
+
+    # Display results...
+
+    # Only show --fix hint if there are fixable issues
+    fixable = [w for w in warnings if w.auto_fixable]
+    if fixable and not args.fix:
+        print(f"\nRun `cmd doctor --fix` to auto-fix {len(fixable)} issue(s)")
+
+    if args.fix:
+        for issue in fixable:
+            issue.apply_fix()
+            print(f"  ✓ {issue.fix_description}")
+
+    return 1 if errors else 0
+```
+
 ---
 
 ## Complete Example
@@ -581,6 +708,7 @@ except ConnectionError as e:
 | Scoped permissions | `--allow-paths`, `--deny-paths` |
 | Trust awareness | Categorize by risk level |
 | Multi-line input | `--file`, `--stdin`, or heredoc-friendly `-m` |
+| Doctor/validate | Proactive health checks with `--fix` for safe auto-remediation |
 
 ---
 

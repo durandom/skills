@@ -36,7 +36,7 @@ Help the user decide where an item belongs in PARA.
    ```
    **Category:** [Projects|Areas|Resources|Archive]
    **Reasoning:** [Why this category fits based on their answers]
-   **Suggested path:** [e.g., `1 Projects/Project-Name/` or `2 Areas/area-name.md`]
+   **Suggested path:** [e.g., `1_Projects/Project-Name/` or `2_Areas/area-name.md`]
    ```
 
 4. **Check for GTD sync (if Projects)**

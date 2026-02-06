@@ -20,10 +20,10 @@ Create new folders/files in the PARA structure with proper setup.
    PROJECT_NAME="Project-Name"
 
    # Create PARA folder
-   mkdir -p "1 Projects/$PROJECT_NAME"
+   mkdir -p "1_Projects/$PROJECT_NAME"
 
    # Create index file
-   cat > "1 Projects/$PROJECT_NAME/_INDEX.md" << 'EOF'
+   cat > "1_Projects/$PROJECT_NAME/_INDEX.md" << 'EOF'
    # Project: [Name]
 
    ## Outcome
@@ -53,7 +53,7 @@ Create new folders/files in the PARA structure with proper setup.
    AREA_NAME="area-name"
 
    # Simple area (single file)
-   cat > "2 Areas/$AREA_NAME.md" << 'EOF'
+   cat > "2_Areas/$AREA_NAME.md" << 'EOF'
    # Area: [Name]
 
    ## Responsibility
@@ -70,7 +70,7 @@ Create new folders/files in the PARA structure with proper setup.
    EOF
 
    # Or complex area (folder)
-   mkdir -p "2 Areas/$AREA_NAME"
+   mkdir -p "2_Areas/$AREA_NAME"
    # Create similar _INDEX.md inside
    ```
 
@@ -79,9 +79,9 @@ Create new folders/files in the PARA structure with proper setup.
    ```bash
    TOPIC_NAME="topic-name"
 
-   mkdir -p "3 Resources/$TOPIC_NAME"
+   mkdir -p "3_Resources/$TOPIC_NAME"
 
-   cat > "3 Resources/$TOPIC_NAME/_INDEX.md" << 'EOF'
+   cat > "3_Resources/$TOPIC_NAME/_INDEX.md" << 'EOF'
    # Resource: [Topic]
 
    ## Purpose

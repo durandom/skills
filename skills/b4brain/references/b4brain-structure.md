@@ -15,23 +15,23 @@ brainz/                         # Root of Obsidian vault
 │   ├── SCRATCH.md             # Primary quick capture file
 │   └── [captured-items]/      # Larger captures awaiting processing
 │
-├── 1 Projects/                 # PARA: Active work with deadlines
+├── 1_Projects/                 # PARA: Active work with deadlines
 │   ├── _INDEX.md              # Project overview and navigation
 │   ├── [Project-Name]/        # Folder for multi-file projects
 │   │   ├── README.md          # Project definition
 │   │   └── [project files]    # Supporting materials
 │   └── [project-name.md]      # Single-file projects
 │
-├── 2 Areas/                    # PARA: Ongoing responsibilities
+├── 2_Areas/                    # PARA: Ongoing responsibilities
 │   ├── _INDEX.md              # Area overview
 │   └── [area-name.md]         # One file per area (or folder if complex)
 │
-├── 3 Resources/                # PARA: Reference materials
+├── 3_Resources/                # PARA: Reference materials
 │   ├── _INDEX.md              # Resource overview by topic
 │   ├── zettelkasten/          # Knowledge graph (see below)
 │   └── [topic]/               # Topic-organized references
 │
-├── 4 Archive/                  # PARA: Inactive items
+├── 4_Archive/                  # PARA: Inactive items
 │   ├── _INDEX.md              # Archive overview
 │   ├── projects/              # Completed/abandoned projects
 │   └── [year]/                # Time-based organization
@@ -57,7 +57,7 @@ brainz/                         # Root of Obsidian vault
 ## Zettelkasten Structure
 
 ```
-3 Resources/zettelkasten/
+3_Resources/zettelkasten/
 ├── concepts/                   # Atomic permanent notes
 │   └── YYYYMMDD-concept-name.md
 ├── patterns/                   # Recurring patterns and templates
@@ -176,14 +176,14 @@ Each PARA folder contains an `_INDEX.md` for navigation:
 **Single-file project:**
 
 ```
-1 Projects/
+1_Projects/
 └── Project-Name.md
 ```
 
 **Multi-file project:**
 
 ```
-1 Projects/
+1_Projects/
 └── Project-Name/
     ├── README.md           # Project definition
     ├── notes.md            # Working notes
@@ -262,7 +262,7 @@ Each PARA folder contains an `_INDEX.md` for navigation:
 
 **Folders:**
 
-- PARA folders: Numbered prefix (`1 Projects/`, `2 Areas/`)
+- PARA folders: Numbered prefix (`1_Projects/`, `2_Areas/`)
 - Projects: Title-Case-With-Hyphens
 - Resources: kebab-case or Title-Case by preference
 

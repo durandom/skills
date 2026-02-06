@@ -98,19 +98,19 @@ inbox/                 # GTD capture point
 ├── SCRATCH.md        # Primary quick capture file
 └── [captured items]  # Items awaiting processing
 
-1 Projects/           # Active work with deadlines
+1_Projects/           # Active work with deadlines
 ├── _INDEX.md         # Project overview
 └── [Project-Name]/   # One folder per project
 
-2 Areas/              # Ongoing responsibilities
+2_Areas/              # Ongoing responsibilities
 ├── _INDEX.md         # Area overview
 └── [area-name].md    # One file per area (or folder if complex)
 
-3 Resources/          # Reference material & documentation
+3_Resources/          # Reference material & documentation
 ├── _INDEX.md         # Resource overview
 └── [topic]/          # Topic-based resources (configs, how-tos, references)
 
-4 Archive/            # Inactive items
+4_Archive/            # Inactive items
 ├── _INDEX.md         # Archive overview
 └── [archived items]  # Completed/inactive content
 
