@@ -169,7 +169,7 @@ Don't look at your full task list. Filter by context:
 
 - Slack threads, email, comments
 - Google Docs reviews
-- JIRA updates
+- Issue tracker updates
 
 **Offsite context (travel days):**
 

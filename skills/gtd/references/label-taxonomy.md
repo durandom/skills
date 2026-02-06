@@ -14,7 +14,7 @@ Based on actual work patterns - how you choose what to work on:
 
 - `context/focus` - Morning deep work (8am-1pm): architecture, design, writing
 - `context/meetings` - Afternoon synchronous (2-6pm): calls, live collaboration
-- `context/async` - Asynchronous: Slack threads, Google Docs, JIRA comments
+- `context/async` - Asynchronous: Slack threads, Google Docs comments
 - `context/offsite` - Quarterly travel: customer visits, team offsites
 
 **Usage:** Filter by current time/mode
@@ -66,8 +66,8 @@ Not about time, but about mental overhead required:
 
 **Examples:**
 
-- `energy/high`: Design plugin architecture, write RFE, complex JIRA epic breakdown
-- `energy/low`: Approve PR, update JIRA status, quick Slack reply, Workday entries
+- `energy/high`: Design plugin architecture, write RFE, complex epic breakdown
+- `energy/low`: Approve PR, update issue status, quick Slack reply, Workday entries
 </energy_labels>
 
 <status_labels>

@@ -19,7 +19,7 @@ This repository contains **reusable skills and patterns** for Claude Code that h
 | 📝 **Meeting Notes** | Sync meeting transcripts from Google Calendar + Gemini |
 | 🌅 **The Day** | Daily overview generation with calendar, tasks, and weather |
 | 📖 **Recipes** | Reusable patterns and guides for AI-assisted development |
-| ⚡ **Commands** | Slash commands like `/commit`, `/catchup`, `/jira`, `/research` |
+| ⚡ **Commands** | Slash commands like `/commit`, `/catchup`, `/research` |
 
 ---
 
@@ -192,17 +192,6 @@ Session restart orientation:
 ```bash
 /catchup         # 📊 Review recent changes
 /catchup HEAD~3  # 🕐 Review specific commit
-```
-
-### `/jira` 🎫
-
-JIRA issue management with local caching:
-
-```bash
-/jira sync           # 🔄 Sync issues locally
-/jira work PROJ-123  # 🎯 Start working on an issue
-/jira create         # ➕ Create a new issue
-/jira search         # 🔍 Search issues
 ```
 
 ### `/research` 🔬
