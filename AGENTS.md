@@ -27,6 +27,16 @@ fixtures/             # Test fixtures
 tests/                # Pytest + syrupy snapshots (.ambr files)
 ```
 
+## Versioning
+
+Version is tracked in three places — `.claude-plugin/plugin.json` is the source of truth:
+
+- `.claude-plugin/plugin.json` → `version`
+- `.claude-plugin/marketplace.json` → `metadata.version` AND `plugins[0].version`
+- `pyproject.toml` → `version`
+
+All three MUST stay in sync. When bumping, update all files.
+
 ## Session Completion
 
 Work is NOT complete until `git push` succeeds.
