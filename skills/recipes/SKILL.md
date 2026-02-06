@@ -1,6 +1,6 @@
 ---
 name: recipes
-description: Reusable development patterns and guides for AI-assisted workflows. Use when asking about CLI design for agents, commenting standards, snapshot testing, credential storage, Python project architecture, semantic zoom, skill writing, Claude tools, or extracting deterministic work.
+description: Reusable development patterns and guides for AI-assisted workflows. Use when asking about CLI design for agents, commenting standards, snapshot testing, credential storage, Python project architecture, semantic zoom, skill writing, Claude tools, extracting deterministic work, or plugin authoring and distribution.
 ---
 
 <essential_principles>
@@ -15,6 +15,7 @@ Recipes are **standalone reference documents** -- each captures a proven pattern
 |----------|---------|-------------|
 | **AI Agent Patterns** | semantic-zoom, agentic-cli, extract-deterministic | Designing AI interactions or CLI tools for agents |
 | **Development Practices** | comments, writing-skills, claude-tools, snapshot-testing | Writing code, skills, or tests in this ecosystem |
+| **Distribution** | claude-plugin-authoring | Packaging skills as installable Claude Code plugins |
 | **Architecture** | python-project-architecture, keyring-credential-storage | Structuring Python projects or handling credentials |
 
 </essential_principles>
@@ -31,6 +32,7 @@ What pattern or practice do you need guidance on?
 7. **Snapshot testing** - Approval testing with syrupy
 8. **Python project architecture** - Project structure for CLI tools
 9. **Keyring credential storage** - Secure credential management patterns
+10. **Claude plugin authoring** - Packaging skills as installable plugins
 
 **Wait for response before proceeding.**
 </intake>
@@ -48,6 +50,7 @@ What pattern or practice do you need guidance on?
 | 7, "snapshot", "testing", "syrupy", "approval" | `references/snapshot-testing.md` |
 | 8, "architecture", "python project", "cli tool", "structure" | `references/python-project-architecture.md` |
 | 9, "keyring", "credential", "password", "secret" | `references/keyring-credential-storage.md` |
+| 10, "plugin", "marketplace", "distribute", "package", "install" | `references/claude-plugin-authoring.md` |
 | Other | Clarify intent, then select appropriate reference |
 
 **After identifying the reference, read it and apply its guidance to the user's situation.**
@@ -68,6 +71,10 @@ What pattern or practice do you need guidance on?
 - [writing-skills.md](references/writing-skills.md) - Patterns for writing effective Claude Code skills
 - [claude-tools.md](references/claude-tools.md) - Claude Code Task management tools reference
 - [snapshot-testing.md](references/snapshot-testing.md) - Approval testing with syrupy framework
+
+## Distribution
+
+- [claude-plugin-authoring.md](references/claude-plugin-authoring.md) - Packaging skills as installable Claude Code plugins
 
 ## Architecture & Implementation
 

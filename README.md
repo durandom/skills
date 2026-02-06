@@ -159,7 +159,7 @@ Navigate codebases following the hierarchical map structure:
 
 ```bash
 claude plugin marketplace add durandom/skills
-claude plugin install --scope project durandom-skills@durandom-skills
+claude plugin install ds
 ```
 
 ### From Source (for development)
