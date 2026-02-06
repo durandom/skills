@@ -129,14 +129,15 @@ Session restart orientation:
 
 ## 📖 Recipes
 
-Reusable patterns for better development:
+Reusable patterns for better development — now a proper skill with router and categorized references.
 
-| Recipe | Description |
-|--------|-------------|
-| 🛡️ **Safe-by-Default CLI** | Hide destructive flags, safe defaults for AI agents |
-| 📸 **Snapshot Testing** | Testing with syrupy |
-| 💬 **Comments** | Python commenting standards for agentic workflows |
-| 🔐 **Keyring Storage** | Secure credential management |
+| Category | Recipes |
+|----------|---------|
+| 🤖 **AI Agent Patterns** | Agentic CLI, Extract Deterministic, Semantic Zoom |
+| 🛠️ **Development Practices** | Comments, Writing Skills, Claude Tools, Snapshot Testing |
+| 🏗️ **Architecture** | Python Project Architecture, Keyring Credential Storage |
+
+📚 [Full Documentation →](skills/recipes/SKILL.md)
 
 ---
 
@@ -153,6 +154,15 @@ Navigate codebases following the hierarchical map structure:
 ---
 
 ## 🛠️ Installation
+
+### As a Claude Code Plugin
+
+```bash
+claude plugin marketplace add durandom/skills
+claude plugin install --scope project durandom-skills@durandom-skills
+```
+
+### From Source (for development)
 
 **Prerequisites:**
 
@@ -183,7 +193,7 @@ skills/
 │   └── b4brain/         # 🧠 Knowledge management
 ├── 📂 commands/         # ⚡ Slash commands
 ├── 📂 agents/           # 🤖 Subagents
-├── 📂 recipes/          # 📖 Reusable patterns
+│   ├── recipes/         # 📖 Reusable development patterns
 ├── 📂 fixtures/         # 🧪 Test fixtures
 └── 📂 tests/            # ✅ Project tests
 ```

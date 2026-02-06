@@ -38,7 +38,8 @@ pre-commit run --all-files
 skills/               # Main skills (SKILL.md + references/ + workflows/ + scripts/)
 ├── code-mapping/     # Hierarchical codebase documentation (code maps)
 ├── gtd/              # GTD task management via GitHub issues
-└── para/             # PARA organization with GTD synchronization
+├── para/             # PARA organization with GTD synchronization
+└── recipes/          # Reusable development patterns and guides
 
 commands/             # Slash commands (.md files with YAML frontmatter)
 ├── commit.md         # /commit - git commit with emoji conventional commits
@@ -47,10 +48,6 @@ commands/             # Slash commands (.md files with YAML frontmatter)
 
 agents/               # Subagent configurations (.md with YAML frontmatter)
 └── code-map-explorer.md  # Navigate existing code maps (read-only)
-
-recipes/              # Reusable patterns and guides
-├── comments.md       # Python commenting standards (INTENT:, CRITICAL:, PERF:)
-└── snapshot-testing.md
 
 fixtures/             # Test fixtures (e.g., calculator/ for code-map tests)
 tests/                # Pytest tests with syrupy snapshots

@@ -1,0 +1,21 @@
+{
+  "name": "ds",
+  "description": "Claude Code skills collection - code mapping, GTD, knowledge management, and more",
+  "version": "1.0.0",
+  "author": {
+    "name": "durandom"
+  },
+  "homepage": "https://github.com/durandom/skills",
+  "repository": "https://github.com/durandom/skills",
+  "license": "MIT",
+  "keywords": [
+    "code-mapping",
+    "gtd",
+    "b4brain",
+    "para",
+    "github",
+    "crawl4ai",
+    "meeting-notes",
+    "skills"
+  ]
+}

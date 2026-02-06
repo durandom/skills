@@ -3,7 +3,7 @@
 ## Goal
 Add a test Python repository at project root that:
 1. Acts as a realistic template to test the code-map skill
-2. Uses snapshot testing (syrupy) per `recipes/snapshot-testing.md`
+2. Uses snapshot testing (syrupy) per `skills/recipes/references/snapshot-testing.md`
 3. Keeps skill directory clean for distribution
 
 ## Current State
