@@ -1,6 +1,6 @@
 ---
 name: recipes
-description: Reusable development patterns and guides for AI-assisted workflows. Use when asking about CLI design for agents, commenting standards, snapshot testing, credential storage, Python project architecture, semantic zoom, skill writing, Claude tools, extracting deterministic work, or plugin authoring and distribution.
+description: Reusable development patterns and guides for AI-assisted workflows. Use when asking about CLI design for agents, commenting standards, snapshot testing, credential storage, Python project architecture, semantic zoom, skill writing, Claude tools, agent teams, extracting deterministic work, or plugin authoring and distribution.
 ---
 
 <essential_principles>
@@ -28,7 +28,7 @@ What pattern or practice do you need guidance on?
 3. **Semantic zoom** - Controlling abstraction level in AI interactions
 4. **Python commenting standards** - INTENT:, CRITICAL:, PERF: anchors
 5. **Writing Claude Code skills** - Skill authoring patterns and best practices
-6. **Claude Code tools reference** - Task tool, subagents, tool usage
+6. **Claude Code tools reference** - All 20 native tools, coordination patterns, agent spawning
 7. **Snapshot testing** - Approval testing with syrupy
 8. **Python project architecture** - Project structure for CLI tools
 9. **Keyring credential storage** - Secure credential management patterns
@@ -46,7 +46,7 @@ What pattern or practice do you need guidance on?
 | 3, "zoom", "abstraction", "detail level", "semantic" | `references/semantic-zoom.md` |
 | 4, "comment", "intent", "critical", "perf", "anchor" | `references/comments.md` |
 | 5, "skill", "writing", "skill.md", "author" | `references/agent-skills.md` |
-| 6, "tools", "task tool", "subagent", "claude tools" | `references/claude-tools.md` |
+| 6, "tools", "task tool", "claude tools", "subagent", "task management" | `references/claude-tools.md` |
 | 7, "snapshot", "testing", "syrupy", "approval" | `references/snapshot-testing.md` |
 | 8, "architecture", "python project", "cli tool", "structure" | `references/python-project-architecture.md` |
 | 9, "keyring", "credential", "password", "secret" | `references/keyring-credential-storage.md` |
@@ -69,7 +69,7 @@ What pattern or practice do you need guidance on?
 
 - [comments.md](references/comments.md) - Python commenting standards with INTENT:, CRITICAL:, PERF: anchors
 - [agent-skills.md](references/agent-skills.md) - Patterns for writing effective Claude Code skills
-- [claude-tools.md](references/claude-tools.md) - Claude Code Task management tools reference
+- [claude-tools.md](references/claude-tools.md) - Complete Claude Code tools reference (all 20 native tools)
 - [snapshot-testing.md](references/snapshot-testing.md) - Approval testing with syrupy framework
 
 ## Distribution
