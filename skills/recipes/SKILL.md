@@ -14,7 +14,7 @@ Recipes are **standalone reference documents** -- each captures a proven pattern
 | Category | Recipes | When to Use |
 |----------|---------|-------------|
 | **AI Agent Patterns** | semantic-zoom, agentic-cli, extract-deterministic | Designing AI interactions or CLI tools for agents |
-| **Development Practices** | comments, writing-skills, claude-tools, snapshot-testing | Writing code, skills, or tests in this ecosystem |
+| **Development Practices** | comments, agent-skills, claude-tools, snapshot-testing | Writing code, skills, or tests in this ecosystem |
 | **Distribution** | claude-plugin-authoring | Packaging skills as installable Claude Code plugins |
 | **Architecture** | python-project-architecture, keyring-credential-storage | Structuring Python projects or handling credentials |
 
@@ -45,7 +45,7 @@ What pattern or practice do you need guidance on?
 | 2, "deterministic", "extract", "script vs prompt" | `references/extract-deterministic.md` |
 | 3, "zoom", "abstraction", "detail level", "semantic" | `references/semantic-zoom.md` |
 | 4, "comment", "intent", "critical", "perf", "anchor" | `references/comments.md` |
-| 5, "skill", "writing", "skill.md", "author" | `references/writing-skills.md` |
+| 5, "skill", "writing", "skill.md", "author" | `references/agent-skills.md` |
 | 6, "tools", "task tool", "subagent", "claude tools" | `references/claude-tools.md` |
 | 7, "snapshot", "testing", "syrupy", "approval" | `references/snapshot-testing.md` |
 | 8, "architecture", "python project", "cli tool", "structure" | `references/python-project-architecture.md` |
@@ -68,7 +68,7 @@ What pattern or practice do you need guidance on?
 ## Development Practices
 
 - [comments.md](references/comments.md) - Python commenting standards with INTENT:, CRITICAL:, PERF: anchors
-- [writing-skills.md](references/writing-skills.md) - Patterns for writing effective Claude Code skills
+- [agent-skills.md](references/agent-skills.md) - Patterns for writing effective Claude Code skills
 - [claude-tools.md](references/claude-tools.md) - Claude Code Task management tools reference
 - [snapshot-testing.md](references/snapshot-testing.md) - Approval testing with syrupy framework
 

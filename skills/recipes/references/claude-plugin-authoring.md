@@ -218,7 +218,7 @@ When plugins are installed, files are copied to a cache directory. **Never hardc
 ${CLAUDE_PLUGIN_ROOT}/scripts/tool.py
 ```
 
-See the [writing-skills recipe](writing-skills.md) for full details on `${CLAUDE_PLUGIN_ROOT}`.
+See the [agent-skills recipe](agent-skills.md) for full details on `${CLAUDE_PLUGIN_ROOT}`.
 
 ---
 
@@ -241,4 +241,4 @@ See the [writing-skills recipe](writing-skills.md) for full details on `${CLAUDE
 ## References
 
 - [Claude Code Plugins Reference](https://code.claude.com/docs/en/plugins-reference) — Official docs
-- [writing-skills.md](writing-skills.md) — Skill authoring patterns (complementary recipe)
+- [agent-skills.md](agent-skills.md) — Skill authoring patterns (complementary recipe)
