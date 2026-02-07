@@ -3,7 +3,7 @@
 **Target Audience:** AI Coding Agents and developers creating Claude Code skills
 **Goal:** Write skills that are concise, discoverable, and effective across all Claude models.
 
-> **Source:** This recipe synthesizes Anthropic's official `skill-creator` skill and production skill patterns from `anthropics/skills`.
+> **Source:** This recipe synthesizes Anthropic's official `skill-creator` skill, production skill patterns from `anthropics/skills`, and the [Agent Skills Specification](https://agentskills.io/specification).
 
 ---
 
@@ -257,6 +257,91 @@ description: Extract text and tables from PDF files, fill forms, merge documents
 
 ---
 
+## Validating Skills with skills-ref
+
+The [skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref) reference library provides a CLI and Python API for working with skills. It lives locally at `~/src/durandom/skills/agentskills/skills-ref/`.
+
+### Setup
+
+```bash
+cd ~/src/durandom/skills/agentskills/skills-ref
+uv sync && source .venv/bin/activate
+```
+
+### CLI Usage
+
+```bash
+# Validate a skill against the spec (name rules, required fields, field limits)
+skills-ref validate path/to/my-skill
+
+# Read frontmatter as JSON
+skills-ref read-properties path/to/my-skill
+
+# Generate <available_skills> XML for agent system prompts
+skills-ref to-prompt path/to/skill-a path/to/skill-b
+```
+
+### Python API
+
+```python
+from pathlib import Path
+from skills_ref import validate, read_properties, to_prompt
+
+# Validate — returns list of error strings (empty = valid)
+errors = validate(Path("my-skill"))
+
+# Read frontmatter — returns SkillProperties dataclass
+props = read_properties(Path("my-skill"))
+
+# Generate prompt block — returns XML string
+xml = to_prompt([Path("skill-a"), Path("skill-b")])
+```
+
+### What validation checks
+
+- `SKILL.md` exists in the directory
+- YAML frontmatter is valid and properly delimited
+- `name` and `description` are present and non-empty
+- `name` follows format rules (lowercase, hyphens, max 64 chars, no `--`, matches directory name)
+- `description` is under 1024 chars
+- `compatibility` is under 500 chars (if present)
+- No unexpected frontmatter fields (only `name`, `description`, `license`, `compatibility`, `allowed-tools`, `metadata` allowed)
+
+---
+
+## How Agents Discover and Activate Skills
+
+Understanding this helps write better `description` fields and structure skills for efficient context usage.
+
+### The progressive disclosure protocol
+
+1. **Discovery** (~100 tokens per skill): At startup, agents load only `name` and `description` from each skill's frontmatter into the system prompt as XML:
+
+```xml
+<available_skills>
+<skill>
+<name>pdf-processing</name>
+<description>Extracts text and tables from PDF files...</description>
+<location>/path/to/pdf-processing/SKILL.md</location>
+</skill>
+</available_skills>
+```
+
+1. **Activation** (<5000 tokens recommended): When a task matches a skill's description, the agent reads the full `SKILL.md` at the `<location>` path.
+
+2. **Execution** (as needed): The agent follows instructions, loading `scripts/`, `references/`, or `assets/` files on demand.
+
+**Implication for authors:** Your `description` is the only thing competing for attention against potentially 100+ other skills at discovery time. Make it count.
+
+### Integration approaches
+
+- **Filesystem-based agents** (e.g., Claude Code): Activate skills by reading the file at `<location>` (e.g., `cat /path/to/SKILL.md`). Most capable option.
+- **Tool-based agents**: Implement dedicated tools to trigger skills and access bundled assets. The `<location>` field can be omitted.
+
+Use `skills-ref to-prompt` to generate the `<available_skills>` XML block for either approach.
+
+---
+
 ## Validation and Feedback Loops
 
 For complex tasks, use the **plan-validate-execute** pattern:
@@ -351,13 +436,36 @@ scripts/helper.py
 
 ## YAML Frontmatter Requirements
 
+Per the [Agent Skills Specification](https://agentskills.io/specification):
+
 ```yaml
 ---
-name: skill-name          # lowercase-with-hyphens, max 64 chars
-                          # No: "anthropic", "claude", XML tags
-description: ...          # Max 1024 chars, non-empty, third person
+name: skill-name              # Required. lowercase-with-hyphens, max 64 chars
+description: ...              # Required. Max 1024 chars, non-empty, third person
+license: Apache-2.0           # Optional. License name or reference to bundled file
+compatibility: Requires git   # Optional. Max 500 chars. Environment requirements
+allowed-tools: Bash(git:*) Read  # Optional (experimental). Space-delimited pre-approved tools
+metadata:                     # Optional. Arbitrary key-value pairs for client-specific data
+  author: example-org
+  version: "1.0"
 ---
 ```
+
+| Field | Required | Constraints |
+|-------|----------|-------------|
+| `name` | Yes | Max 64 chars. Lowercase letters, numbers, hyphens. Must match parent directory name. |
+| `description` | Yes | Max 1024 chars. Non-empty. What + when to use. |
+| `license` | No | License name or reference to bundled license file. |
+| `compatibility` | No | Max 500 chars. Intended product, system packages, network access, etc. |
+| `allowed-tools` | No | Space-delimited list of pre-approved tools. (Experimental) |
+| `metadata` | No | String-to-string key-value mapping for additional properties. |
+
+### Name validation rules
+
+- Only Unicode lowercase alphanumeric characters and hyphens (`a-z`, `0-9`, `-`)
+- Cannot start or end with `-`
+- No consecutive hyphens (`--`)
+- **Must match the parent directory name** (e.g., `name: pdf-processing` requires the directory to be `pdf-processing/`)
 
 **Naming conventions:** `create-*`, `manage-*`, `setup-*`, `generate-*`, `build-*`
 
@@ -382,11 +490,13 @@ Or gerund form: `processing-pdfs`, `analyzing-spreadsheets`, `testing-code`
 | **Structure** | Simple (single file) or Multi-file (with scripts/, references/, assets/) |
 | **Format** | Markdown headings (default) or XML tags (complex agents) |
 | **Length** | SKILL.md under 500 lines |
-| **Description** | Third person, what + when, specific triggers |
+| **Frontmatter** | `name` + `description` required; `license`, `compatibility`, `allowed-tools`, `metadata` optional |
+| **Name** | Lowercase + hyphens, max 64 chars, must match directory name |
+| **Description** | Third person, what + when, specific triggers, max 1024 chars |
 | **References** | One level deep from SKILL.md |
 | **Script Paths** | Use `${CLAUDE_PLUGIN_ROOT}/scripts/...` for portability |
 | **Freedom** | High for creative, Low for fragile operations |
-| **Validation** | Verbose scripts with actionable error messages |
+| **Validation** | `skills-ref validate path/to/skill` before publishing |
 | **Testing** | All target models (Haiku needs more detail) |
 
 ---
@@ -408,6 +518,9 @@ The skill should only contain information needed for an AI agent to do the job.
 
 **Official:**
 
+- [Agent Skills Specification](https://agentskills.io/specification) — The canonical format definition
+- [Agent Skills Documentation](https://agentskills.io) — Guides, tutorials, and integration docs
+- [skills-ref Reference Library](https://github.com/agentskills/agentskills/tree/main/skills-ref) — Validation CLI and Python API (local: `~/src/durandom/skills/agentskills/skills-ref/`)
 - [Anthropic Skills Best Practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices.md)
 - [Anthropic Skills Repository](https://github.com/anthropics/skills)
 - [Claude Code Plugins Reference](https://code.claude.com/docs/en/plugins-reference) — `${CLAUDE_PLUGIN_ROOT}` and path resolution
