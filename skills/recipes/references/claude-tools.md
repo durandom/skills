@@ -448,6 +448,52 @@ TaskStop({
 
 ---
 
+### Communication Model
+
+Subagent communication is **unidirectional and fire-and-forget**. Understanding this constraint is critical for designing agent workflows.
+
+```
+┌──────────────┐   prompt    ┌──────────────┐
+│  Main Agent  │ ──────────► │   Subagent   │
+│              │             │              │
+│              │ ◄────────── │  (runs autonomously)
+│              │   result    │              │
+└──────────────┘  (single)   └──────────────┘
+```
+
+**What subagents CAN do:**
+
+- Run autonomously using their available tools
+- Ask the **user** directly via `AskUserQuestion` (`general-purpose` type only)
+- Return a single result message when finished
+
+**What subagents CANNOT do:**
+
+- Pause mid-execution to ask the parent agent a question
+- Send progress updates or partial results back to the parent
+- Receive new instructions while running (except via `TaskStop` to cancel)
+
+**Multi-turn follow-up via `resume`:**
+
+The `resume` parameter enables multi-turn conversations with a subagent, but the **parent always initiates** each turn:
+
+```
+Turn 1:  Main ──prompt──►  Subagent  ──result──►  Main
+         Main inspects result, decides follow-up needed
+Turn 2:  Main ──resume(id) + new prompt──►  Same Subagent (full context)  ──result──►  Main
+```
+
+The subagent retains its full conversation history across resumes, so it doesn't lose context. But it cannot request a resume — only the parent can.
+
+**Implications for workflow design:**
+
+- Give subagents **complete, self-contained prompts** — they can't ask for clarification
+- For tasks requiring back-and-forth discussion, use **Agent Teams** instead
+- Use `run_in_background` + `TaskOutput` for monitoring, but this only checks completion — not mid-flight status
+- If a subagent needs decisions, have it return options and let the parent decide, then `resume`
+
+---
+
 ## Agent Teams (Experimental)
 
 > **Source:** https://code.claude.com/docs/en/agent-teams
