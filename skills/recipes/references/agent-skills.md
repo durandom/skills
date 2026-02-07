@@ -25,7 +25,7 @@ Challenge every piece of content:
 
 ### Pattern 1: Simple Skill (Single File)
 
-Use when the task is straightforward and doesn't require decision branching.
+Use when the task is straightforward and doesn't require decision branching. (Note: the spec places no restrictions on body structure — this is our recommended layout.)
 
 ```yaml
 ---
@@ -71,46 +71,18 @@ skill-name/
 - **references/** — Documentation Claude reads for context (e.g., `schema.md`, `api_docs.md`)
 - **assets/** — Files used in output, not loaded into context (e.g., templates, logos)
 
-### Script Path Resolution
+### File References
 
-When skills are installed as plugins, Claude Code copies them to a cache directory (`~/.claude/plugins/cache/<name>/<version>/`). Hardcoded paths won't work.
-
-**Use `${CLAUDE_PLUGIN_ROOT}` for portable paths:**
+When referencing other files in your skill, use relative paths from the skill root:
 
 ```markdown
-<!-- BAD: Hardcoded path breaks when installed as plugin -->
-```bash
-.claude/skills/my-skill/scripts/process.py
+See [the reference guide](references/REFERENCE.md) for details.
+
+Run the extraction script:
+scripts/extract.py
 ```
 
-<!-- GOOD: Portable path works everywhere -->
-```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/process.py
-```
-
-```
-
-**In SKILL.md, define a variable for convenience:**
-
-```markdown
-## CLI Commands
-
-Set the variable for this session:
-
-```bash
-MYCLI="${CLAUDE_PLUGIN_ROOT}/scripts/mycli"
-```
-
-Then use throughout:
-
-```bash
-$MYCLI --help
-$MYCLI process file.txt
-```
-
-```
-
-**Known issue:** First script execution may fail with "No such file or directory" due to a [Claude Code bug](https://github.com/anthropics/claude-code/issues/11011). Second attempt succeeds. This is not fixable on the skill side.
+Keep file references one level deep from SKILL.md. Avoid deeply nested reference chains.
 
 ---
 
@@ -243,7 +215,7 @@ The `description` field is how Claude decides whether to use your skill from pot
 
 **Rules:**
 
-- Always write in **third person** (not "I can help..." or "You can use...")
+- Prefer **third person** — avoid first/second person ("I can help...", "You can use...") which reads ambiguously inside `<available_skills>` XML
 - Include **what it does** AND **when to use it**
 - Include specific trigger terms
 
@@ -317,19 +289,19 @@ Understanding this helps write better `description` fields and structure skills 
 
 1. **Discovery** (~100 tokens per skill): At startup, agents load only `name` and `description` from each skill's frontmatter into the system prompt as XML:
 
-```xml
-<available_skills>
-<skill>
-<name>pdf-processing</name>
-<description>Extracts text and tables from PDF files...</description>
-<location>/path/to/pdf-processing/SKILL.md</location>
-</skill>
-</available_skills>
-```
+   ```xml
+   <available_skills>
+   <skill>
+   <name>pdf-processing</name>
+   <description>Extracts text and tables from PDF files...</description>
+   <location>/path/to/pdf-processing/SKILL.md</location>
+   </skill>
+   </available_skills>
+   ```
 
 1. **Activation** (<5000 tokens recommended): When a task matches a skill's description, the agent reads the full `SKILL.md` at the `<location>` path.
 
-2. **Execution** (as needed): The agent follows instructions, loading `scripts/`, `references/`, or `assets/` files on demand.
+1. **Execution** (as needed): The agent follows instructions, loading `scripts/`, `references/`, or `assets/` files on demand.
 
 **Implication for authors:** Your `description` is the only thing competing for attention against potentially 100+ other skills at discovery time. Make it count.
 
@@ -494,7 +466,7 @@ Or gerund form: `processing-pdfs`, `analyzing-spreadsheets`, `testing-code`
 | **Name** | Lowercase + hyphens, max 64 chars, must match directory name |
 | **Description** | Third person, what + when, specific triggers, max 1024 chars |
 | **References** | One level deep from SKILL.md |
-| **Script Paths** | Use `${CLAUDE_PLUGIN_ROOT}/scripts/...` for portability |
+| **File References** | Relative paths from skill root, one level deep |
 | **Freedom** | High for creative, Low for fragile operations |
 | **Validation** | `skills-ref validate path/to/skill` before publishing |
 | **Testing** | All target models (Haiku needs more detail) |
@@ -523,7 +495,7 @@ The skill should only contain information needed for an AI agent to do the job.
 - [skills-ref Reference Library](https://github.com/agentskills/agentskills/tree/main/skills-ref) — Validation CLI and Python API (local: `~/src/durandom/skills/agentskills/skills-ref/`)
 - [Anthropic Skills Best Practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices.md)
 - [Anthropic Skills Repository](https://github.com/anthropics/skills)
-- [Claude Code Plugins Reference](https://code.claude.com/docs/en/plugins-reference) — `${CLAUDE_PLUGIN_ROOT}` and path resolution
+- [Claude Code Plugins Reference](https://code.claude.com/docs/en/plugins-reference) — Plugin installation and path resolution
 - **Anthropic's `skill-creator` skill** — The authoritative guide in `anthropics/skills`
 
 **Community:**
