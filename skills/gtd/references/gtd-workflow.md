@@ -1,5 +1,5 @@
 <overview>
-The GTD (Getting Things Done) methodology by David Allen provides a systematic approach to managing tasks and commitments. This system implements GTD's core principles with a Python CLI backed by GitHub Issues.
+The GTD (Getting Things Done) methodology by David Allen provides a systematic approach to managing tasks and commitments. This system implements GTD's core principles with a Python CLI.
 </overview>
 
 <five_steps>

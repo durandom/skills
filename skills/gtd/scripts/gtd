@@ -1613,7 +1613,7 @@ def cmd_reviews(args) -> int:
                 print(f"    Next due: in {status['due_in']} days")
 
         # Show workflow path
-        print(f"    📖 Agent guide: .claude/skills/gtd/workflows/{rtype}-review.md")
+        print(f"    📖 Agent guide: .claude/skills/gtd/references/{rtype}-review.md")
 
     # Handle reset if requested
     if hasattr(args, "reset") and args.reset:

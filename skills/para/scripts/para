@@ -2,8 +2,8 @@
 """PARA CLI - Organize notes by actionability (Projects, Areas, Resources, Archive)."""
 
 import argparse
+import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -249,60 +249,6 @@ def get_para_root() -> Path:
     return root
 
 
-def get_gtd_cli() -> str | None:
-    """Find the GTD CLI script."""
-    # Look relative to this script
-    script_dir = Path(__file__).parent
-    gtd_path = script_dir.parent.parent / "gtd" / "scripts" / "gtd"
-    if gtd_path.exists():
-        return str(gtd_path)
-    return None
-
-
-def run_gtd(*args) -> subprocess.CompletedProcess:
-    """Run a GTD CLI command."""
-    gtd = get_gtd_cli()
-    if not gtd:
-        print(f"{RED}Error:{NC} GTD CLI not found.")
-        sys.exit(1)
-    return subprocess.run([gtd, *args], capture_output=True, text=True)
-
-
-def get_gtd_projects() -> list[str]:
-    """Get list of GTD project names (milestones)."""
-    result = run_gtd("project", "list", "--state", "open", "--format", "plain")
-    if result.returncode != 0:
-        return []
-
-    projects = []
-    for line in result.stdout.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        # Filter out UI elements from GTD output
-        if line.startswith("="):  # Separator lines
-            continue
-        if line.startswith("No "):  # "No projects found"
-            continue
-        if line.startswith("["):  # Progress bars like [███░░░] 0%
-            continue
-        if line.startswith("📊"):  # Section headers
-            continue
-        if "%" in line and ("[" in line or "█" in line or "░" in line):
-            # Progress bar lines: "[███░░░] 50% (2/4)"
-            continue
-        if line == "No actions yet":  # Status messages
-            continue
-        # Extract project name (before parenthesis if present)
-        if "(" in line:
-            name = line.split("(")[0].strip()
-        else:
-            name = line
-        if name:
-            projects.append(name)
-    return projects
-
-
 def get_para_projects(root: Path) -> list[str]:
     """Get list of PARA project folder names."""
     projects_dir = root / PARA_FOLDERS["projects"]
@@ -482,124 +428,11 @@ def cmd_status(args) -> int:
     return 0
 
 
-def cmd_sync(args) -> int:
-    """Sync PARA projects with GTD milestones."""
-    root = get_para_root()
-
-    print(f"\n{BLUE}🔄 PARA ↔ GTD Sync{NC}")
-    print("=" * 40)
-
-    para_projects = set(get_para_projects(root))
-    gtd_projects = set(get_gtd_projects())
-
-    synced = para_projects & gtd_projects
-    para_only = para_projects - gtd_projects
-    gtd_only = gtd_projects - para_projects
-
-    print(f"\n{BOLD}Synced ({len(synced)}):{NC}")
-    if synced:
-        for p in sorted(synced):
-            print(f"  {GREEN}✓{NC} {p}")
-    else:
-        print("  (none)")
-
-    print(f"\n{BOLD}PARA-only ({len(para_only)}):{NC} (no GTD milestone)")
-    if para_only:
-        for p in sorted(para_only):
-            print(f"  {YELLOW}?{NC} {p}")
-    else:
-        print("  (none)")
-
-    print(f"\n{BOLD}GTD-only ({len(gtd_only)}):{NC} (no PARA folder)")
-    if gtd_only:
-        for p in sorted(gtd_only):
-            print(f"  {YELLOW}?{NC} {p}")
-    else:
-        print("  (none)")
-
-    # Fix mode
-    if args.fix and (para_only or gtd_only):
-        # Show what will be created and ask for confirmation
-        print(f"\n{BLUE}Proposed changes:{NC}")
-        if gtd_only:
-            print(f"  Create PARA folders for {len(gtd_only)} GTD project(s):")
-            for p in sorted(gtd_only):
-                print(f"    + {PARA_FOLDERS['projects']}/{p}/")
-        if para_only:
-            print(f"  Create GTD milestones for {len(para_only)} PARA project(s):")
-            for p in sorted(para_only):
-                print(f"    + milestone '{p}'")
-
-        try:
-            confirm = input(f"\n{BOLD}Proceed with these changes?{NC} [y/N]: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\nAborted.")
-            return 0
-
-        if confirm.lower() != "y":
-            print("Aborted.")
-            return 0
-
-        print(f"\n{BLUE}Fixing mismatches...{NC}")
-
-        # Resolve the base projects path once to guard against path traversal
-        base_projects_path = (root / PARA_FOLDERS["projects"]).resolve()
-
-        # Create PARA folders for GTD-only projects
-        for p in gtd_only:
-            # Validate project name to prevent path traversal
-            if (
-                ".." in p
-                or p.startswith(("/", "\\"))
-                or "/" in p
-                or "\\" in p
-                or p == "."
-            ):
-                print(f"  {RED}skipped (unsafe name):{NC} GTD project '{p}'")
-                continue
-
-            folder_path = base_projects_path / p
-            resolved_folder_path = folder_path.resolve()
-
-            # Ensure the resolved path is still under the PARA projects root
-            if not str(resolved_folder_path).startswith(str(base_projects_path)):
-                print(f"  {RED}skipped (outside PARA root):{NC} GTD project '{p}'")
-                continue
-
-            resolved_folder_path.mkdir(parents=True, exist_ok=True)
-            index_path = resolved_folder_path / "_INDEX.md"
-            content = f"# Project: {p}\n\n## Outcome\n[Define success]\n\n"
-            content += "## Status\n- [ ] Active\n"
-            # Don't overwrite existing _INDEX.md
-            if not index_path.exists():
-                index_path.write_text(content)
-                print(f"  {GREEN}created:{NC} {PARA_FOLDERS['projects']}/{p}/")
-            else:
-                print(
-                    f"  {YELLOW}exists:{NC} {PARA_FOLDERS['projects']}/{p}/ "
-                    f"(_INDEX.md not overwritten)"
-                )
-
-        # Offer to create GTD milestones for PARA-only projects
-        for p in para_only:
-            result = run_gtd("project", "create", p)
-            if result.returncode == 0:
-                print(f"  {GREEN}created:{NC} GTD milestone '{p}'")
-            else:
-                print(f"  {RED}failed:{NC} GTD milestone '{p}' - {result.stderr}")
-
-    elif para_only or gtd_only:
-        print(f"\nRun {BOLD}para sync --fix{NC} to create missing items.")
-
-    return 0
-
-
 def cmd_project_list(args) -> int:
-    """List PARA projects with GTD sync status."""
+    """List PARA projects."""
     root = get_para_root()
 
-    para_projects = set(get_para_projects(root))
-    gtd_projects = set(get_gtd_projects())
+    para_projects = list(get_para_projects(root))
 
     print(f"\n{BLUE}📁 PARA Projects{NC}")
     print("=" * 40)
@@ -610,27 +443,37 @@ def cmd_project_list(args) -> int:
         return 0
 
     for p in sorted(para_projects):
-        if p in gtd_projects:
-            sync_status = f"{GREEN}✓ synced{NC}"
-        else:
-            sync_status = f"{YELLOW}⚠ no GTD{NC}"
-        print(f"  {p}  [{sync_status}]")
+        print(f"  📁 {p}")
 
     return 0
 
 
+def _validate_project_name(name: str) -> str | None:
+    """Validate project name against path traversal. Returns error message or None."""
+    if os.sep in name or (os.altsep and os.altsep in name) or "/" in name:
+        return "Invalid project name: must not contain path separators"
+    if name in (".", "..") or name.startswith(".."):
+        return "Invalid project name: must not be a relative path"
+    return None
+
+
 def cmd_project_create(args) -> int:
-    """Create a new PARA project (and optionally GTD milestone)."""
+    """Create a new PARA project folder."""
     root = get_para_root()
     name = args.name
+
+    if err := _validate_project_name(name):
+        print(f"{RED}Error:{NC} {err}")
+        return 1
 
     # Create PARA folder
     folder_path = root / PARA_FOLDERS["projects"] / name
     if folder_path.exists():
         print(f"{YELLOW}Warning:{NC} Project folder already exists: {folder_path}")
-    else:
-        folder_path.mkdir(parents=True)
-        index_content = f"""# Project: {name}
+        return 0
+
+    folder_path.mkdir(parents=True)
+    index_content = f"""# Project: {name}
 
 ## Outcome
 [What does "done" look like?]
@@ -643,29 +486,20 @@ def cmd_project_create(args) -> int:
 
 ## Notes
 """
-        (folder_path / "_INDEX.md").write_text(index_content)
-        print(f"{GREEN}✓{NC} Created PARA project: {folder_path}")
-
-    # Create GTD milestone
-    if not args.no_gtd:
-        result = run_gtd("project", "create", name)
-        if result.returncode == 0:
-            print(f"{GREEN}✓{NC} Created GTD milestone: {name}")
-        else:
-            # Check if already exists
-            if "already exists" in result.stderr.lower():
-                print(f"{YELLOW}Note:{NC} GTD milestone already exists")
-            else:
-                print(f"{YELLOW}Warning:{NC} Could not create GTD milestone")
-                print(f"  {result.stderr}")
+    (folder_path / "_INDEX.md").write_text(index_content)
+    print(f"{GREEN}✓{NC} Created PARA project: {folder_path}")
 
     return 0
 
 
 def cmd_project_archive(args) -> int:
-    """Archive a PARA project (and close GTD milestone)."""
+    """Archive a PARA project."""
     root = get_para_root()
     name = args.name
+
+    if err := _validate_project_name(name):
+        print(f"{RED}Error:{NC} {err}")
+        return 1
 
     # Find the project folder
     project_path = root / PARA_FOLDERS["projects"] / name
@@ -685,14 +519,6 @@ def cmd_project_archive(args) -> int:
 
     shutil.move(str(project_path), str(dest_path))
     print(f"{GREEN}✓{NC} Archived: {project_path} → {dest_path}")
-
-    # Close GTD milestone
-    if not args.no_gtd:
-        result = run_gtd("project", "update", name, "--state", "closed")
-        if result.returncode == 0:
-            print(f"{GREEN}✓{NC} Closed GTD milestone: {name}")
-        else:
-            print(f"{YELLOW}Warning:{NC} Could not close GTD milestone")
 
     return 0
 
@@ -721,11 +547,11 @@ Quick Start Examples:
   # Check current PARA status
   para status
 
-  # Create a new project (also creates GTD milestone)
+  # Create a new project folder
   para project create "My-New-Project"
 
-  # Sync PARA projects with GTD milestones
-  para sync --fix
+  # List all projects
+  para project list
 
 For LLM Integration:
   - Use 'para status' to discover the current PARA root and structure
@@ -873,46 +699,6 @@ Notes:
     )
     p_status.set_defaults(func=cmd_status)
 
-    # sync
-    p_sync = subparsers.add_parser(
-        "sync",
-        help="Sync PARA projects with GTD milestones",
-        description=(
-            "Compare PARA project folders with GTD milestones and show/fix mismatches."
-        ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Show sync status (read-only)
-  para sync
-
-  # Fix mismatches: create missing folders and milestones
-  para sync --fix
-
-How It Works:
-  1. Lists all folders in "1_Projects/" (excluding _ and . prefixed)
-  2. Lists all open GTD milestones via 'gtd project list --state open'
-  3. Compares the two sets and reports:
-     - Synced: exists in both PARA and GTD
-     - PARA-only: folder exists but no GTD milestone
-     - GTD-only: milestone exists but no PARA folder
-
-With --fix:
-  - Creates PARA folders for GTD-only projects (with _INDEX.md template)
-  - Creates GTD milestones for PARA-only projects
-
-Prerequisites:
-  - Requires GTD CLI at ../gtd/scripts/gtd relative to this script
-  - GTD must be configured with a GitHub repo for milestones
-""",
-    )
-    p_sync.add_argument(
-        "--fix",
-        action="store_true",
-        help="Create missing PARA folders and GTD milestones",
-    )
-    p_sync.set_defaults(func=cmd_sync)
-
     # project
     p_project = subparsers.add_parser(
         "project",
@@ -934,9 +720,9 @@ Examples:
   para project archive "My-Project"
 
 Subcommands:
-  list      List PARA projects with GTD sync status
-  create    Create a new project folder (and GTD milestone)
-  archive   Move project to archive (and close GTD milestone)
+  list      List PARA projects
+  create    Create a new project folder
+  archive   Move project to archive
 """,
     )
     project_sub = p_project.add_subparsers(dest="project_cmd")
@@ -944,22 +730,19 @@ Subcommands:
     # project list
     p_proj_list = project_sub.add_parser(
         "list",
-        help="List projects with GTD sync status",
-        description=(
-            "List all PARA projects and show whether each has a matching GTD milestone."
-        ),
+        help="List projects",
+        description="List all PARA projects.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   para project list
 
 Output Format:
-  Project-A  [✓ synced]    # Has matching GTD milestone
-  Project-B  [⚠ no GTD]    # No GTD milestone found
+  📁 Project-A
+  📁 Project-B
 
 Notes:
   - Projects are folders in "1_Projects/" (excluding _ and . prefixed)
-  - Sync status is checked against 'gtd project list --state open'
 """,
     )
     p_proj_list.set_defaults(func=cmd_project_list)
@@ -968,15 +751,11 @@ Notes:
     p_proj_create = project_sub.add_parser(
         "create",
         help="Create a new project",
-        description="Create a new PARA project folder and optionally a GTD milestone.",
+        description="Create a new PARA project folder.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Create project with GTD milestone (default)
   para project create "Website-Redesign"
-
-  # Create project without GTD milestone
-  para project create "Quick-Experiment" --no-gtd
 
 Created Structure:
   1_Projects/
@@ -986,21 +765,14 @@ Created Structure:
 Project Naming:
   - Use kebab-case (my-project) or PascalCase (MyProject)
   - Avoid spaces in names (they work but are awkward in CLI)
-  - Names should be descriptive and match GTD milestone naming
 
 Notes:
   - Existing folders are not overwritten (shows warning)
-  - If GTD milestone already exists, shows note instead of error
 """,
     )
     p_proj_create.add_argument(
         "name",
         help="Project name (use kebab-case or PascalCase, avoid spaces)",
-    )
-    p_proj_create.add_argument(
-        "--no-gtd",
-        action="store_true",
-        help="Skip creating GTD milestone (PARA folder only)",
     )
     p_proj_create.set_defaults(func=cmd_project_create)
 
@@ -1008,18 +780,11 @@ Notes:
     p_proj_archive = project_sub.add_parser(
         "archive",
         help="Archive a completed project",
-        description=(
-            "Move a project from 'Projects' to 'Archive' and optionally "
-            "close GTD milestone."
-        ),
+        description="Move a project from 'Projects' to 'Archive'.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Archive project and close GTD milestone (default)
   para project archive "Completed-Project"
-
-  # Archive without closing GTD milestone
-  para project archive "Completed-Project" --no-gtd
 
 Result:
   Moves: 1_Projects/Completed-Project/ → 4_Archive/projects/Completed-Project/
@@ -1027,17 +792,11 @@ Result:
 Notes:
   - Fails if source project folder doesn't exist
   - Fails if destination already exists in archive
-  - GTD milestone is closed via 'gtd project update NAME --state closed'
 """,
     )
     p_proj_archive.add_argument(
         "name",
         help="Project name to archive (must exist in 1_Projects/)",
-    )
-    p_proj_archive.add_argument(
-        "--no-gtd",
-        action="store_true",
-        help="Skip closing GTD milestone (move folder only)",
     )
     p_proj_archive.set_defaults(func=cmd_project_archive)
 

@@ -55,14 +55,6 @@ Audit the PARA structure for stale, misplaced, or forgotten items.
    - Unused resource → Delete or keep with justification
    - Missing index → Create `_INDEX.md`
 
-5. **Check GTD sync**
-
-   Run the sync workflow to ensure projects are aligned:
-
-   ```
-   See: workflows/sync-projects.md
-   ```
-
 ## Review Cadence
 
 | Review Type | Frequency | Focus |

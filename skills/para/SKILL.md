@@ -1,6 +1,6 @@
 ---
 name: para
-description: PARA method for organizing notes by actionability (Projects, Areas, Resources, Archive). Use when organizing files, categorizing notes, deciding Projects vs Areas vs Resources, managing folders, or syncing PARA projects with GTD milestones.
+description: PARA method for organizing content by actionability (Projects, Areas, Resources, Archive). Use when organizing files, categorizing notes, deciding Projects vs Areas vs Resources, managing folders, or maintaining your knowledge structure.
 ---
 
 <essential_principles>
@@ -23,7 +23,7 @@ PARA organizes information by **when you'll need it**:
 ```
 1_Projects/           # Active work with deadlines
 ├── _INDEX.md         # Project overview
-└── [Project-Name]/   # One folder per project (synced with GTD)
+└── [Project-Name]/   # One folder per project
 
 2_Areas/              # Ongoing responsibilities
 ├── _INDEX.md         # Area overview
@@ -37,14 +37,6 @@ PARA organizes information by **when you'll need it**:
 ├── _INDEX.md         # Archive overview
 └── [archived items]  # Completed/inactive content
 ```
-
-## GTD Sync
-
-PARA projects (`1_Projects/` folders) stay in sync with GTD projects (GitHub milestones):
-
-- **Same names**: `1_Projects/API-Redesign/` ↔ GTD milestone "API-Redesign"
-- **Sync command**: `para sync` shows mismatches and offers to fix them
-- **One source of truth**: GTD manages project lifecycle, PARA holds the notes
 
 </essential_principles>
 
@@ -84,10 +76,9 @@ If it exits non-zero or shows "Error: PARA root not configured", the user needs 
 What would you like to do?
 
 1. **Categorize** - Help deciding where something belongs
-2. **Sync** - Check/sync PARA projects with GTD milestones
-3. **Review** - Audit PARA structure for stale items
-4. **Create** - Set up new project/area/resource folder
-5. **Archive** - Move completed items to archive
+2. **Review** - Audit PARA structure for stale items
+3. **Create** - Set up new project/area/resource folder
+4. **Archive** - Move completed items to archive
 
 **Wait for response before proceeding.**
 </intake>
@@ -96,11 +87,10 @@ What would you like to do?
 
 | Response | Workflow |
 |----------|----------|
-| 1, "categorize", "where", "which category", "decide" | `workflows/categorize.md` |
-| 2, "sync", "gtd", "milestones", "projects" | `workflows/sync-projects.md` |
-| 3, "review", "audit", "stale", "cleanup" | `workflows/review.md` |
-| 4, "create", "new", "add", "setup" | `workflows/create.md` |
-| 5, "archive", "done", "complete", "move" | `workflows/archive.md` |
+| 1, "categorize", "where", "which category", "decide" | `references/categorize.md` |
+| 2, "review", "audit", "stale", "cleanup" | `references/review.md` |
+| 3, "create", "new", "add", "setup" | `references/create.md` |
+| 4, "archive", "done", "complete", "move" | `references/archive.md` |
 | Other | Clarify intent, then select appropriate workflow |
 
 **After reading the workflow, follow it exactly.**
@@ -124,19 +114,13 @@ $PARA config --set-root ~/Notes           # Set global default
 $PARA config --set-repo . ~/Notes/work    # Map current repo → PARA location
 $PARA config --unset-repo .               # Remove repo mapping
 
-# Sync with GTD (shows mismatches)
-$PARA sync
-
-# Sync and fix mismatches
-$PARA sync --fix
-
-# Create new project (also creates GTD milestone)
+# Create new project folder
 $PARA project create "Project-Name"
 
 # Archive a project
 $PARA project archive "Project-Name"
 
-# List projects (with GTD sync status)
+# List projects
 $PARA project list
 ```
 
@@ -178,21 +162,15 @@ Is this completed/inactive but worth keeping?
 All in `references/`:
 
 - **para-method.md** - Full PARA methodology with examples
+- **decision-tree.md** - PARA categorization decision tree
+- **common-mistakes.md** - PARA anti-patterns and fixes
+- **complementary-skills.md** - How GTD complements PARA (informational)
+
+**Workflows (agent-consumable instructions):**
+
+- **categorize.md** - Help decide where items belong
+- **review.md** - Audit PARA structure for stale/misplaced items
+- **create.md** - Create new PARA folders with proper structure
+- **archive.md** - Move items to archive with proper handling
 
 </reference_index>
-
-<workflows_index>
-
-## Workflows
-
-All in `workflows/`:
-
-| Workflow | Purpose |
-|----------|---------|
-| categorize.md | Help decide where items belong |
-| sync-projects.md | Sync PARA projects with GTD milestones |
-| review.md | Audit PARA structure for stale/misplaced items |
-| create.md | Create new PARA folders with proper structure |
-| archive.md | Move items to archive with proper handling |
-
-</workflows_index>

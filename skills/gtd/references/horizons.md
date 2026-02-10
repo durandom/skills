@@ -2,7 +2,7 @@
 
 # GTD Horizons of Focus - Template
 
-This is a **template** for the HORIZONS.md file that should live at the root of your b4brain vault.
+This is a **template** for the HORIZONS.md file that should live at the root of your notes/documentation system.
 
 **To use:** Copy this file to your vault root as `HORIZONS.md` and fill in your personal content.
 
@@ -22,14 +22,12 @@ David Allen's GTD methodology defines 6 "Horizons of Focus" - different altitude
 |---------|------|---------------|-------------|
 | Ground | Actions | Daily | `horizon/action` label via gtd CLI |
 | H1 | Projects | Weekly | `horizon/project` label via gtd CLI |
-| **H2** | Areas of Focus | Quarterly | `2_Areas/` folder (PARA) |
+| **H2** | Areas of Focus | Quarterly | Prose (this document or separate files) |
 | **H3** | Goals | Quarterly | `horizon/goal` label via gtd CLI |
 | **H4** | Vision | Yearly | This document (HORIZONS.md) |
 | **H5** | Purpose & Principles | Yearly | This document (HORIZONS.md) |
 
-**Integration with PARA:**
-
-- H2_Areas already exist in your `2_Areas/` folder - don't duplicate them here
+- H2_Areas are tracked in prose (this document or separate files)
 - H3 Goals are tracked via gtd CLI so you can link projects and actions to them
 - H4/H5 are strategic and rarely change - they live in this file
 
@@ -39,9 +37,7 @@ David Allen's GTD methodology defines 6 "Horizons of Focus" - different altitude
 
 ## H2: Areas of Focus & Responsibility
 
-**Location:** `2_Areas/` folder in your b4brain vault
-
-Areas are ongoing responsibilities that require maintenance. Unlike projects (which end), areas persist. In b4brain, these are already organized in the PARA structure.
+Areas are ongoing responsibilities that require maintenance. Unlike projects (which end), areas persist.
 
 **Key questions:**
 
@@ -51,12 +47,12 @@ Areas are ongoing responsibilities that require maintenance. Unlike projects (wh
 
 ### Review Questions (Quarterly)
 
-1. Am I neglecting any area in `2_Areas/`?
+1. Am I neglecting any area?
 2. Are my projects balanced across areas?
 3. Should I add or remove any areas?
 4. Where am I overcommitted?
 
-**Tip:** Run `ls "2_Areas/"` to review your current areas during quarterly review.
+**Tip:** Review your areas list during quarterly review.
 
 </horizon_2>
 
@@ -233,7 +229,7 @@ When faced with a tough choice, I ask:
 
 Fill in the sections below during your yearly review.
 
-**Note:** H2_Areas live in `2_Areas/` folder, H3 Goals are GitHub Issues.
+**Note:** H2_Areas are tracked in prose or separate files, H3 Goals are tracked via gtd CLI.
 
 ---
 

@@ -185,7 +185,7 @@ def get_due_reviews() -> list[DueReview]:
                 review_type=review_type,
                 days_overdue=days_overdue,
                 last_done=last_done,
-                workflow_path=f".claude/skills/gtd/workflows/{review_type}-review.md",
+                workflow_path=f".claude/skills/gtd/references/{review_type}-review.md",
             )
         )
 
