@@ -22,17 +22,12 @@ jira issue assign PROJ-123 "Jane Smith"                        # Assign (full na
 
 </quick_start>
 
-<workflows>
-
-- **Setup**: First-time jira-cli auth and CLAUDE.md configuration — see [setup.md](workflows/setup.md)
-
-</workflows>
-
 <reference_guides>
 
 - [cli-reference.md](references/cli-reference.md) — Command patterns and flags
 - [jql-patterns.md](references/jql-patterns.md) — Common JQL queries by use case
 - [configuration-guide.md](references/configuration-guide.md) — How to store project settings in CLAUDE.md
+- [setup.md](references/setup.md) — First-time jira-cli auth and CLAUDE.md configuration
 
 </reference_guides>
 

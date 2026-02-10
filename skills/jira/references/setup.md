@@ -4,7 +4,7 @@ First-time setup for jira-cli authentication and project configuration.
 
 <required_reading>
 
-**Read before proceeding:** [configuration-guide.md](../references/configuration-guide.md)
+**Read before proceeding:** [configuration-guide.md](configuration-guide.md)
 
 </required_reading>
 
