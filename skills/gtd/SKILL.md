@@ -78,7 +78,7 @@ What would you like to do?
 | 4c, "quarterly review" | `./gtd quarterly` |
 | 4d, "yearly review" | `./gtd yearly` |
 | 4e, "review status", "when did I" | `./gtd reviews` |
-| 5, "projects", "milestones" | `./gtd projects` or `./gtd project list` |
+| 5, "projects" | `./gtd projects` or `./gtd project list` |
 | 5a, "create project" | `./gtd project create "<title>"` |
 | 5b, "show project", "project details" | `./gtd project show "<title>"` |
 | 5c, "delete project" | `./gtd project delete "<title>"` |
@@ -104,7 +104,7 @@ $GTD clarify 42
 # Add a pre-clarified action
 $GTD add "Write RFE draft" --context focus --energy high --status active
 
-# Add a project (auto-creates milestone)
+# Add a project
 $GTD add "Promotion to Senior Principal" --horizon project
 
 # Add an action to a project
@@ -124,7 +124,7 @@ $GTD project list                              # List all projects
 $GTD project show "Promotion to Senior Principal"
 $GTD project create "Launch sidekick MVP" --desc "Ship v1.0" --due 2026-06-30
 $GTD project update "Launch sidekick MVP" --state closed  # Mark complete
-$GTD project delete "Abandoned idea" --force   # Delete milestone
+$GTD project delete "Abandoned idea" --force   # Delete project
 
 # Daily review
 $GTD daily
@@ -176,7 +176,7 @@ $GTD done 42
 | `projects` | List projects with progress (alias for `project list`) |
 | `project list` | List projects with progress |
 | `project show <title>` | Show project details and actions |
-| `project create <title>` | Create a new project (milestone) |
+| `project create <title>` | Create a new project |
 | `project update <title>` | Update project (desc, due, state, rename) |
 | `project delete <title>` | Delete a project |
 | `daily` | Daily review workflow (auto-marks complete) |
@@ -275,7 +275,6 @@ $GTD yearly
 - [horizons.md](references/horizons.md) - Template for HORIZONS.md (copy to vault root)
 - [clarify-decision-tree.md](references/clarify-decision-tree.md) - Decision trees for clarification, context, priority, reviews
 - [common-mistakes.md](references/common-mistakes.md) - GTD anti-patterns and fixes
-- [github-limitations.md](references/github-limitations.md) - GitHub CLI reference and workarounds
 - [complementary-skills.md](references/complementary-skills.md) - How PARA complements GTD (informational)
 
 **Review Workflows (agent-consumable instructions):**

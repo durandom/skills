@@ -22,7 +22,7 @@ Does this require action from me?
 Will it take more than one step?
 ├── YES → It's a PROJECT
 │         1. Define successful outcome
-│         2. Create project (milestone)
+│         2. Create project
 │         3. Add first next action
 │
 └── NO ──▼ (Single action)

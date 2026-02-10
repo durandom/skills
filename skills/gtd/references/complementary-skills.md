@@ -10,14 +10,14 @@ GTD is a **workflow engine** — it tracks what to do and when. PARA is a **fili
 
 | System | Handles | Typical Storage |
 |--------|---------|-----------------|
-| GTD | Task tracking, next actions, reviews | GitHub issues / Taskwarrior |
+| GTD | Task tracking, next actions, reviews | gtd CLI |
 | PARA | Notes, documentation, reference files | Filesystem folders |
 
 ## Optional Sync Points
 
 If you use both skills, you may find these natural alignment points useful:
 
-- **Projects:** A GTD project (milestone) often has a matching PARA project folder containing its working documents
+- **Projects:** A GTD project often has a matching PARA project folder containing its working documents
 - **Areas:** GTD's H2 "Areas of Focus" maps to PARA's `2_Areas/` — both represent ongoing responsibilities
 - **Archive:** Completing a GTD project is a natural time to archive the corresponding PARA folder
 
@@ -31,4 +31,3 @@ These are conventions, not enforced rules. Each skill works independently.
 - [horizons.md](horizons.md) - Template for HORIZONS.md
 - [clarify-decision-tree.md](clarify-decision-tree.md) - Decision trees for clarification
 - [common-mistakes.md](common-mistakes.md) - GTD anti-patterns and fixes
-- [github-limitations.md](github-limitations.md) - GitHub CLI reference and workarounds

@@ -229,7 +229,7 @@ When faced with a tough choice, I ask:
 
 Fill in the sections below during your yearly review.
 
-**Note:** H2_Areas are tracked in prose or separate files, H3 Goals are GitHub Issues.
+**Note:** H2_Areas are tracked in prose or separate files, H3 Goals are tracked via gtd CLI.
 
 ---
 
