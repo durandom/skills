@@ -7,7 +7,7 @@ Quick reference for `jira` CLI commands. All commands use non-interactive flags 
 ```bash
 --plain       # Non-interactive text output (REQUIRED for agents)
 --no-input    # Skip interactive prompts (REQUIRED for create/edit)
---raw         # JSON output for parsing
+--raw         # JSON output for parsing (jira issue view only, NOT jira me)
 --comments N  # Include N recent comments in view
 ```
 
@@ -16,7 +16,7 @@ Quick reference for `jira` CLI commands. All commands use non-interactive flags 
 ```bash
 # List
 jira issue list --plain
-jira issue list --jql "assignee = currentUser() AND status != Done" --plain
+jira issue list --jql 'assignee = currentUser() AND status not in (Done)' --plain
 jira issue list -s "In Progress" --plain
 
 # View
@@ -93,8 +93,8 @@ jira issue view PROJ-123 --raw | jq '.fields | keys'
 Assignee MUST be the full display name as shown in Jira, not the email address.
 
 ```bash
-# Find your display name
-jira me --raw | jq -r '.displayName'
+# Find your display name (jira me only returns login, use an assigned issue)
+jira issue view PROJ-123 --raw | jq -r '.fields.assignee.displayName'
 
 # Correct
 jira issue assign PROJ-123 "Jane Smith"
@@ -115,6 +115,11 @@ jira epic list -pPROJ --plain
 ## Anti-Patterns
 
 ```bash
+# != can break in double-quoted JQL (interactive shells may expand ! as history)
+jira issue list --jql "status != Done"                        # May fail in interactive shells
+jira issue list --jql 'status != Done'                        # OK: single quotes prevent expansion
+jira issue list --jql 'status not in (Done)'                  # BEST: avoids the issue entirely
+
 # No ORDER BY in JQL (jira-cli limitation)
 jira issue list --jql "status = Open ORDER BY updated"      # FAILS
 jira issue list --jql "status = Open"                        # OK
