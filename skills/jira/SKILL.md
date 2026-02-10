@@ -1,6 +1,7 @@
 ---
 name: jira
-description: Jira issue management using jira-cli. Search, create, view, comment, and transition issues. Use when working with Jira tickets, sprint planning, or issue workflows.
+description: Jira issue management using jira-cli. Search, create, view, comment, and transition issues with JQL queries. Use when working with Jira tickets, Atlassian issues, sprint planning, or issue workflows.
+compatibility: Requires jira-cli (https://github.com/ankitpokhrel/jira-cli) installed and authenticated via jira init.
 ---
 
 <objective>
