@@ -26,9 +26,9 @@ Branch naming conventions:
 
 ## Step 2: Commit Changes
 
-Use `/commit` to stage, run pre-commit hooks, and create a conventional commit with emoji.
+Check if a `/commit` slash command or commit skill is available. If so, use it — it handles staging, pre-commit hooks, and conventional commit message generation.
 
-If `/commit` is not available, follow the project's commit conventions manually.
+If no commit skill exists, follow the project's commit conventions manually.
 
 ## Step 3: Version Bump (Optional)
 
