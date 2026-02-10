@@ -98,7 +98,7 @@ The PARA method for organizing notes into four categories based on **when you'll
 | 📚 **Resources** | Topics of interest |
 | 🗄️ **Archive** | Inactive items |
 
-Syncs PARA projects with GTD milestones for unified task and knowledge management.
+Standalone knowledge organization with CLI for project management, folder structure, and archiving.
 
 📚 [Full Documentation →](skills/para/SKILL.md)
 

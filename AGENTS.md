@@ -15,7 +15,7 @@ pre-commit run --all-files       # Pre-commit hooks
 ## Architecture
 
 ```
-skills/               # SKILL.md + references/ + scripts/
+skills/               # SKILL.md + may include references/, workflows/, scripts/
 ├── code-mapping/     # Hierarchical codebase documentation
 ├── gtd/              # GTD task management
 ├── para/             # PARA organization

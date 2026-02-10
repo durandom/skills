@@ -2,6 +2,7 @@
 """PARA CLI - Organize notes by actionability (Projects, Areas, Resources, Archive)."""
 
 import argparse
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -447,10 +448,23 @@ def cmd_project_list(args) -> int:
     return 0
 
 
+def _validate_project_name(name: str) -> str | None:
+    """Validate project name against path traversal. Returns error message or None."""
+    if os.sep in name or (os.altsep and os.altsep in name) or "/" in name:
+        return "Invalid project name: must not contain path separators"
+    if name in (".", "..") or name.startswith(".."):
+        return "Invalid project name: must not be a relative path"
+    return None
+
+
 def cmd_project_create(args) -> int:
     """Create a new PARA project folder."""
     root = get_para_root()
     name = args.name
+
+    if err := _validate_project_name(name):
+        print(f"{RED}Error:{NC} {err}")
+        return 1
 
     # Create PARA folder
     folder_path = root / PARA_FOLDERS["projects"] / name
@@ -482,6 +496,10 @@ def cmd_project_archive(args) -> int:
     """Archive a PARA project."""
     root = get_para_root()
     name = args.name
+
+    if err := _validate_project_name(name):
+        print(f"{RED}Error:{NC} {err}")
+        return 1
 
     # Find the project folder
     project_path = root / PARA_FOLDERS["projects"] / name
