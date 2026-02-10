@@ -2,7 +2,7 @@
 
 # GTD Horizons of Focus - Template
 
-This is a **template** for the HORIZONS.md file that should live at the root of your b4brain vault.
+This is a **template** for the HORIZONS.md file that should live at the root of your PARA vault.
 
 **To use:** Copy this file to your vault root as `HORIZONS.md` and fill in your personal content.
 
@@ -39,9 +39,9 @@ David Allen's GTD methodology defines 6 "Horizons of Focus" - different altitude
 
 ## H2: Areas of Focus & Responsibility
 
-**Location:** `2_Areas/` folder in your b4brain vault
+**Location:** `2_Areas/` folder in your PARA vault
 
-Areas are ongoing responsibilities that require maintenance. Unlike projects (which end), areas persist. In b4brain, these are already organized in the PARA structure.
+Areas are ongoing responsibilities that require maintenance. Unlike projects (which end), areas persist. These are organized in the PARA structure (`2_Areas/` folder).
 
 **Key questions:**
 

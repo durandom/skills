@@ -12,7 +12,6 @@ This repository contains **reusable skills and patterns** for Claude Code that h
 |-----------|-------------|
 | 🗺️ **Code Mapping** | Navigate codebases like a pro with hierarchical documentation |
 | ✅ **GTD** | Getting Things Done task management via CLI |
-| 🧠 **b4brain** | Personal knowledge management using PARA + GTD |
 | 📂 **PARA** | Organize notes by actionability (Projects/Areas/Resources/Archive) |
 | 🐙 **GitHub** | GitHub CLI operations for issues, PRs, reviews, and CI |
 | 🕷️ **crawl4ai** | Web crawling and data extraction via `crwl` CLI |
@@ -83,27 +82,6 @@ A CLI-based task management system following the **GTD methodology**:
 ```
 
 📚 [Full Documentation →](skills/gtd/SKILL.md)
-
----
-
-### 🧠 b4brain
-
-> 🗃️ Personal knowledge management expertise
-
-Combines two powerful methodologies:
-
-| Method | Purpose |
-|--------|---------|
-| 📂 **PARA** | Organize by actionability (Projects/Areas/Resources/Archive) |
-| ✅ **GTD** | Externalize mental load, capture everything |
-
-**When to use:**
-
-- 🤔 *"Where should I put this?"* → Ask b4brain
-- 🔀 *"Should this be a Project or Area?"* → Ask b4brain
-- 🧹 *"My system feels cluttered"* → Troubleshoot with b4brain
-
-📚 [Full Documentation →](skills/b4brain/SKILL.md)
 
 ---
 
@@ -270,7 +248,6 @@ skills/
 ├── 📂 skills/           # 🧠 Core skills
 │   ├── code-mapping/    # 🗺️ Hierarchical code navigation
 │   ├── gtd/             # ✅ Task management
-│   ├── b4brain/         # 🧠 Knowledge management
 │   ├── para/            # 📂 PARA organization
 │   ├── github/          # 🐙 GitHub CLI operations
 │   ├── crawl4ai/        # 🕷️ Web crawling
