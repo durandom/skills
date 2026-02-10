@@ -35,16 +35,7 @@ Create new folders/files in the PARA structure with proper setup.
    ## Key Files
    - [List important files in this folder]
 
-   ## GTD
-   - Milestone: [Link to GTD milestone]
-   - Next action: [Current next action]
    EOF
-   ```
-
-   Then create matching GTD milestone:
-
-   ```bash
-   ./.claude/skills/gtd/scripts/gtd project create "$PROJECT_NAME"
    ```
 
    ### Area
@@ -102,7 +93,7 @@ Create new folders/files in the PARA structure with proper setup.
    ```
    Created: [path]
    - _INDEX.md initialized
-   - GTD milestone created (if project)
+
 
    Next: Add your first file or note to this folder.
    ```

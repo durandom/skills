@@ -39,12 +39,6 @@ Help the user decide where an item belongs in PARA.
    **Suggested path:** [e.g., `1_Projects/Project-Name/` or `2_Areas/area-name.md`]
    ```
 
-4. **Check for GTD sync (if Projects)**
-
-   If recommending Projects:
-   - Ask if there's already a GTD project/milestone for this
-   - If not, suggest creating one: `gtd project create "Project-Name"`
-
 ## Common Edge Cases
 
 | Scenario | Resolution |

@@ -276,6 +276,7 @@ $GTD yearly
 - [clarify-decision-tree.md](references/clarify-decision-tree.md) - Decision trees for clarification, context, priority, reviews
 - [common-mistakes.md](references/common-mistakes.md) - GTD anti-patterns and fixes
 - [github-limitations.md](references/github-limitations.md) - GitHub CLI reference and workarounds
+- [complementary-skills.md](references/complementary-skills.md) - How PARA complements GTD (informational)
 
 **Review Workflows (agent-consumable instructions):**
 

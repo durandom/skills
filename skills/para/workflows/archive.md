@@ -18,12 +18,6 @@ Move completed or inactive items to the Archive.
    Before archiving, verify:
    - [ ] All tasks completed or moved elsewhere
    - [ ] Any learnings captured
-   - [ ] GTD milestone closed
-
-   ```bash
-   # Check GTD project status
-   ./.claude/skills/gtd/scripts/gtd project show "Project-Name"
-   ```
 
    ### For Areas
 
@@ -45,9 +39,6 @@ Move completed or inactive items to the Archive.
    PROJECT_NAME="Project-Name"
    mkdir -p "4_Archive/projects"
    mv "1_Projects/$PROJECT_NAME" "4_Archive/projects/"
-
-   # Close GTD milestone
-   ./.claude/skills/gtd/scripts/gtd project update "$PROJECT_NAME" --state closed
 
    # Archive area
    AREA_NAME="area-name"
@@ -77,7 +68,7 @@ Move completed or inactive items to the Archive.
    ```
    Archived: [item]
    - Moved to: 4_Archive/[category]/
-   - GTD milestone: [closed/n/a]
+
 
    The item is now in cold storage but remains searchable.
    ```

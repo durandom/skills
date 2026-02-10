@@ -43,7 +43,7 @@ This document captures the architectural principles and design decisions for the
 |------|-------|--------|-----|
 | Actions (Ground) | GitHub Issues | `horizon/action` label | Trackable, closeable |
 | Projects (H1) | GitHub Milestones | `horizon/project` label | Progress tracking |
-| Areas (H2) | `2_Areas/` folder | PARA folders | Ongoing, never "complete" |
+| Areas (H2) | Prose / dedicated files | Prose | Ongoing, never "complete" |
 | Goals (H3) | GitHub Issues | `horizon/goal` label | Trackable, closeable |
 | Vision (H4) | `HORIZONS.md` | Prose | Reflective, inspirational |
 | Purpose (H5) | `HORIZONS.md` | Prose | Guides, not tasks |

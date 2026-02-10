@@ -164,6 +164,7 @@ All in `references/`:
 - **para-method.md** - Full PARA methodology with examples
 - **decision-tree.md** - PARA categorization decision tree
 - **common-mistakes.md** - PARA anti-patterns and fixes
+- **complementary-skills.md** - How GTD complements PARA (informational)
 
 </reference_index>
 
