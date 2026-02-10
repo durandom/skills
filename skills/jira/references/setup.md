@@ -63,36 +63,11 @@ Use AskUserQuestion to collect:
 1. **Primary project key** — What Jira project do you work in most? (e.g., MYPROJ)
 2. **Your display name** — Result from `jira me` above
 3. **Common queries** — Any JQL you run regularly?
-4. **Team members** — Names of people you commonly assign to?
-5. **Components/Labels** — Frequently used values?
+4. **Components/Labels** — Frequently used values?
 
 ## Step 5: Generate CLAUDE.md Section
 
-Build a `## Jira Settings` block from the gathered info. Example:
-
-```markdown
-## Jira Settings
-
-**Project Key:** MYPROJ
-**Assignee Name:** "Jane Smith"
-
-**Common Queries:**
-- My work: `assignee = currentUser() AND status != Done`
-- Sprint: `project = MYPROJ AND sprint in openSprints()`
-
-**Team Members:**
-- "Jane Smith"
-- "John Doe"
-```
-
-## Step 6: Suggest Placement
-
-Show the generated block to the user and ask where to add it:
-
-- **Project CLAUDE.md** (`./CLAUDE.md`) — if this is project-specific
-- **User CLAUDE.md** (`~/.claude/CLAUDE.md`) — for personal defaults like assignee name
-
-The user may want some settings in each location (e.g., assignee name globally, project key per-repo).
+Build a `## Jira Settings` block from the gathered info and add it to CLAUDE.md. See [configuration-guide.md](configuration-guide.md) for the recommended structure and placement.
 
 </process>
 

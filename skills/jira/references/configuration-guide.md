@@ -21,11 +21,6 @@ Add to your project's `CLAUDE.md`:
 - Sprint: `project = MYPROJ AND sprint in openSprints()`
 - Triage: `type = Bug AND status = "To Do" AND priority is EMPTY`
 
-**Team Members:**
-- "Jane Smith"
-- "John Doe"
-- "Alice Johnson"
-
 **Components:** Backend, API, Frontend
 **Labels:** bug-fix, feature, tech-debt
 
