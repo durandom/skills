@@ -23,6 +23,19 @@ If you use both skills, you may find these natural alignment points useful:
 
 These are conventions, not enforced rules. Each skill works independently.
 
+## Manual Alignment Check
+
+During a GTD weekly or quarterly review, you can optionally compare your project lists:
+
+1. List your GTD projects (`gtd project list`)
+2. List your PARA project folders (`ls 1_Projects/`)
+3. Look for mismatches:
+   - **GTD-only** — consider creating a PARA folder for working documents
+   - **PARA-only** — is this still active? Consider archiving, or creating a GTD project
+   - **Name drift** — keep names consistent across both systems
+
+This is a lightweight manual check, not an automated sync. Do it when it feels useful, skip it when it doesn't.
+
 ## GTD Reference Index
 
 - [clarify-flowchart.md](clarify-flowchart.md) - GTD decision tree with 2-minute rule
