@@ -1,6 +1,6 @@
 ---
 name: b4brain
-description: Domain expertise on PARA and GTD methodologies as implemented in the b4brain personal knowledge management system. Use when users ask questions about the methodologies, need help with categorization decisions, or want to troubleshoot workflow issues.
+description: Domain expertise on PARA and GTD methodologies as implemented in the b4brain personal knowledge management system. Use when asking about PARA, GTD, Projects vs Areas, inbox processing, categorization decisions, next actions, or troubleshooting workflow issues.
 ---
 
 <essential_principles>

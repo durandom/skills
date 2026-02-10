@@ -1,9 +1,10 @@
 ---
 name: crawl4ai
 description: Web crawling and data extraction using the crwl CLI. Use this skill when users need to scrape websites, extract markdown content, handle JavaScript-heavy pages, or extract structured data from web pages.
-version: 1.0.0
-crawl4ai_cli: crwl
-last_updated: 2025-01-19
+metadata:
+  version: "1.0.0"
+  crawl4ai_cli: crwl
+  last_updated: "2025-01-19"
 ---
 
 <objective>

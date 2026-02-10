@@ -1,6 +1,6 @@
 ---
 name: github
-description: GitHub CLI operations for issues, PRs, reviews, CI, and Copilot workflows. Auto-invokes when user asks about PRs, issues, CI status, code review, or GitHub Copilot. Supports triage, PR review, and Copilot iteration patterns.
+description: GitHub CLI operations for issues, PRs, reviews, CI, and Copilot workflows. Use when working with pull requests, issues, CI status, code review, GitHub Copilot, triage, or PR shipping.
 ---
 
 <objective>

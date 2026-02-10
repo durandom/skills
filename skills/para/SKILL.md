@@ -1,6 +1,6 @@
 ---
 name: para
-description: PARA method for organizing notes by actionability (Projects, Areas, Resources, Archive). Use for categorization decisions, folder management, and syncing PARA projects with GTD milestones.
+description: PARA method for organizing notes by actionability (Projects, Areas, Resources, Archive). Use when organizing files, categorizing notes, deciding Projects vs Areas vs Resources, managing folders, or syncing PARA projects with GTD milestones.
 ---
 
 <essential_principles>

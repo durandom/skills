@@ -1,6 +1,6 @@
 ---
 name: the-day
-description: Generate daily overview (TODAY.md) with calendar, tasks, weather, and motivational content. Use for morning planning and day organization.
+description: Generate daily overview (TODAY.md) with calendar, tasks, weather, and motivational content. Use for morning planning, day organization, daily review, or generating today's schedule.
 ---
 
 <objective>
@@ -43,11 +43,11 @@ All deterministic operations go through the `day` CLI. Run from **repo root**:
 
 ## User Context
 
-Read from AGENT.md:
+Defaults (override in CLAUDE.md or project config):
 
-- Location for weather (Kiel, Germany)
-- Timezone (Europe/Berlin)
-- Email for Google Workspace
+- Location: Kiel, Germany
+- Timezone: Europe/Berlin
+- Email: configured in Google Workspace MCP
 
 </essential_principles>
 
