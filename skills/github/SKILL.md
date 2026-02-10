@@ -28,6 +28,7 @@ Bundled scripts for data gathering (output JSON, run without loading into contex
 </scripts>
 
 <workflows>
+- **Ship PR**: Branch → `/commit` → version bump → PR → Copilot review. See [pr-workflow.md](references/pr-workflow.md)
 - **Triage**: See [triage-workflow.md](references/triage-workflow.md)
 - **PR Review**: Run `scripts/pr_details.sh`, apply [review-checklist.md](references/review-checklist.md)
 - **Copilot Status**: Run `scripts/copilot_activity.sh`
@@ -36,6 +37,7 @@ Bundled scripts for data gathering (output JSON, run without loading into contex
 <reference_guides>
 
 - [cli-patterns.md](references/cli-patterns.md) - GH CLI command reference
+- [pr-workflow.md](references/pr-workflow.md) - End-to-end PR shipping workflow
 - [triage-workflow.md](references/triage-workflow.md) - Full triage workflow
 - [review-checklist.md](references/review-checklist.md) - Code review standards
 - [copilot-workflow.md](references/copilot-workflow.md) - Copilot iteration patterns
