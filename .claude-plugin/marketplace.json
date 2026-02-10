@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Claude Code skills collection - code mapping, GTD, knowledge management, and more",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "plugins": [
     {
       "name": "ds",
       "source": "./",
       "description": "Skills, commands, agents, and recipes for Claude Code",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "strict": false
     }
   ]
