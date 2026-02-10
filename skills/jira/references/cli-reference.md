@@ -94,7 +94,7 @@ Assignee MUST be the full display name as shown in Jira, not the email address.
 
 ```bash
 # Find your display name (jira me only returns login, use an assigned issue)
-jira issue view PROJ-123 --raw | jq '.fields.assignee.displayName'
+jira issue view PROJ-123 --raw | jq -r '.fields.assignee.displayName'
 
 # Correct
 jira issue assign PROJ-123 "Jane Smith"
@@ -115,9 +115,9 @@ jira epic list -pPROJ --plain
 ## Anti-Patterns
 
 ```bash
-# != breaks in double-quoted JQL (shell interprets ! as history expansion)
-jira issue list --jql "status != Done"                        # FAILS: \! escape error
-jira issue list --jql 'status != Done'                        # OK with single quotes
+# != can break in double-quoted JQL (interactive shells may expand ! as history)
+jira issue list --jql "status != Done"                        # May fail in interactive shells
+jira issue list --jql 'status != Done'                        # OK: single quotes prevent expansion
 jira issue list --jql 'status not in (Done)'                  # BEST: avoids the issue entirely
 
 # No ORDER BY in JQL (jira-cli limitation)

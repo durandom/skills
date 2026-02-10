@@ -43,7 +43,7 @@ jira me
 Note: `jira me` returns only the login username. To find your full display name (needed for assignments), inspect any issue assigned to you:
 
 ```bash
-jira issue view PROJ-123 --raw | jq '.fields.assignee.displayName'
+jira issue view PROJ-123 --raw | jq -r '.fields.assignee.displayName'
 ```
 
 ## Project Configuration
@@ -51,7 +51,7 @@ jira issue view PROJ-123 --raw | jq '.fields.assignee.displayName'
 This skill is project-agnostic. The following settings vary per user and project — persist them somewhere accessible across sessions (e.g., project config, user profile, or dotfiles):
 
 - **Project key** — the default Jira project (e.g., `MYPROJ`)
-- **Assignee name** — full display name, not email (find via `jira issue view PROJ-123 --raw | jq '.fields.assignee.displayName'`)
+- **Assignee name** — full display name, not email (find via `jira issue view PROJ-123 --raw | jq -r '.fields.assignee.displayName'`)
 - **Common JQL queries** — frequently used filters
 - **Components and labels** — project-specific values
 - **Custom fields** — project-specific field keys (e.g., `--custom epic-link=EPIC-XXX`)

@@ -4,7 +4,7 @@ Common JQL queries for use with `jira issue list --jql '...' --plain`.
 
 **Limitation:** jira-cli does NOT support `ORDER BY` clauses. Omit them.
 
-**Quoting:** Use single quotes for JQL on the command line. Double quotes cause `!=` to break (`!` triggers shell history expansion). Prefer `not in (Done)` over `!= Done`.
+**Quoting:** Use single quotes for JQL on the command line. In interactive shells, `!=` inside double quotes can break because `!` triggers history expansion. Prefer `not in (Done)` over `!= Done`.
 
 **Note:** `PROJ`, `"Jane Smith"`, etc. are placeholders — replace with actual project keys and display names.
 
