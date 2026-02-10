@@ -5,7 +5,7 @@ compatibility: Requires jira-cli (https://github.com/ankitpokhrel/jira-cli) inst
 ---
 
 <objective>
-Unified interface for Jira operations using `jira` CLI. Project-agnostic — store your project-specific settings in CLAUDE.md. See [getting-started.md](references/getting-started.md).
+Manage Jira issues using `jira` CLI — search, create, view, comment, and transition issues without leaving the terminal.
 </objective>
 
 <quick_start>
@@ -36,7 +36,7 @@ jira issue assign PROJ-123 "Jane Smith"                        # Assign (full na
 - **Always use `--no-input`** for create/edit commands (prevents interactive prompts)
 - **Assignee is full display name**, not email — verify with `jira me --raw | jq -r '.displayName'`
 - **No ORDER BY in JQL** — jira-cli does not support it, omit the clause
-- **Check CLAUDE.md first** for project defaults before asking the user — see [getting-started.md](references/getting-started.md)
+- **Check for stored project defaults** before asking the user — see [getting-started.md](references/getting-started.md)
 - **Pipe body content** via heredoc or echo — don't rely on the `-b` flag for multi-line text
 - **Include `--comments N`** when viewing issues — comments often contain the most relevant context
 
@@ -48,5 +48,5 @@ Jira operations are successful when:
 - Commands execute without authentication errors
 - Issues are created with all required fields populated
 - JQL queries return expected results
-- Project settings are documented in CLAUDE.md for reuse
+- Project settings are persisted for reuse across sessions
 </success_criteria>
