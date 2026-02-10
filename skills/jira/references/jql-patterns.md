@@ -1,8 +1,10 @@
 # JQL Patterns
 
-Common JQL queries for use with `jira issue list --jql "..." --plain`.
+Common JQL queries for use with `jira issue list --jql '...' --plain`.
 
 **Limitation:** jira-cli does NOT support `ORDER BY` clauses. Omit them.
+
+**Quoting:** Use single quotes for JQL on the command line. Double quotes cause `!=` to break (`!` triggers shell history expansion). Prefer `not in (Done)` over `!= Done`.
 
 **Note:** `PROJ`, `"Jane Smith"`, etc. are placeholders — replace with actual project keys and display names.
 
@@ -10,7 +12,7 @@ Common JQL queries for use with `jira issue list --jql "..." --plain`.
 
 ```sql
 -- My open issues
-assignee = currentUser() AND status != Done
+assignee = currentUser() AND status not in (Done)
 
 -- My recent updates
 assignee = currentUser() AND updated >= -7d
@@ -42,10 +44,10 @@ project = PROJ AND assignee is EMPTY AND status = "To Do"
 type = Bug AND status = "To Do" AND priority is EMPTY
 
 -- Critical open bugs
-type = Bug AND priority = Critical AND status != Done
+type = Bug AND priority = Critical AND status not in (Done)
 
 -- Bugs by component
-type = Bug AND component = Backend AND status != Done
+type = Bug AND component = Backend AND status not in (Done)
 ```
 
 ## Time Filters
@@ -64,7 +66,7 @@ created >= startOfWeek()
 due <= endOfMonth()
 
 -- Overdue
-due < now() AND status != Done
+due < now() AND status not in (Done)
 ```
 
 ## Labels and Components

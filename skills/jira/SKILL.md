@@ -34,7 +34,8 @@ jira issue assign PROJ-123 "Jane Smith"                        # Assign (full na
 
 - **Always use `--plain`** for non-interactive output (without it, jira-cli opens a TUI)
 - **Always use `--no-input`** for create/edit commands (prevents interactive prompts)
-- **Assignee is full display name**, not email — verify with `jira me --raw | jq -r '.displayName'`
+- **Assignee is full display name**, not email — `jira me` returns login only; find display name from any assigned issue via `jira issue view PROJ-123 --raw | jq '.fields.assignee.displayName'`
+- **`!=` in JQL can break** — shell interprets `!` in double quotes; use single quotes for JQL or prefer `status not in (Done)` over `status != Done`
 - **No ORDER BY in JQL** — jira-cli does not support it, omit the clause
 - **Check for stored project defaults** before asking the user — see [getting-started.md](references/getting-started.md)
 - **Pipe body content** via heredoc or echo — don't rely on the `-b` flag for multi-line text
