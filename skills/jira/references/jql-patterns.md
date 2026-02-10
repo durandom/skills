@@ -4,6 +4,8 @@ Common JQL queries for use with `jira issue list --jql "..." --plain`.
 
 **Limitation:** jira-cli does NOT support `ORDER BY` clauses. Omit them.
 
+**Note:** `PROJ`, `"Jane Smith"`, etc. are placeholders — replace with actual project keys and display names.
+
 ## Personal Work
 
 ```sql
