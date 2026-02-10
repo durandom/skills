@@ -5,7 +5,7 @@ compatibility: Requires jira-cli (https://github.com/ankitpokhrel/jira-cli) inst
 ---
 
 <objective>
-Unified interface for Jira operations using `jira` CLI. Project-agnostic — store your project-specific settings in CLAUDE.md. See [configuration-guide.md](references/configuration-guide.md).
+Unified interface for Jira operations using `jira` CLI. Project-agnostic — store your project-specific settings in CLAUDE.md. See [getting-started.md](references/getting-started.md).
 </objective>
 
 <quick_start>
@@ -24,10 +24,9 @@ jira issue assign PROJ-123 "Jane Smith"                        # Assign (full na
 
 <reference_guides>
 
+- [getting-started.md](references/getting-started.md) — Installation, auth, and project configuration
 - [cli-reference.md](references/cli-reference.md) — Command patterns and flags
 - [jql-patterns.md](references/jql-patterns.md) — Common JQL queries by use case
-- [configuration-guide.md](references/configuration-guide.md) — How to store project settings in CLAUDE.md
-- [setup.md](references/setup.md) — First-time jira-cli auth and CLAUDE.md configuration
 
 </reference_guides>
 
@@ -37,7 +36,7 @@ jira issue assign PROJ-123 "Jane Smith"                        # Assign (full na
 - **Always use `--no-input`** for create/edit commands (prevents interactive prompts)
 - **Assignee is full display name**, not email — verify with `jira me --raw | jq -r '.displayName'`
 - **No ORDER BY in JQL** — jira-cli does not support it, omit the clause
-- **Check CLAUDE.md first** for project defaults before asking the user — see [configuration-guide.md](references/configuration-guide.md)
+- **Check CLAUDE.md first** for project defaults before asking the user — see [getting-started.md](references/getting-started.md)
 - **Pipe body content** via heredoc or echo — don't rely on the `-b` flag for multi-line text
 - **Include `--comments N`** when viewing issues — comments often contain the most relevant context
 
