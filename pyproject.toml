@@ -1,6 +1,6 @@
 [project]
 name = "durandom-skills"
-version = "2.1.0"
+version = "2.1.1"
 description = "Claude Code skills collection"
 requires-python = ">=3.11"
 

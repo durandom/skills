@@ -1,7 +1,8 @@
 ---
 name: meeting-notes
 description: This skill should be used when the user asks to "sync my meeting notes", "sync meeting notes", "update meeting notes", "check for new meeting transcripts", "manage meeting tags", "list meeting tags", or "add a meeting tag". Handles syncing Google Calendar meetings with Gemini transcripts, organizing them into the meetings directory, and managing tag definitions.
-version: 2.1.0
+metadata:
+  version: "2.1.0"
 ---
 
 # Meeting Notes Sync

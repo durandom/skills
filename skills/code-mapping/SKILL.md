@@ -1,6 +1,6 @@
 ---
 name: code-mapping
-description: Creates and navigates hierarchical code maps for AI agent and human orientation. Use when bootstrapping understanding of a codebase, creating documentation for navigation, or validating map integrity.
+description: Creates and navigates hierarchical code maps (L0/L1/L2/L3) for AI agent and human orientation. Use when bootstrapping codebase understanding, creating navigation documentation, exploring architecture, or validating map integrity.
 ---
 
 <essential_principles>

@@ -30,7 +30,7 @@ jira issue assign PROJ-123 "Jane Smith"                        # Assign (full na
 
 </reference_guides>
 
-<tips>
+<context>
 
 - **Always use `--plain`** for non-interactive output (without it, jira-cli opens a TUI)
 - **Always use `--no-input`** for create/edit commands (prevents interactive prompts)
@@ -41,7 +41,7 @@ jira issue assign PROJ-123 "Jane Smith"                        # Assign (full na
 - **Pipe body content** via heredoc or echo — don't rely on the `-b` flag for multi-line text
 - **Include `--comments N`** when viewing issues — comments often contain the most relevant context
 
-</tips>
+</context>
 
 <success_criteria>
 Jira operations are successful when:
