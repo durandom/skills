@@ -15,10 +15,10 @@ pre-commit run --all-files       # Pre-commit hooks
 ## Architecture
 
 ```
-skills/               # SKILL.md + references/ + workflows/ + scripts/
+skills/               # SKILL.md + references/ + scripts/
 ├── code-mapping/     # Hierarchical codebase documentation
-├── gtd/              # GTD task management via GitHub issues
-├── para/             # PARA organization with GTD sync
+├── gtd/              # GTD task management
+├── para/             # PARA organization
 └── recipes/          # Reusable development patterns
 
 commands/             # Slash commands (.md with YAML frontmatter)

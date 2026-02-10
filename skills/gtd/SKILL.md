@@ -279,8 +279,8 @@ $GTD yearly
 
 **Review Workflows (agent-consumable instructions):**
 
-- [daily-review.md](workflows/daily-review.md) - Daily review guide
-- [weekly-review.md](workflows/weekly-review.md) - Weekly review guide
-- [quarterly-review.md](workflows/quarterly-review.md) - Quarterly review guide
-- [yearly-review.md](workflows/yearly-review.md) - Yearly review guide
+- [daily-review.md](references/daily-review.md) - Daily review guide
+- [weekly-review.md](references/weekly-review.md) - Weekly review guide
+- [quarterly-review.md](references/quarterly-review.md) - Quarterly review guide
+- [yearly-review.md](references/yearly-review.md) - Yearly review guide
 </reference_index>

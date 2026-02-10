@@ -87,10 +87,10 @@ What would you like to do?
 
 | Response | Workflow |
 |----------|----------|
-| 1, "categorize", "where", "which category", "decide" | `workflows/categorize.md` |
-| 2, "review", "audit", "stale", "cleanup" | `workflows/review.md` |
-| 3, "create", "new", "add", "setup" | `workflows/create.md` |
-| 4, "archive", "done", "complete", "move" | `workflows/archive.md` |
+| 1, "categorize", "where", "which category", "decide" | `references/categorize.md` |
+| 2, "review", "audit", "stale", "cleanup" | `references/review.md` |
+| 3, "create", "new", "add", "setup" | `references/create.md` |
+| 4, "archive", "done", "complete", "move" | `references/archive.md` |
 | Other | Clarify intent, then select appropriate workflow |
 
 **After reading the workflow, follow it exactly.**
@@ -166,19 +166,11 @@ All in `references/`:
 - **common-mistakes.md** - PARA anti-patterns and fixes
 - **complementary-skills.md** - How GTD complements PARA (informational)
 
+**Workflows (agent-consumable instructions):**
+
+- **categorize.md** - Help decide where items belong
+- **review.md** - Audit PARA structure for stale/misplaced items
+- **create.md** - Create new PARA folders with proper structure
+- **archive.md** - Move items to archive with proper handling
+
 </reference_index>
-
-<workflows_index>
-
-## Workflows
-
-All in `workflows/`:
-
-| Workflow | Purpose |
-|----------|---------|
-| categorize.md | Help decide where items belong |
-| review.md | Audit PARA structure for stale/misplaced items |
-| create.md | Create new PARA folders with proper structure |
-| archive.md | Move items to archive with proper handling |
-
-</workflows_index>

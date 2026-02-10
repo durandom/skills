@@ -10,7 +10,7 @@ Create new folders/files in the PARA structure with proper setup.
    - What category? (Projects, Areas, Resources)
    - What name?
 
-   If unsure about category, use `workflows/categorize.md` first.
+   If unsure about category, use `references/categorize.md` first.
 
 2. **Create based on category**
 
