@@ -84,6 +84,30 @@ scripts/extract.py
 
 Keep file references one level deep from SKILL.md. Avoid deeply nested reference chains.
 
+### Script Path Resolution
+
+When a skill bundles executable scripts, the SKILL.md **must** include an explicit note that script paths are relative to the SKILL.md file, not to the working directory. This is critical because the skill may be installed in a plugin cache directory far from the project where it runs.
+
+```markdown
+<!-- GOOD: Explicit path resolution hint -->
+The CLI script is at `scripts/my-tool` **relative to this SKILL.md file**
+(not the working directory). Derive the script location from the path of
+this file:
+
+- If SKILL.md is at `/path/to/my-skill/SKILL.md`
+- Then the CLI is at `/path/to/my-skill/scripts/my-tool`
+
+<!-- BAD: Assumes a fixed install location -->
+.claude/skills/my-skill/scripts/my-tool
+
+<!-- BAD: Relies on environment variables that may not be set -->
+${CLAUDE_PLUGIN_ROOT}/scripts/my-tool
+```
+
+**Why this matters:** Claude Code resolves relative paths in skills against the SKILL.md location, but other invocation contexts (plugin systems, manual calls) may `cd` into unexpected directories. The explicit hint ensures the agent always derives the correct absolute path.
+
+**Defense in depth:** If your script reads project-local config (e.g., `.layton/`, `.config/`), make the script itself validate that it can find its config via cwd, and emit a clear error if not. Don't rely solely on the SKILL.md hint.
+
 ---
 
 ## The Five Principles
@@ -467,6 +491,7 @@ Or gerund form: `processing-pdfs`, `analyzing-spreadsheets`, `testing-code`
 | **Description** | Third person, what + when, specific triggers, max 1024 chars |
 | **References** | One level deep from SKILL.md |
 | **File References** | Relative paths from skill root, one level deep |
+| **Script Paths** | Explicit "relative to this SKILL.md" hint + defensive validation in script |
 | **Freedom** | High for creative, Low for fragile operations |
 | **Validation** | `skills-ref validate path/to/skill` before publishing |
 | **Testing** | All target models (Haiku needs more detail) |
