@@ -29,13 +29,14 @@ Map Creation Progress:
 Generate map skeletons from source:
 
 ```bash
-uv run python $SKILL_PATH/scripts/code_map.py generate <src-dir> <map-dir>
+uv run python scripts/code_map.py generate <src-dir> <map-dir>
 ```
 
-Example (if skill is at `.claude/skills/code-mapping`):
+Script path is relative to the SKILL.md file. Derive the absolute path from the SKILL.md location:
 
 ```bash
-uv run python .claude/skills/code-mapping/scripts/code_map.py generate src/ docs/map/
+# If SKILL.md is at /path/to/code-mapping/SKILL.md:
+uv run python /path/to/code-mapping/scripts/code_map.py generate src/ docs/map/
 ```
 
 The generator output tells you exactly what to do next:
@@ -103,13 +104,14 @@ See [references/examples/readme.md](../references/examples/readme.md) for exampl
 Run validation to check for errors:
 
 ```bash
-uv run python $SKILL_PATH/scripts/code_map.py validate <map-dir>
+uv run python scripts/code_map.py validate <map-dir>
 ```
 
-Example (if skill is at `.claude/skills/code-mapping`):
+Script path is relative to the SKILL.md file:
 
 ```bash
-uv run python .claude/skills/code-mapping/scripts/code_map.py validate docs/map/
+# If SKILL.md is at /path/to/code-mapping/SKILL.md:
+uv run python /path/to/code-mapping/scripts/code_map.py validate docs/map/
 ```
 
 The validator checks:

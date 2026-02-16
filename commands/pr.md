@@ -9,7 +9,7 @@ model: sonnet
 Orchestrate the full PR shipping workflow: commit → version bump → push → PR → Copilot review.
 
 Delegates to `/commit` for staging/committing changes and to the **github** skill
-(specifically its [pr-workflow.md](references/pr-workflow.md)) for PR creation and Copilot review patterns.
+for PR creation and Copilot review patterns (see the skill's `references/pr-workflow.md`).
 
 **Flags:**
 
@@ -69,7 +69,8 @@ If push fails (e.g., diverged), show error and ask user how to proceed.
 
 ## Step 4: Create PR and Review
 
-Follow the **github** skill's PR workflow (Steps 4-6 of [pr-workflow.md](references/pr-workflow.md)):
+Follow the **github** skill's PR workflow (Steps 4-6 of its `references/pr-workflow.md`).
+Locate the github skill's SKILL.md, then read `references/pr-workflow.md` relative to it:
 
 1. Read the github skill's `references/pr-workflow.md` for PR creation patterns
 2. Analyze all commits on the branch vs base branch
