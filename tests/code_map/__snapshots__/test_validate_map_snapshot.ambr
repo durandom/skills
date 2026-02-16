@@ -63,7 +63,7 @@
 # ---
 # name: TestValidMapSnapshot.test_valid_map_validation
   '''
-  Validating /Users/mhild/src/durandom/skills/durandom/fixtures/calculator/docs/map...
+  Validating <PROJECT>/fixtures/calculator/docs/map...
   
   Structure: OK
   File links: OK (15 checked)

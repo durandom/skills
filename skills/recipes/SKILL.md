@@ -1,6 +1,6 @@
 ---
 name: recipes
-description: Reusable development patterns and guides for AI-assisted workflows. Use when asking about CLI design for agents, commenting standards, snapshot testing, credential storage, Python project architecture, semantic zoom, skill writing, Claude tools, agent teams, extracting deterministic work, or plugin authoring and distribution.
+description: Reusable development patterns and guides for AI-assisted workflows. Use when asking about CLI design for agents, CLI location, config discovery, vault, commenting standards, snapshot testing, credential storage, Python project architecture, semantic zoom, skill writing, Claude tools, agent teams, extracting deterministic work, or plugin authoring and distribution.
 ---
 
 <essential_principles>
@@ -16,7 +16,7 @@ Recipes are **standalone reference documents** -- each captures a proven pattern
 | **AI Agent Patterns** | semantic-zoom, agentic-cli, extract-deterministic | Designing AI interactions or CLI tools for agents |
 | **Development Practices** | comments, agent-skills, claude-tools, snapshot-testing | Writing code, skills, or tests in this ecosystem |
 | **Distribution** | claude-plugin-authoring | Packaging skills as installable Claude Code plugins |
-| **Architecture** | python-project-architecture, keyring-credential-storage | Structuring Python projects or handling credentials |
+| **Architecture & Implementation** | python-project-architecture, keyring-credential-storage, cli-location-discovery | Structuring Python projects, handling credentials, or CLI location/config discovery |
 
 </essential_principles>
 
@@ -33,6 +33,7 @@ What pattern or practice do you need guidance on?
 8. **Python project architecture** - Project structure for CLI tools
 9. **Keyring credential storage** - Secure credential management patterns
 10. **Claude plugin authoring** - Packaging skills as installable plugins
+11. **CLI location & config discovery** - Finding scripts and config from arbitrary cwd
 
 **Wait for response before proceeding.**
 </intake>
@@ -51,6 +52,7 @@ What pattern or practice do you need guidance on?
 | 8, "architecture", "python project", "cli tool", "structure" | `references/python-project-architecture.md` |
 | 9, "keyring", "credential", "password", "secret" | `references/keyring-credential-storage.md` |
 | 10, "plugin", "marketplace", "distribute", "package", "install" | `references/claude-plugin-authoring.md` |
+| 11, "location", "discovery", "vault", "find_vault", "cwd", "wrong directory", "config init", "bootstrap" | `references/cli-location-discovery.md` |
 | Other | Clarify intent, then select appropriate reference |
 
 **After identifying the reference, read it and apply its guidance to the user's situation.**
@@ -80,6 +82,7 @@ What pattern or practice do you need guidance on?
 
 - [python-project-architecture.md](references/python-project-architecture.md) - Python project architecture for CLI tools
 - [keyring-credential-storage.md](references/keyring-credential-storage.md) - Keyring credential storage pattern
+- [cli-location-discovery.md](references/cli-location-discovery.md) - CLI location & config discovery for skill-bundled scripts
 
 </reference_index>
 

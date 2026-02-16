@@ -157,8 +157,12 @@ class TaskwarriorStorage(GTDStorage):
         # The GTDItem.metadata property will use this body, but we store
         # TW-native fields directly
 
+        # Completed tasks have id=0, so use UUID for stable identification
+        task_id = data.get("id", 0)
+        item_id = str(task_id) if task_id else data.get("uuid", "")
+
         return GTDItem(
-            id=str(data.get("id", data.get("uuid", ""))),
+            id=item_id,
             title=data.get("description", ""),
             body=body,
             state=state,
@@ -334,8 +338,12 @@ class TaskwarriorStorage(GTDStorage):
 
     def close_item(self, item_id: str) -> GTDItem:
         """Mark task as done."""
+        # Capture UUID before closing - completed tasks lose their numeric ID
+        uuid = self._get_uuid(item_id)
         self._run_task([item_id, "done"])
-        item = self.get_item(item_id)
+        # Use UUID to fetch the completed task (numeric ID is now 0)
+        lookup_id = uuid if uuid else item_id
+        item = self.get_item(lookup_id)
         if item is None:
             raise ValueError(f"Task {item_id!r} not found after closing")
         return item
@@ -398,6 +406,17 @@ class TaskwarriorStorage(GTDStorage):
             raise ValueError(f"Task {item_id!r} not found after metadata update")
         return item
 
+    def _get_uuid(self, item_id: str) -> str | None:
+        """Get UUID for a task by its numeric ID."""
+        try:
+            output = self._run_task([item_id, "export"])
+            data = json.loads(output)
+            if isinstance(data, list) and data:
+                return data[0].get("uuid")
+        except (RuntimeError, json.JSONDecodeError):
+            pass
+        return None
+
     def _ids_to_uuids(self, ids: list[int]) -> list[str]:
         """Convert task IDs to UUIDs for depends attribute."""
         uuids = []
@@ -432,3 +451,212 @@ class TaskwarriorStorage(GTDStorage):
                 # Skip invalid or non-existent UUIDs silently
                 pass
         return ids
+
+    # --- Label Introspection ---
+
+    def _export_all_tasks(self) -> list[dict]:
+        """Export all tasks (pending + completed) as raw dicts."""
+        output = self._run_task(["export"], check=False)
+        if not output.strip():
+            return []
+        try:
+            return json.loads(output)
+        except json.JSONDecodeError:
+            return []
+
+    def get_existing_labels(self) -> set[str]:
+        """Get set of GTD labels actually used across all tasks."""
+        labels: set[str] = set()
+        for task in self._export_all_tasks():
+            for tag in task.get("tags", []):
+                label = self._tag_to_label(tag)
+                if label:
+                    labels.add(label)
+        return labels
+
+    def get_stale_labels(self) -> list[str]:
+        """Find GTD-prefixed tags not in the canonical taxonomy."""
+        existing = self.get_existing_labels()
+        required = self.get_required_labels()
+        prefixes = self.get_label_prefixes()
+
+        stale = []
+        for label in existing:
+            if any(label.startswith(prefix) for prefix in prefixes):
+                if label not in required:
+                    stale.append(label)
+        return sorted(stale)
+
+    def get_label_drift(self) -> list[dict]:
+        """Taskwarrior tags have no color/description, so drift is N/A."""
+        return []
+
+    def delete_label(self, name: str) -> bool:
+        """Remove a GTD label (tag) from all tasks that have it.
+
+        Returns True if the tag was found and removed, False otherwise.
+        """
+        tag = self._label_to_tag(name)
+        # Find tasks with this tag
+        output = self._run_task([f"+{tag}", "export"], check=False)
+        if not output.strip():
+            return False
+
+        try:
+            tasks = json.loads(output)
+        except json.JSONDecodeError:
+            return False
+
+        if not tasks:
+            return False
+
+        for task in tasks:
+            task_id = task.get("id") or task.get("uuid", "")
+            if task_id:
+                self._run_task([str(task_id), "modify", f"-{tag}"], check=False)
+        return True
+
+    # --- Project / Milestone Management ---
+
+    def _build_milestone(self, project: str, tasks: list[dict]) -> dict:
+        """Build a milestone dict from a project name and its tasks."""
+        open_count = sum(1 for t in tasks if t.get("status") == "pending")
+        closed_count = sum(
+            1 for t in tasks if t.get("status") in ("completed", "deleted")
+        )
+        state = "open" if open_count > 0 else "closed"
+        return {
+            "title": project,
+            "description": "",
+            "due_on": None,
+            "open_issues": open_count,
+            "closed_issues": closed_count,
+            "state": state,
+            "url": None,
+        }
+
+    def list_milestones(self, state: str = "open") -> list[dict]:
+        """List projects as milestones with task counts.
+
+        Args:
+            state: Filter by "open", "closed", or "all".
+        """
+        all_tasks = self._export_all_tasks()
+
+        # Group tasks by project
+        projects: dict[str, list[dict]] = {}
+        for task in all_tasks:
+            proj = task.get("project")
+            if proj:
+                projects.setdefault(proj, []).append(task)
+
+        milestones = []
+        for proj, tasks in sorted(projects.items()):
+            m = self._build_milestone(proj, tasks)
+            if state == "all" or m["state"] == state:
+                milestones.append(m)
+        return milestones
+
+    def get_milestone(self, title: str) -> dict | None:
+        """Get a single project as milestone by name."""
+        all_tasks = self._export_all_tasks()
+        tasks = [t for t in all_tasks if t.get("project") == title]
+        if not tasks:
+            return None
+        return self._build_milestone(title, tasks)
+
+    def create_milestone(
+        self,
+        title: str,
+        description: str | None = None,
+        due_on: str | None = None,
+    ) -> dict:
+        """Create a project (milestone).
+
+        In Taskwarrior, projects auto-create when tasks use them.
+        Returns a milestone dict. If the project already has tasks,
+        returns existing data.
+        """
+        existing = self.get_milestone(title)
+        if existing:
+            return existing
+        # Return a new empty milestone (project will be created when
+        # a task is assigned to it)
+        return {
+            "title": title,
+            "description": description or "",
+            "due_on": due_on,
+            "open_issues": 0,
+            "closed_issues": 0,
+            "state": "open",
+            "url": None,
+        }
+
+    def ensure_project(self, name: str) -> dict:
+        """Ensure a project exists, creating if needed."""
+        existing = self.get_milestone(name)
+        if existing:
+            return existing
+        return self.create_milestone(name)
+
+    def update_milestone(
+        self,
+        title: str,
+        *,
+        description: str | None = None,
+        due_on: str | None = None,
+        state: str | None = None,
+    ) -> dict | None:
+        """Update a project (milestone).
+
+        In Taskwarrior:
+        - description is stored in memory only (returned in dict)
+        - state="closed" marks all tasks in the project as done
+        - state="open" reopens all completed tasks in the project
+        """
+        milestone = self.get_milestone(title)
+        if not milestone:
+            return None
+
+        if description is not None:
+            milestone["description"] = description
+
+        if state is not None and state != milestone["state"]:
+            if state == "closed":
+                # Close all open tasks in this project
+                items = self.list_items(project=title, state="open")
+                for item in items:
+                    self.close_item(item.id)
+            elif state == "open":
+                # Reopen all closed tasks in this project
+                items = self.list_items(project=title, state="closed")
+                for item in items:
+                    self.reopen_item(item.id)
+            milestone["state"] = state
+
+        # Re-fetch counts after state changes
+        updated = self.get_milestone(title)
+        if updated and description is not None:
+            updated["description"] = description
+        return updated
+
+    def delete_milestone(self, title: str) -> bool:
+        """Delete a project by removing project: from all its tasks.
+
+        Returns True if the project existed, False otherwise.
+        """
+        milestone = self.get_milestone(title)
+        if not milestone:
+            return False
+
+        # Remove project from all tasks (both open and closed)
+        all_tasks = self._export_all_tasks()
+        for task in all_tasks:
+            if task.get("project") == title:
+                task_id = task.get("id") or task.get("uuid", "")
+                if task_id:
+                    self._run_task(
+                        [str(task_id), "modify", "project:"],
+                        check=False,
+                    )
+        return True

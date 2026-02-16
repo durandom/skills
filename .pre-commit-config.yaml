@@ -14,6 +14,7 @@ repos:
       - id: trailing-whitespace
         exclude: '\.ambr$'  # Exclude syrupy snapshot files (auto-generated format)
       - id: end-of-file-fixer
+        exclude: '^\.beads/\.migration-hint-ts$'  # Exclude beads migration timestamp (auto-generated)
       - id: check-yaml
         args: ['--allow-multiple-documents']
       - id: check-toml

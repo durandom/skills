@@ -29,12 +29,18 @@ FIXTURES_DIR = Path(__file__).parent.parent.parent / "fixtures"
 VALID_MAP = FIXTURES_DIR / "calculator" / "docs" / "map"
 
 
-def normalize_paths(output: str, tmp_path: Path) -> str:
-    """Replace temp paths with <TMP> for deterministic snapshots.
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+
+def normalize_paths(output: str, tmp_path: Path | None = None) -> str:
+    """Replace temp/project paths for deterministic snapshots.
 
     Also strips trailing whitespace from lines to match pre-commit hooks.
     """
-    normalized = output.replace(str(tmp_path), "<TMP>")
+    normalized = output
+    if tmp_path:
+        normalized = normalized.replace(str(tmp_path), "<TMP>")
+    normalized = normalized.replace(str(PROJECT_ROOT), "<PROJECT>")
     # Strip trailing whitespace from each line (matching pre-commit behavior)
     lines = [line.rstrip() for line in normalized.split("\n")]
     return "\n".join(lines).rstrip() + "\n"
@@ -48,7 +54,8 @@ class TestValidMapSnapshot:
         stdout, _stderr, code = run_code_map("validate", str(VALID_MAP))
 
         assert code == 0
-        assert stdout == snapshot
+        normalized = normalize_paths(stdout)
+        assert normalized == snapshot
 
 
 class TestBrokenMapSnapshots:

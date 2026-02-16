@@ -131,6 +131,16 @@ def load_local_config(repo_root: Path) -> dict:
     return config
 
 
+def detect_skill_directory(cwd: Path | None = None) -> bool:
+    """Detect if cwd is the skill directory itself (Pattern 3).
+
+    Checks for a fingerprint of SKILL.md + scripts/ which indicates the user
+    is running from the skill's own source directory, not a project.
+    """
+    cwd = cwd or Path.cwd()
+    return all((cwd / f).exists() for f in ["SKILL.md", "scripts"])
+
+
 def find_para_root() -> Path | None:
     """Find the PARA root directory.
 
@@ -241,6 +251,11 @@ def get_para_root() -> Path:
     """Get PARA root, prompt user if not found."""
     root = find_para_root()
     if not root:
+        # Pattern 3: Wrong-directory detection before interactive prompt
+        if detect_skill_directory():
+            print(f"\n{RED}Error:{NC} Running from the skill directory, not a project.")
+            print("  Call the script with its full path from your project root.")
+            sys.exit(1)
         root = prompt_for_para_root()
         if not root:
             print(f"\n{RED}Error:{NC} PARA root not configured.")

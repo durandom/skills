@@ -31,12 +31,17 @@ def run_code_map(*args: str, cwd: Path | None = None) -> tuple[str, str, int]:
     return result.stdout, result.stderr, result.returncode
 
 
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+
 def normalize_paths(output: str, tmp_path: Path) -> str:
     """Replace temp paths with <TMP> for deterministic snapshots.
 
-    Also strips trailing whitespace from lines to match pre-commit hooks.
+    Also replaces the project root path with <PROJECT> and strips
+    trailing whitespace from lines to match pre-commit hooks.
     """
     normalized = output.replace(str(tmp_path), "<TMP>")
+    normalized = normalized.replace(str(PROJECT_ROOT), "<PROJECT>")
     # Strip trailing whitespace from each line (matching pre-commit behavior)
     lines = [line.rstrip() for line in normalized.split("\n")]
     return "\n".join(lines).rstrip() + "\n"
