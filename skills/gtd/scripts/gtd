@@ -1,28 +1,35 @@
 #!/usr/bin/env python3
 """GTD CLI - Getting Things Done task management."""
 
-import argparse
 import sys
-from datetime import date
+from pathlib import Path
 
-from gtdlib.backends.github import GitHubStorage
-from gtdlib.backends.taskwarrior import TaskwarriorStorage
-from gtdlib.config import (
+# Ensure gtdlib is importable regardless of cwd (Pattern 1b)
+_script_dir = Path(__file__).parent.resolve()
+sys.path.insert(0, str(_script_dir))
+
+import argparse  # noqa: E402
+from datetime import date  # noqa: E402
+
+from gtdlib.backends.github import GitHubStorage  # noqa: E402
+from gtdlib.backends.taskwarrior import TaskwarriorStorage  # noqa: E402
+from gtdlib.config import (  # noqa: E402
     AVAILABLE_BACKENDS,
     GTDConfig,
+    detect_skill_directory,
     is_initialized,
     load_config,
     save_config,
 )
-from gtdlib.history import format_entry_human, log_action, read_history
-from gtdlib.metadata import GTDMetadata
-from gtdlib.reviews import (
+from gtdlib.history import format_entry_human, log_action, read_history  # noqa: E402
+from gtdlib.metadata import GTDMetadata  # noqa: E402
+from gtdlib.reviews import (  # noqa: E402
     get_due_reviews,
     get_review_status,
     mark_review_complete,
     reset_review,
 )
-from gtdlib.storage import GTDItem, GTDStorage
+from gtdlib.storage import GTDItem, GTDStorage  # noqa: E402
 
 # ANSI colors
 BLUE = "\033[0;34m"
@@ -2166,6 +2173,13 @@ def main() -> int:
         if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
             return _show_init_prompt()
         if sys.argv[1] not in storage_free_commands:
+            # Pattern 3: Wrong-directory detection
+            if detect_skill_directory():
+                print(
+                    f"{RED}Error:{NC} Running from the skill directory, not a project."
+                )
+                print("  Call the script with its full path from your project root.")
+                return 1
             return _show_init_prompt()
 
     parser = argparse.ArgumentParser(

@@ -139,6 +139,17 @@ def load_config(config_path: Path | None = None) -> GTDConfig:
     )
 
 
+def detect_skill_directory(cwd: Path | None = None) -> bool:
+    """Detect if cwd is the skill directory itself (Pattern 3).
+
+    Checks for a fingerprint of SKILL.md + scripts/ which indicates the user
+    is running from the skill's own source directory, not a project.
+    """
+    cwd = cwd or Path.cwd()
+    fingerprint = ["SKILL.md", "scripts"]
+    return all((cwd / f).exists() for f in fingerprint)
+
+
 def is_initialized() -> bool:
     """Check if GTD has been initialized (config file exists)."""
     return find_config_file() is not None

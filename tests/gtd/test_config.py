@@ -1,14 +1,47 @@
 """Tests for GTD configuration loading and saving."""
 
 import json
+from pathlib import Path
 
 from gtdlib.config import (
     GitHubConfig,
     GTDConfig,
     TaskwarriorConfig,
+    detect_skill_directory,
     load_config,
     save_config,
 )
+
+
+class TestScriptPathResolution:
+    """Verify the gtd script uses __file__ to set up sys.path."""
+
+    def test_gtd_script_has_explicit_path_setup(self):
+        """The gtd script must use __file__ to set up sys.path."""
+        script = Path(__file__).parent.parent.parent / "skills/gtd/scripts/gtd"
+        content = script.read_text()
+        assert "__file__" in content
+        assert "sys.path" in content
+
+
+class TestWrongDirectoryDetection:
+    """Test detect_skill_directory() from Pattern 3."""
+
+    def test_detect_skill_directory_positive(self, tmp_path):
+        """Detects when cwd is the skill directory."""
+        (tmp_path / "SKILL.md").touch()
+        (tmp_path / "scripts").mkdir()
+        assert detect_skill_directory(tmp_path) is True
+
+    def test_detect_skill_directory_negative(self, tmp_path):
+        """Normal project directory is not detected."""
+        (tmp_path / ".gtd").mkdir()
+        assert detect_skill_directory(tmp_path) is False
+
+    def test_detect_skill_directory_partial(self, tmp_path):
+        """Directory with only SKILL.md is not detected (needs both)."""
+        (tmp_path / "SKILL.md").touch()
+        assert detect_skill_directory(tmp_path) is False
 
 
 class TestLoadConfig:
