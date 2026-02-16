@@ -122,7 +122,7 @@ The yearly review is about meaning and direction, not tasks. Step back from the 
 If you don't have a `HORIZONS.md` yet, copy the template:
 
 ```bash
-cp .claude/skills/gtd/references/horizons.md HORIZONS.md
+cp references/horizons.md HORIZONS.md  # path relative to the gtd SKILL.md
 ```
 
 Then fill in your H5 (Purpose & Principles) and H4 (Vision).

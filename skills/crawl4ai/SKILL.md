@@ -198,10 +198,17 @@ crwl crawl -s schema.json https://shop.com
 </schema_extraction>
 
 <batch_processing>
-For multiple URLs, use the provided script:
+For multiple URLs, use the provided script.
+
+Script paths are **relative to this SKILL.md file** (not the working directory).
+Derive the absolute script path from this file's location:
+
+- If this SKILL.md is at `/path/to/crawl4ai/SKILL.md`
+- Then the script is at `/path/to/crawl4ai/scripts/batch_crawl.sh`
+- And configs are at `/path/to/crawl4ai/configs/`
 
 ```bash
-./scripts/batch_crawl.sh urls.txt output_dir
+scripts/batch_crawl.sh urls.txt output_dir
 ```
 
 **Or inline:**

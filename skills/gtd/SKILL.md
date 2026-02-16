@@ -15,11 +15,17 @@ description: GTD task management with Python CLI. Use for capturing, clarifying,
 
 ## Running the CLI
 
-All GTD operations go through the `gtd` CLI. Execute from the **repo root** (not the skill directory):
+All GTD operations go through the `gtd` CLI.
+
+The `gtd` script is at `scripts/gtd` **relative to this SKILL.md file** (not the working directory).
+Derive the absolute script path from this file's location:
+
+- If this SKILL.md is at `/path/to/gtd/SKILL.md`
+- Then the CLI is at `/path/to/gtd/scripts/gtd`
 
 ```bash
-# Run from repo root - script auto-detects repo context
-./.claude/skills/gtd/scripts/gtd <command>
+# Derive path from SKILL.md location, then run:
+scripts/gtd <command>
 ```
 
 **Setup is automatic**: The CLI will detect if labels are missing and create them on first use.
@@ -49,7 +55,7 @@ The system supports David Allen's 6 Horizons:
 **Setup:** Copy the template to your vault root:
 
 ```bash
-cp .claude/skills/gtd/references/horizons.md HORIZONS.md
+cp references/horizons.md HORIZONS.md  # path relative to this SKILL.md
 ```
 
 </essential_principles>
@@ -70,27 +76,27 @@ What would you like to do?
 
 | Response | Command |
 |----------|---------|
-| 1, "capture", "add something" | `./gtd capture "<text>"` |
-| 2, "inbox", "process", "clarify" | `./gtd inbox` then `./gtd clarify <id>` |
-| 3, "list", "find", "work", "tasks" | `./gtd list --status active --context <context>` |
-| 4a, "daily review" | `./gtd daily` |
-| 4b, "weekly review" | `./gtd weekly` |
-| 4c, "quarterly review" | `./gtd quarterly` |
-| 4d, "yearly review" | `./gtd yearly` |
-| 4e, "review status", "when did I" | `./gtd reviews` |
-| 5, "projects" | `./gtd projects` or `./gtd project list` |
-| 5a, "create project" | `./gtd project create "<title>"` |
-| 5b, "show project", "project details" | `./gtd project show "<title>"` |
-| 5c, "delete project" | `./gtd project delete "<title>"` |
+| 1, "capture", "add something" | `scripts/gtd capture "<text>"` |
+| 2, "inbox", "process", "clarify" | `scripts/gtd inbox` then `scripts/gtd clarify <id>` |
+| 3, "list", "find", "work", "tasks" | `scripts/gtd list --status active --context <context>` |
+| 4a, "daily review" | `scripts/gtd daily` |
+| 4b, "weekly review" | `scripts/gtd weekly` |
+| 4c, "quarterly review" | `scripts/gtd quarterly` |
+| 4d, "yearly review" | `scripts/gtd yearly` |
+| 4e, "review status", "when did I" | `scripts/gtd reviews` |
+| 5, "projects" | `scripts/gtd projects` or `scripts/gtd project list` |
+| 5a, "create project" | `scripts/gtd project create "<title>"` |
+| 5b, "show project", "project details" | `scripts/gtd project show "<title>"` |
+| 5c, "delete project" | `scripts/gtd project delete "<title>"` |
 
-**After determining intent, execute commands from repo root using `./.claude/skills/gtd/scripts/gtd`.**
+**After determining intent, execute commands using `scripts/gtd` (path relative to this SKILL.md).**
 </routing>
 
 <quick_start>
 
 ```bash
-# Run from repo root - script auto-detects repo context
-GTD="./.claude/skills/gtd/scripts/gtd"
+# Derive GTD path from this SKILL.md location
+GTD="scripts/gtd"
 
 # Capture something (goes to inbox)
 $GTD capture "Review PR for plugin architecture"
@@ -264,7 +270,7 @@ $GTD yearly
 - Every project has at least one active action
 - Reviews happen: daily (5 min), weekly (15 min), quarterly (1 hr), yearly (2 hr)
 - Work from filtered context lists, not full backlog
-- All operations go through the `./gtd` CLI
+- All operations go through the `scripts/gtd` CLI
 </success_criteria>
 
 <reference_index>

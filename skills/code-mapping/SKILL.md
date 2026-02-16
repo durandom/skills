@@ -31,7 +31,7 @@ If a doc exceeds its limit, split it into the next level down.
 |-----------|--------|
 | "explore", "read", "understand", "navigate", "find", "where is" | Read `workflows/explore.md`, then follow it |
 | "create", "generate", "new", "build", "document", "map" | Read `workflows/create.md`, then follow it |
-| "validate", "check", "verify", "lint" | Run: `uv run python $SKILL_PATH/scripts/code_map.py validate <map-dir>` |
+| "validate", "check", "verify", "lint" | Run: `uv run python scripts/code_map.py validate <map-dir>` (path relative to this SKILL.md) |
 
 **If intent is ambiguous**, ask:
 > What would you like to do?
@@ -81,14 +81,18 @@ docs/map/
 
 The scripts use Python 3.11+ stdlib only (no external dependencies).
 
-`$SKILL_PATH` is the base directory shown at skill load (e.g., `.claude/skills/code-mapping`).
+Script paths are **relative to this SKILL.md file** (not the working directory).
+Derive the absolute script path from this file's location:
+
+- If this SKILL.md is at `/path/to/code-mapping/SKILL.md`
+- Then the script is at `/path/to/code-mapping/scripts/code_map.py`
 
 ```bash
 # Validate an existing map
-uv run python $SKILL_PATH/scripts/code_map.py validate <map-dir>
+uv run python scripts/code_map.py validate <map-dir>
 
 # Generate map skeletons from source
-uv run python $SKILL_PATH/scripts/code_map.py generate <src-dir> <map-dir>
+uv run python scripts/code_map.py generate <src-dir> <map-dir>
 ```
 
 **Generate command features:**
