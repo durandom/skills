@@ -25,10 +25,10 @@
     2. Re-run generator to update map
     3. Create domain files by analyzing module docs
          Cluster modules into semantic groupings (not 1:1 with directories)
-         See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/references/domains.md
+         See: <PROJECT>/skills/code-mapping/references/domains.md
     4. Write ARCHITECTURE.md (synthesize from domains)
   
-  See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/workflows/create.md for detailed guidance
+  See: <PROJECT>/skills/code-mapping/workflows/create.md for detailed guidance
   
   '''
 # ---
@@ -56,10 +56,10 @@
     2. Re-run generator to update map
     3. Create domain files by analyzing module docs
          Cluster modules into semantic groupings (not 1:1 with directories)
-         See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/references/domains.md
+         See: <PROJECT>/skills/code-mapping/references/domains.md
     4. Write ARCHITECTURE.md (synthesize from domains)
   
-  See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/workflows/create.md for detailed guidance
+  See: <PROJECT>/skills/code-mapping/workflows/create.md for detailed guidance
   
   '''
 # ---
@@ -88,10 +88,10 @@
     2. Re-run generator to update map
     3. Create domain files by analyzing module docs
          Cluster modules into semantic groupings (not 1:1 with directories)
-         See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/references/domains.md
+         See: <PROJECT>/skills/code-mapping/references/domains.md
     4. Write ARCHITECTURE.md (synthesize from domains)
   
-  See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/workflows/create.md for detailed guidance
+  See: <PROJECT>/skills/code-mapping/workflows/create.md for detailed guidance
   
   '''
 # ---
@@ -120,10 +120,10 @@
     2. Re-run generator to update map
     3. Create domain files by analyzing module docs
          Cluster modules into semantic groupings (not 1:1 with directories)
-         See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/references/domains.md
+         See: <PROJECT>/skills/code-mapping/references/domains.md
     4. Write ARCHITECTURE.md (synthesize from domains)
   
-  See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/workflows/create.md for detailed guidance
+  See: <PROJECT>/skills/code-mapping/workflows/create.md for detailed guidance
   
   '''
 # ---
@@ -152,10 +152,10 @@
     2. Re-run generator to update map
     3. Create domain files by analyzing module docs
          Cluster modules into semantic groupings (not 1:1 with directories)
-         See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/references/domains.md
+         See: <PROJECT>/skills/code-mapping/references/domains.md
     4. Write ARCHITECTURE.md (synthesize from domains)
   
-  See: /Users/mhild/src/durandom/skills/durandom/skills/code-mapping/workflows/create.md for detailed guidance
+  See: <PROJECT>/skills/code-mapping/workflows/create.md for detailed guidance
   
   '''
 # ---
