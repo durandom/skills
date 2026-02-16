@@ -9,7 +9,11 @@ metadata:
 
 Sync and manage meeting transcripts from Google Calendar and Gemini email notes using the meeting_notes automation tool.
 
-**Script location:** `scripts/meeting_notes` (relative to this skill directory)
+**Script location:** `scripts/meeting_notes` **relative to this SKILL.md file** (not the working directory).
+Derive the absolute script path from this file's location:
+
+- If this SKILL.md is at `/path/to/meeting-notes/SKILL.md`
+- Then the script is at `/path/to/meeting-notes/scripts/meeting_notes`
 
 **⚠️ INTERACTIVE SKILL:** This skill requires user approval at each step. Never auto-execute `decide` or `download` commands without explicit user confirmation.
 
@@ -491,7 +495,7 @@ scripts/meeting_notes download
 
 When the user requests a meeting notes sync:
 
-1. **Determine skill location:** Find where this skill is installed (e.g., `.claude/skills/meeting-notes/`)
+1. **Determine skill location:** Find where this SKILL.md is located and derive the script path from it
 2. **Construct script path:** Build full path to `scripts/meeting_notes` from the skill directory
 3. **Check current location:** Verify working directory is the pensieve repository root
 4. **Run sync command with --json:** Execute `<skill-path>/scripts/meeting_notes sync --json`
@@ -538,7 +542,7 @@ When the user requests a meeting notes sync:
 - ALWAYS use AskUserQuestion tool for approvals (never just ask in text)
 - The user MUST see the decision table output before being asked to approve
 - Never run `decide` or `download` automatically without approval
-- `<skill-path>` should be replaced with the actual path to this skill directory (e.g., `./.claude/skills/meeting-notes` for user skills)
+- `<skill-path>` should be derived from this SKILL.md file's location (e.g., if SKILL.md is at `/path/to/meeting-notes/SKILL.md`, then `<skill-path>` is `/path/to/meeting-notes`)
 
 ## Common Scenarios
 

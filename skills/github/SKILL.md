@@ -20,7 +20,15 @@ gh pr checks 42               # Check CI status
 </quick_start>
 
 <scripts>
-Bundled scripts for data gathering (output JSON, run without loading into context):
+Bundled scripts for data gathering (output JSON, run without loading into context).
+
+Script paths are **relative to this SKILL.md file** (not the working directory).
+Derive the absolute script path from this file's location:
+
+- If this SKILL.md is at `/path/to/github/SKILL.md`
+- Then scripts are at `/path/to/github/scripts/`
+
+Available scripts:
 
 - `scripts/triage_gather.sh` - Parallel PR/issue collection
 - `scripts/pr_details.sh <number>` - PR info + diff + checks

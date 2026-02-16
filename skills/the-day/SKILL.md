@@ -11,20 +11,26 @@ Generate a comprehensive daily overview document (TODAY.md) with calendar, tasks
 
 ## Day CLI
 
-All deterministic operations go through the `day` CLI. Run from **repo root**:
+All deterministic operations go through the `day` CLI.
+
+The `day` script is at `scripts/day` **relative to this SKILL.md file** (not the working directory).
+Derive the absolute script path from this file's location:
+
+- If this SKILL.md is at `/path/to/the-day/SKILL.md`
+- Then the CLI is at `/path/to/the-day/scripts/day`
 
 ```bash
 # Check current status
-./skills/the-day/scripts/day
+scripts/day
 
 # Archive existing TODAY.md
-./skills/the-day/scripts/day archive --force
+scripts/day archive --force
 
 # Format GTD tasks as markdown
-./skills/the-day/scripts/day format-gtd
+scripts/day format-gtd
 
 # Generate TODAY.md (deterministic parts only)
-./skills/the-day/scripts/day generate --force
+scripts/day generate --force
 ```
 
 ## What's Deterministic vs AI-Driven
@@ -58,7 +64,7 @@ Defaults (override in CLAUDE.md or project config):
 1. **Check current status:**
 
    ```bash
-   ./skills/the-day/scripts/day
+   scripts/day
    ```
 
    Shows: TODAY.md status, GTD task count, next-step hints.
@@ -66,7 +72,7 @@ Defaults (override in CLAUDE.md or project config):
 2. **Archive existing TODAY.md (if exists):**
 
    ```bash
-   ./skills/the-day/scripts/day archive --force
+   scripts/day archive --force
    ```
 
    Moves to `logs/today/YYYY-MM-DD-HHMM.md`.
@@ -86,7 +92,7 @@ Defaults (override in CLAUDE.md or project config):
 3. **Get GTD tasks (CLI):**
 
    ```bash
-   ./skills/the-day/scripts/day format-gtd
+   scripts/day format-gtd
    ```
 
    Returns grouped markdown: Focus (High/Low Energy), Async, Meetings.
@@ -107,7 +113,7 @@ Defaults (override in CLAUDE.md or project config):
 1. **Generate base document (CLI):**
 
    ```bash
-   ./skills/the-day/scripts/day generate --force
+   scripts/day generate --force
    ```
 
    Fills: DATE_FULL, TIME, LOCATION, GTD_TASKS.
@@ -172,8 +178,8 @@ AI workflow       → Fill remaining placeholders
 All CLI commands support `--json` for structured output:
 
 ```bash
-./skills/the-day/scripts/day --json
-./skills/the-day/scripts/day format-gtd --json
+scripts/day --json
+scripts/day format-gtd --json
 ```
 
 ## Gmail URL Fix

@@ -42,10 +42,16 @@ PARA organizes information by **when you'll need it**:
 
 <initialization_check>
 
-**IMPORTANT: Before showing the intake menu, run this check:**
+**IMPORTANT: Before showing the intake menu, run this check.**
+
+The `para` script is at `scripts/para` **relative to this SKILL.md file** (not the working directory).
+Derive the absolute script path from this file's location:
+
+- If this SKILL.md is at `/path/to/para/SKILL.md`
+- Then the CLI is at `/path/to/para/scripts/para`
 
 ```bash
-./.claude/skills/para/scripts/para status 2>/dev/null
+scripts/para status 2>/dev/null
 ```
 
 If it exits non-zero or shows "Error: PARA root not configured", the user needs to initialize PARA first.
@@ -59,13 +65,13 @@ If it exits non-zero or shows "Error: PARA root not configured", the user needs 
 
    ```bash
    # Initialize PARA structure
-   ./.claude/skills/para/scripts/para init --path <user-specified-path>
+   scripts/para init --path <user-specified-path>
 
    # Then save config (choose one):
    # For this repo only:
-   ./.claude/skills/para/scripts/para config --set-repo . <user-specified-path>
+   scripts/para config --set-repo . <user-specified-path>
    # Or as global default:
-   ./.claude/skills/para/scripts/para config --set-root <user-specified-path>
+   scripts/para config --set-root <user-specified-path>
    ```
 
 3. Then proceed to the intake menu.
@@ -101,7 +107,7 @@ What would you like to do?
 ## CLI Commands
 
 ```bash
-PARA="./.claude/skills/para/scripts/para"
+PARA="scripts/para"
 
 # Show PARA structure status
 $PARA status
