@@ -13,7 +13,7 @@ wheels = [
 
 [[package]]
 name = "durandom-skills"
-version = "1.2.0"
+version = "2.2.0"
 source = { virtual = "." }
 
 [package.optional-dependencies]
