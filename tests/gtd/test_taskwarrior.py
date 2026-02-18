@@ -268,6 +268,36 @@ class TestCloseReopen:
         reopened = storage.reopen_item(closed.id)
         assert reopened.state == "open"
 
+    def test_ids_stable_after_close(self, storage):
+        """Closing a task must not shift IDs of other tasks.
+
+        Reproduces the real-world bug: user sees tasks 1-5, closes #3,
+        then #5 should still be #5 (not shifted to #4).
+        TaskWarrior's default GC renumbers IDs — rc.gc=off prevents this.
+        """
+        items = []
+        for i in range(1, 6):
+            items.append(
+                storage.create_item(title=f"Task {i}", labels=["status/active"])
+            )
+
+        # Record original IDs
+        original_ids = {item.title: item.id for item in items}
+
+        # Close task in the middle
+        storage.close_item(original_ids["Task 3"])
+
+        # Remaining open tasks must keep their original IDs
+        for title in ["Task 1", "Task 2", "Task 4", "Task 5"]:
+            fetched = storage.get_item(original_ids[title])
+            assert fetched is not None, (
+                f"{title} not found at original ID {original_ids[title]}"
+            )
+            assert fetched.title == title, (
+                f"ID {original_ids[title]} points to '{fetched.title}'"
+                f" instead of '{title}' — IDs shifted after close!"
+            )
+
 
 class TestAddComment:
     """Test annotations (comments)."""
