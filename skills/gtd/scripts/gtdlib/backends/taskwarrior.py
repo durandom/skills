@@ -120,6 +120,9 @@ class TaskwarriorStorage(GTDStorage):
                 "# Disable color for clean output parsing",
                 "color=off",
                 "",
+                "# Keep IDs stable — prevent GC from renumbering after completion",
+                "gc=off",
+                "",
                 "# Include completed tasks in export by default",
                 "report.export.filter=",
             ]
