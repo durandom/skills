@@ -16,7 +16,6 @@ This repository contains **reusable skills and patterns** for Claude Code that h
 | 🐙 **GitHub** | GitHub CLI operations for issues, PRs, reviews, and CI |
 | 🕷️ **crawl4ai** | Web crawling and data extraction via `crwl` CLI |
 | 📝 **Meeting Notes** | Sync meeting transcripts from Google Calendar + Gemini |
-| 🌅 **The Day** | Daily overview generation with calendar, tasks, and weather |
 | 📖 **Recipes** | Reusable patterns and guides for AI-assisted development |
 | ⚡ **Commands** | Slash commands like `/commit`, `/catchup`, `/research` |
 
@@ -139,16 +138,6 @@ Syncs Google Calendar meetings with Gemini transcripts, organizing them into a m
 
 ---
 
-### 🌅 The Day
-
-> ☀️ *Morning planning and day organization*
-
-Generates a daily overview document (TODAY.md) with calendar, tasks, weather, and motivational content. Supports interactive time-blocked planning.
-
-📚 [Full Documentation →](skills/the-day/SKILL.md)
-
----
-
 ## ⚡ Commands
 
 ### `/commit` 📝
@@ -252,7 +241,6 @@ skills/
 │   ├── github/          # 🐙 GitHub CLI operations
 │   ├── crawl4ai/        # 🕷️ Web crawling
 │   ├── meeting-notes/   # 📝 Meeting transcript sync
-│   ├── the-day/         # 🌅 Daily planning
 │   └── recipes/         # 📖 Development patterns and guides
 ├── 📂 commands/         # ⚡ Slash commands
 ├── 📂 agents/           # 🤖 Subagents
