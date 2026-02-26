@@ -148,7 +148,7 @@ If recent commits context shows `FIRST_COMMIT`:
      4. Consider if changes should be split
 
      **Return:**
-     - Recommended commit message: <emoji> <type>: <description>
+     - Recommended commit message: <type>: <emoji> <description>
      - Summary of changes (2-3 bullet points)
      - Split recommendation: yes/no with reasoning"
    ```
@@ -157,11 +157,12 @@ If recent commits context shows `FIRST_COMMIT`:
 
 6. **Match project commit style**
    - Use subagent's analysis or analyze recent commits for: language, emoji usage, format conventions
-   - Follow the existing style (don't impose a standard)
+   - Follow the existing style (don't impose a standard) — **exception: emoji placement is non-negotiable**: always `<type>: <emoji>`, never emoji-first, regardless of project history
 
 7. **Generate commit message**
    - Use subagent's recommendation or generate based on analysis
-   - Use emoji conventional commit format: `<emoji> <type>: <description>`
+   - Use emoji conventional commit format: `<type>: <emoji> <description>`
+   - **Emoji placement**: the emoji MUST NOT be the first character. Place it immediately after the `": "` — never before the type.
    - First line < 72 characters, imperative mood, present tense
    - Focus on WHAT changed and WHY, not HOW
    - For complex changes, use multi-line format with bullet points
@@ -237,7 +238,7 @@ Preview what would be committed without actually committing.
    {git diff --stat --cached}
 
    **Proposed commit message:**
-   <emoji> <type>: <description>
+   <type>: <emoji> <description>
 
    **Pre-commit status:** PASS / FAIL (details)
 
@@ -251,23 +252,25 @@ Preview what would be committed without actually committing.
 
 <commit_types>
 
-- 🎉 `init`: Initial commit
-- ✨ `feat`: New feature
-- 🐛 `fix`: Bug fix
-- 📝 `docs`: Documentation
-- 💄 `style`: Formatting/style
-- ♻️ `refactor`: Code refactoring
-- ⚡️ `perf`: Performance improvements
-- ✅ `test`: Tests
-- 🔧 `chore`: Tooling, configuration
-- 🚀 `ci`: CI/CD improvements
-- 🚨 `fix`: Fix compiler/linter warnings
-- 🔒️ `fix`: Fix security issues
-- 🏗️ `refactor`: Architectural changes
-- 🔥 `fix`: Remove code or files
-- 🎨 `style`: Improve structure/format
-- 💚 `fix`: Fix CI build
-- ✏️ `fix`: Fix typos
+Format: `<type>: <emoji> <description>` — emoji always after the `": "`, never first.
+
+- `init: 🎉` Initial commit
+- `feat: ✨` New feature
+- `fix: 🐛` Bug fix
+- `docs: 📝` Documentation
+- `style: 💄` Formatting/style
+- `refactor: ♻️` Code refactoring
+- `perf: ⚡️` Performance improvements
+- `test: ✅` Tests
+- `chore: 🔧` Tooling, configuration
+- `ci: 🚀` CI/CD improvements
+- `fix: 🚨` Fix compiler/linter warnings
+- `fix: 🔒️` Fix security issues
+- `refactor: 🏗️` Architectural changes
+- `fix: 🔥` Remove code or files
+- `style: 🎨` Improve structure/format
+- `fix: 💚` Fix CI build
+- `fix: ✏️` Fix typos
 </commit_types>
 
 <splitting_guidance>
