@@ -14,7 +14,7 @@ from typing import Literal
 
 CONFIG_DIR = ".gtd"
 CONFIG_FILENAME = "config.json"
-AVAILABLE_BACKENDS = ["github", "taskwarrior"]
+AVAILABLE_BACKENDS = ["github", "taskwarrior", "beads"]
 
 
 @dataclass
@@ -32,12 +32,22 @@ class GitHubConfig:
 
 
 @dataclass
+class BeadsBackendConfig:
+    """Beads backend configuration."""
+
+    # Beads uses bd CLI which auto-discovers .beads/ directory
+    # No additional config needed - bd handles everything
+    pass
+
+
+@dataclass
 class GTDConfig:
     """GTD skill configuration."""
 
-    backend: Literal["github", "taskwarrior"] = "github"
+    backend: Literal["github", "taskwarrior", "beads"] = "github"
     taskwarrior: TaskwarriorConfig = field(default_factory=TaskwarriorConfig)
     github: GitHubConfig = field(default_factory=GitHubConfig)
+    beads: BeadsBackendConfig = field(default_factory=BeadsBackendConfig)
 
 
 def get_git_root() -> Path | None:
@@ -120,6 +130,9 @@ def load_config(config_path: Path | None = None) -> GTDConfig:
     gh_data = data.get("github", {})
     if not isinstance(gh_data, dict):
         gh_data = {}
+    beads_data = data.get("beads", {})
+    if not isinstance(beads_data, dict):
+        beads_data = {}
 
     # Construct backend configs defensively; fall back to defaults on error
     try:
@@ -132,10 +145,16 @@ def load_config(config_path: Path | None = None) -> GTDConfig:
     except TypeError:
         gh_config = GitHubConfig()
 
+    try:
+        beads_config = BeadsBackendConfig(**beads_data)
+    except TypeError:
+        beads_config = BeadsBackendConfig()
+
     return GTDConfig(
         backend=backend,
         taskwarrior=tw_config,
         github=gh_config,
+        beads=beads_config,
     )
 
 
