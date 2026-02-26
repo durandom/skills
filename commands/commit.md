@@ -157,7 +157,7 @@ If recent commits context shows `FIRST_COMMIT`:
 
 6. **Match project commit style**
    - Use subagent's analysis or analyze recent commits for: language, emoji usage, format conventions
-   - Follow the existing style (don't impose a standard)
+   - Follow the existing style (don't impose a standard) — **exception: emoji placement is non-negotiable**: always `<type>: <emoji>`, never emoji-first, regardless of project history
 
 7. **Generate commit message**
    - Use subagent's recommendation or generate based on analysis
