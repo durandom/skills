@@ -189,7 +189,7 @@ class BeadsStorage(GTDStorage):
         except FileNotFoundError:
             raise StorageNotSetupError(
                 "bd command not found. Install the Beads CLI first: "
-                "https://github.com/kortina/beads"
+                "https://github.com/steveyegge/beads"
             )
         except RuntimeError as e:
             raise StorageNotSetupError(

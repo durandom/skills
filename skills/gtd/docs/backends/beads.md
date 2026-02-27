@@ -1,6 +1,6 @@
 # Beads Backend for GTD
 
-The Beads backend uses the [Beads](https://github.com/kortina/beads) issue tracker (bd CLI) for GTD task storage.
+The Beads backend uses the [Beads](https://github.com/steveyegge/beads) issue tracker (bd CLI) for GTD task storage.
 
 ## Features
 
@@ -18,7 +18,7 @@ The Beads backend uses the [Beads](https://github.com/kortina/beads) issue track
 brew install dolt
 
 # Install beads (via Claude Code plugin or standalone)
-# See: https://github.com/kortina/beads
+# See: https://github.com/steveyegge/beads
 ```
 
 ### 2. Initialize Beads

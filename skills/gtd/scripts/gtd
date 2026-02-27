@@ -1264,7 +1264,7 @@ def cmd_init(args) -> int:
     if backend == "beads" and not _check_tool("bd"):
         print(f"{RED}✗{NC} Cannot use beads backend: bd CLI not found")
         print()
-        print(f"  Install: {BOLD}https://github.com/kortina/beads{NC}")
+        print(f"  Install: {BOLD}https://github.com/steveyegge/beads{NC}")
         print(f"  Then:    {BOLD}bd init{NC}")
         return 1
 
