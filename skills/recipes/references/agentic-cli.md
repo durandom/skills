@@ -30,6 +30,27 @@ $ cmd choose --option=A
 
 **If confirmation is needed:** Use the dry-run pattern (Pattern 3) instead of prompts. The agent runs the preview, sees the result, then explicitly runs with `--force`.
 
+### `--help` as a Protocol Contract
+
+`--help` output is not documentation for humans — it is the **complete API contract** an agent uses to understand your tool cold. Treat it accordingly.
+
+A well-formed `--help` must cover:
+
+- Every subcommand with its exact signature (`<required>`, `[optional]`)
+- Stdin behavior (when is stdin read? what happens if it's a tty?)
+- Error recovery primitives (e.g. "use `pop` to undo the last entry")
+- The output format the agent will need to parse or act on
+
+If a detail is missing from `--help`, assume the agent will not discover it.
+
+**Implementation tip:** Embed the help text as a static file (e.g. `//go:embed help.txt` in Go) and generate your README from it — then docs and binary can never diverge.
+
+```bash
+# Agent cold-start: one call to understand the entire tool
+$ cmd --help
+→ agent now knows all subcommands, stdin rules, undo primitive, output format
+```
+
 ### Capability Gradient
 
 AI agents parse `--help` to understand available options. If destructive flags are visible, agents may use them immediately without understanding the consequences.
@@ -156,6 +177,24 @@ function do_cleanup(items, execute):
 
 **Key insight:** If undoing the operation is straightforward, include the undo command in the output. Don't over-engineer—only provide undo hints when the reversal is simple and deterministic.
 
+**Stronger version — Undo as a first-class command:**
+
+If your tool builds up state incrementally (appending entries, queuing operations), expose an explicit `pop` or `undo` subcommand rather than just printing a hint. This gives the agent a reliable recovery path without needing `--force` or re-running in dry-run mode:
+
+```
+# Agent runs a command, sees bad output
+$ cmd exec demo.md bash "wrong command"
+error: command not found: wrong-command
+$ echo $?
+1
+
+# Agent recovers immediately — no flags, no confirmation
+$ cmd pop demo.md
+Removed last entry.
+```
+
+Advertise `pop` in `--help` so agents discover it on cold start. Unlike `--force` (which should be hidden), undo commands are *safe* to advertise — using them cannot cause harm.
+
 ### Pattern 4: Discovery Through Output
 
 Reveal capabilities contextually. Different commands guide to different uses of `--force`:
@@ -244,7 +283,42 @@ Include:
 - **Why it likely failed** (common causes)
 - **What to try next** (concrete commands or URLs)
 
-### Pattern 8: Scoped Permissions
+### Pattern 8: Pass-Through Exit Codes with Store-on-Failure
+
+When your tool *wraps* another command (running a shell script, executing code, calling an external process), **do not swallow the sub-command's exit code**. Pass it through directly and always capture + return the output, even on failure.
+
+This separates two distinct concerns:
+
+- **Did your tool succeed?** (file found, document parseable, no I/O error)
+- **Did the wrapped command succeed?** (the agent's business logic)
+
+```
+# Tool exit 0 = tool worked. Output + real exit code returned.
+$ cmd exec demo.md bash "echo hello && exit 1"
+hello
+$ echo $?
+1   ← sub-command's real exit code, not "1 = tool error"
+
+# Tool exit 1 = tool itself failed (file not found, parse error, etc.)
+$ cmd exec missing.md bash "echo hello"
+error: file not found: missing.md
+$ echo $?
+1
+```
+
+**Key design choice:** Store the output in the document even when the sub-command fails. The agent sees the error output, decides whether to keep it or discard it via `pop`. The tool never makes that decision for the agent.
+
+```go
+// Pass exit code through; store output regardless
+output, exitCode, err := execpkg.Run(lang, code, workdir)
+// ... append to document ...
+fmt.Print(output)
+if exitCode != 0 {
+    os.Exit(exitCode)  // propagate, not override
+}
+```
+
+### Pattern 10: Scoped Permissions
 
 Limit the blast radius of agent mistakes by supporting explicit permission boundaries:
 
@@ -267,7 +341,7 @@ $ cmd sync --deny-paths=/etc,/usr
 
 This provides defense-in-depth when agents operate with broad file system access.
 
-### Pattern 9: Trust Level Awareness
+### Pattern 11: Trust Level Awareness
 
 Consider categorizing operations by risk level. This helps frameworks and agents make decisions about what needs human approval:
 
@@ -286,7 +360,7 @@ Design your CLI so that:
 - Destructive operations require explicit flags
 - External operations clearly indicate their scope
 
-### Pattern 10: Multi-Line Input Strategies
+### Pattern 12: Multi-Line Input Strategies
 
 Agents often need to pass multi-line content (commit messages, code, configs). Since command-line arguments handle this poorly, support multiple input methods:
 
@@ -303,31 +377,28 @@ parser.add_argument("--file", "-f", type=argparse.FileType('r'),
                     help="Read content from file")
 ```
 
-#### Method 2: Stdin with explicit flag
+#### Method 2: Omit argument → read stdin (simpler than `--stdin`)
+
+Instead of a `--stdin` flag, make the text/code argument *optional*: if omitted, read stdin. This is simpler, requires no extra flag, and is self-documenting in `--help`.
 
 ```bash
-# Heredoc (works in most shells)
-$ cmd create --stdin <<'EOF'
-Line 1
-Line 2
-EOF
-
-# Pipe from echo
-$ echo "Line 1\nLine 2" | cmd create --stdin
-
-# Convention: dash means stdin
-$ cat content.txt | cmd create -f -
+# Pipe directly — no flag needed
+$ echo "Hello world" | cmd note demo.md
+$ cat script.sh | cmd exec demo.md bash
 ```
 
-```python
-parser.add_argument("--stdin", action="store_true",
-                    help="Read content from stdin")
-
-if args.stdin:
-    content = sys.stdin.read()
-elif args.file:
-    content = args.file.read()
+```go
+// Go: read argument if present, otherwise stdin
+func getTextArg(args []string) (string, error) {
+    if len(args) > 0 {
+        return args[0], nil
+    }
+    data, err := io.ReadAll(os.Stdin)
+    return string(data), err
+}
 ```
+
+**Caveat:** Only use this when "no argument" is unambiguous (i.e. the argument would always be present if not piping). If the argument is always optional for other reasons too, use a `--stdin` flag to avoid accidental hangs when no pipe is provided.
 
 #### Method 3: Heredoc-friendly message flag
 
@@ -359,11 +430,11 @@ def get_content(args):
 **Key points:**
 
 - Always support `--file` for explicit file paths
-- Use `--stdin` flag to explicitly request stdin reading
+- Prefer "omit argument → stdin" over a `--stdin` flag when the usage is clear
 - The `-` convention (read from stdin) is widely understood
-- Avoid auto-detecting stdin (can cause hangs if agent doesn't pipe anything)
+- Only auto-detect stdin when the argument's absence is unambiguous; otherwise use an explicit flag to avoid hangs
 
-### Pattern 11: Doctor/Validate
+### Pattern 13: Doctor/Validate
 
 Provide a `doctor` or `validate` command that proactively diagnoses configuration, state, and environment issues. This is distinct from error handling (reactive) — doctor is **proactive health checking**.
 
@@ -696,18 +767,20 @@ except ConnectionError as e:
 | Principle | Implementation |
 |-----------|----------------|
 | **Non-interactive** | No stdin prompts; all input via flags/env/config |
+| **`--help` as protocol contract** | Complete API surface: signatures, stdin rules, undo primitive, output format |
 | Sensible defaults | No-arg invocation does useful work |
 | Next-step hints | Every output suggests logical next commands |
 | Hide destructive flags | Mark flag as hidden/suppressed |
 | Safe by default | Preview/dry-run without flags |
 | Contextual discovery | Print `--force` hint in command output |
-| Undo hints | Show reversal command when simple |
+| Undo as first-class command | `pop`/`undo` subcommand advertised in `--help` |
+| Pass-through exit codes | Wrap sub-commands: propagate real exit code, store output even on failure |
 | Verbose mode | `--verbose` for detailed logging |
 | Structured output | Optional `--json` flag |
 | Informative errors | What failed, why, what to try next |
 | Scoped permissions | `--allow-paths`, `--deny-paths` |
 | Trust awareness | Categorize by risk level |
-| Multi-line input | `--file`, `--stdin`, or heredoc-friendly `-m` |
+| Multi-line input | `--file`, omit-arg→stdin, or heredoc-friendly `-m` |
 | Doctor/validate | Proactive health checks with `--fix` for safe auto-remediation |
 
 ---
