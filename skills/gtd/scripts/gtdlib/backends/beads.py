@@ -8,10 +8,11 @@ Requirements:
 - Beads database configured in current workspace
 
 Architecture:
-- GTD labels map to Beads labels (context/focus -> gtd:context:focus)
-- GTD metadata (due, defer) uses native bd fields (--due, --defer)
-- waiting_for stored via bd --metadata JSON field
-- Projects mapped to project:<name> labels
+- GTD labels map to Beads labels via gtd: prefix (context/focus -> gtd:context:focus)
+- Task descriptions are stored in the Beads note body
+- Projects are mapped to project:<name> labels (queryable via --label)
+- GTD metadata (due, defer, waiting_for) is not yet mapped to native bd fields;
+  use the body/description field for now
 """
 
 from __future__ import annotations
@@ -327,23 +328,20 @@ class BeadsStorage(GTDStorage):
             beads_labels = self._labels_to_beads(labels)
             # When setting labels, preserve non-GTD labels and replace GTD ones
             current_beads_labels = self._get_current_beads_labels(item_id)
-            non_gtd_labels = [
-                bl for bl in current_beads_labels if not bl.startswith("gtd:")
+            # Keep only non-GTD, non-project labels from current state
+            other_labels = [
+                bl
+                for bl in current_beads_labels
+                if not bl.startswith("gtd:") and not bl.startswith("project:")
             ]
-            # Handle project labels
-            if project is not None:
-                non_gtd_labels = [
-                    bl for bl in non_gtd_labels if not bl.startswith("project:")
-                ]
-            all_beads_labels = non_gtd_labels + beads_labels
+            all_beads_labels = other_labels + beads_labels
+            # Add project label: new value, existing value, or nothing
             if project is not None:
                 all_beads_labels.append(f"project:{project}")
-            elif any(bl.startswith("project:") for bl in current_beads_labels):
-                # Preserve existing project label
-                for bl in current_beads_labels:
-                    if bl.startswith("project:"):
-                        all_beads_labels.append(bl)
-                        break
+            else:
+                existing_project = self._extract_project(current_beads_labels)
+                if existing_project:
+                    all_beads_labels.append(f"project:{existing_project}")
             args.extend(["--set-labels", ",".join(all_beads_labels)])
         elif project is not None:
             # Only updating project, not labels

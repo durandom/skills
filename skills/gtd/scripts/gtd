@@ -134,6 +134,10 @@ def get_storage(
 
     if backend_choice == "taskwarrior":
         storage: GTDStorage = TaskwarriorStorage(data_dir=config.taskwarrior.data_dir)
+    elif backend_choice == "beads":
+        from gtdlib.backends.beads import BeadsStorage
+
+        storage = BeadsStorage(config=config.beads)
     else:
         storage = GitHubStorage(repo=repo or config.github.repo)
 
@@ -1256,6 +1260,12 @@ def cmd_init(args) -> int:
         print(f"{RED}✗{NC} Cannot use taskwarrior backend: task CLI not found")
         print()
         print(f"  Install: {BOLD}brew install task{NC}")
+        return 1
+    if backend == "beads" and not _check_tool("bd"):
+        print(f"{RED}✗{NC} Cannot use beads backend: bd CLI not found")
+        print()
+        print(f"  Install: {BOLD}https://github.com/kortina/beads{NC}")
+        print(f"  Then:    {BOLD}bd init{NC}")
         return 1
 
     # Check if already initialized

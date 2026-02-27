@@ -83,35 +83,36 @@ The Layton `email-gather` errand can automatically create GTD tasks from emails:
 
 ## Implementation Status
 
-⚠️ **Work in Progress**: The Beads backend is currently a stub implementation.
+✅ **Implemented**: The Beads backend is fully functional.
 
-**Completed:**
+**Implemented:**
 
-- ✅ Backend structure and configuration
-- ✅ Label mapping logic
-- ✅ Integration with GTD config system
+- ✅ `create_item()` — creates tasks via `bd create`
+- ✅ `list_items()` — queries tasks via `bd list --json`
+- ✅ `get_item()` — fetches single task via `bd show --json`
+- ✅ `update_item()` — updates title, body, labels, project via `bd update`
+- ✅ `add_labels()` / `remove_labels()` — incremental label changes
+- ✅ `close_item()` / `reopen_item()` — via `bd close` / `bd reopen`
+- ✅ `add_comment()` — via `bd comments add`
+- ✅ `get_comments()` — Beads-specific bonus method
+- ✅ `is_setup()` / `setup()` — bd availability checks
+- ✅ Label mapping (`context/focus` ↔ `gtd:context:focus`)
+- ✅ Project mapping (`project:<name>` labels)
+- ✅ 44 unit tests (mocked subprocess — no bd required in CI)
 
-**TODO:**
+**Not yet implemented:**
 
-- [ ] Implement `add_item()` - Create tasks in Beads
-- [ ] Implement `list_items()` - Query tasks from Beads
-- [ ] Implement `get_item()` - Fetch single task
-- [ ] Implement `update_item()` - Modify task labels/metadata
-- [ ] Implement `close_item()` - Mark task complete
-- [ ] Implement `add_comment()` - Add comments to tasks
-- [ ] Implement `get_comments()` - Retrieve task comments
-- [ ] Add tests for Beads backend
+- [ ] Native `--due` / `--defer` bd fields for GTD metadata
+- [ ] `waiting_for` via `bd --metadata` JSON field
 - [ ] Update SKILL.md with Beads backend docs
 
 ## Contributing
 
-See `scripts/gtdlib/backends/beads.py` for the implementation. All methods are currently stubbed with `NotImplementedError` and marked with `TODO` comments.
+See `scripts/gtdlib/backends/beads.py` for the implementation.
 
 Pull requests welcome!
 
 ## Example Workflow
-
-Once fully implemented, the workflow will be:
 
 ```bash
 # Initialize

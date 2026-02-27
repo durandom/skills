@@ -9,7 +9,16 @@ Backend classes:
 from .github import GitHubStorage
 from .taskwarrior import TaskwarriorStorage
 
-__all__ = ["GitHubStorage", "TaskwarriorStorage", "BeadsStorage"]  # pyright: ignore[reportUnsupportedDunderAll]
+__all__ = ["GitHubStorage", "TaskwarriorStorage", "BeadsStorage"]
+
+
+def __getattr__(name: str):
+    """Lazy-load BeadsStorage on demand (avoids failure when bd not installed)."""
+    if name == "BeadsStorage":
+        from .beads import BeadsStorage
+
+        return BeadsStorage
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def get_backend_class(name: str):
