@@ -33,10 +33,13 @@ class GitHubConfig:
 
 @dataclass
 class BeadsBackendConfig:
-    """Beads backend configuration."""
+    """Beads backend configuration.
 
-    # Beads uses bd CLI which auto-discovers .beads/ directory
-    # No additional config needed - bd handles everything
+    Currently empty: bd auto-discovers its .beads/ directory and config.
+    This dataclass exists for interface consistency with other backends
+    and to allow future configuration options (e.g., custom db path).
+    """
+
     pass
 
 

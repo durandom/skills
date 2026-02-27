@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from gtdlib.config import (
+    BeadsBackendConfig,
     GitHubConfig,
     GTDConfig,
     TaskwarriorConfig,
@@ -87,6 +88,13 @@ class TestLoadConfig:
         config = load_config(config_file)
         assert config.github.repo == "owner/repo"
 
+    def test_load_valid_beads_config(self, tmp_path):
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps({"backend": "beads"}))
+        config = load_config(config_file)
+        assert config.backend == "beads"
+        assert isinstance(config.beads, BeadsBackendConfig)
+
     def test_load_corrupt_backend_section_uses_defaults(self, tmp_path):
         config_file = tmp_path / "config.json"
         config_file.write_text(
@@ -131,6 +139,13 @@ class TestSaveConfig:
         data = json.loads(path.read_text())
         assert data["github"]["repo"] == "me/myrepo"
 
+    def test_save_beads_config(self, tmp_path):
+        path = tmp_path / "config.json"
+        config = GTDConfig(backend="beads")
+        save_config(config, path)
+        data = json.loads(path.read_text())
+        assert data == {"backend": "beads"}
+
     def test_roundtrip_config(self, tmp_path):
         path = tmp_path / "config.json"
         original = GTDConfig(
@@ -141,3 +156,10 @@ class TestSaveConfig:
         loaded = load_config(path)
         assert loaded.backend == "taskwarrior"
         assert loaded.taskwarrior.data_dir == "/my/data"
+
+    def test_roundtrip_beads_config(self, tmp_path):
+        path = tmp_path / "config.json"
+        original = GTDConfig(backend="beads")
+        save_config(original, path)
+        loaded = load_config(path)
+        assert loaded.backend == "beads"

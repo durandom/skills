@@ -86,11 +86,13 @@ The Layton `email-gather` errand can automatically create GTD tasks from emails:
 ⚠️ **Work in Progress**: The Beads backend is currently a stub implementation.
 
 **Completed:**
+
 - ✅ Backend structure and configuration
 - ✅ Label mapping logic
 - ✅ Integration with GTD config system
 
 **TODO:**
+
 - [ ] Implement `add_item()` - Create tasks in Beads
 - [ ] Implement `list_items()` - Query tasks from Beads
 - [ ] Implement `get_item()` - Fetch single task
