@@ -2,7 +2,7 @@
 
 Repeatable setup for [beads](https://github.com/steveyegge/beads) (`bd`) with a Dolt SQL server on macOS. Covers install, per-project initialization, JSONL migration, and maintenance.
 
-**Tested:** 2026-02-23 — bd v0.56.1, dolt v1.82.4
+**Tested:** 2026-02-27 — bd v0.56.1, dolt v1.82.6
 
 ## Overview
 
@@ -32,24 +32,29 @@ brew install dolt
 
 Beads defaults to port 3307 (avoids MySQL conflict on 3306).
 
-Edit `/opt/homebrew/var/dolt/config.yaml`:
+The Homebrew formula places config at `/opt/homebrew/etc/dolt/config.yaml` (created on first install). Change the port:
 
 ```yaml
+# /opt/homebrew/etc/dolt/config.yaml
 listener:
   host: localhost
   port: 3307
 ```
 
-### Custom LaunchAgent
+### Custom LaunchAgent (required until PR merges)
 
-`brew services` overwrites the plist on every `start`/`restart`, so manage the LaunchAgent manually.
+The current Homebrew formula's `service` block starts dolt **without** a `--config` flag, so it ignores `config.yaml` and falls back to port 3306. Additionally, `brew services` regenerates the plist on every `start`/`restart`, overwriting any manual edits.
+
+> **Upstream fix pending:** [homebrew-core#269724](https://github.com/Homebrew/homebrew-core/pull/269724) — adds `--config` to the formula's service block. Once merged and installed via `brew upgrade dolt`, delete `local.dolt.plist` and use `brew services start dolt` instead.
+
+The fix: use a **custom LaunchAgent with a different label** (`local.dolt`). Brew never touches plists it doesn't own.
 
 ```bash
-# Stop brew-managed service if running
+# Stop and remove the brew-managed service
 brew services stop dolt
 ```
 
-Create `~/Library/LaunchAgents/homebrew.mxcl.dolt.plist`:
+Create `~/Library/LaunchAgents/local.dolt.plist`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -57,30 +62,19 @@ Create `~/Library/LaunchAgents/homebrew.mxcl.dolt.plist`:
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>KeepAlive</key><true/>
-  <key>Label</key><string>homebrew.mxcl.dolt</string>
-  <key>LimitLoadToSessionType</key>
-  <array>
-    <string>Aqua</string>
-    <string>Background</string>
-    <string>LoginWindow</string>
-    <string>StandardIO</string>
-    <string>System</string>
-  </array>
+  <key>Label</key><string>local.dolt</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/opt/homebrew/opt/dolt/bin/dolt</string>
+    <string>/opt/homebrew/bin/dolt</string>
     <string>sql-server</string>
     <string>--config</string>
-    <string>/opt/homebrew/var/dolt/config.yaml</string>
+    <string>/opt/homebrew/etc/dolt/config.yaml</string>
   </array>
+  <key>WorkingDirectory</key><string>/opt/homebrew/var/dolt</string>
+  <key>KeepAlive</key><true/>
   <key>RunAtLoad</key><true/>
-  <key>StandardErrorPath</key>
-  <string>/opt/homebrew/var/log/dolt.error.log</string>
-  <key>StandardOutPath</key>
-  <string>/opt/homebrew/var/log/dolt.log</string>
-  <key>WorkingDirectory</key>
-  <string>/opt/homebrew/var/dolt</string>
+  <key>StandardOutPath</key><string>/opt/homebrew/var/log/dolt.log</string>
+  <key>StandardErrorPath</key><string>/opt/homebrew/var/log/dolt.error.log</string>
 </dict>
 </plist>
 ```
@@ -88,9 +82,9 @@ Create `~/Library/LaunchAgents/homebrew.mxcl.dolt.plist`:
 Load and verify:
 
 ```bash
-launchctl load ~/Library/LaunchAgents/homebrew.mxcl.dolt.plist
+launchctl load -w ~/Library/LaunchAgents/local.dolt.plist
 
-# Verify
+# Verify — "opsession-prxy" is the service name for port 3307
 tail -1 /opt/homebrew/var/log/dolt.log
 # Expected: HP="localhost:3307"
 
@@ -193,16 +187,22 @@ print("\n".join(sql))
 | Server status | `launchctl list \| grep dolt` |
 | Test connection | `bd dolt test` |
 | Logs | `tail /opt/homebrew/var/log/dolt.error.log` |
-| List databases | `cd /opt/homebrew/var/dolt && dolt sql -q "SHOW DATABASES"` |
+| List databases | `ls /opt/homebrew/var/dolt/` |
 | Diagnostics | `bd doctor` |
-| Restart server | `launchctl unload ~/Library/LaunchAgents/homebrew.mxcl.dolt.plist && launchctl load ~/Library/LaunchAgents/homebrew.mxcl.dolt.plist` |
+| Restart server | `launchctl unload ~/Library/LaunchAgents/local.dolt.plist && launchctl load -w ~/Library/LaunchAgents/local.dolt.plist` |
 
 ## Gotchas
 
 | Trap | Why | Do Instead |
 |------|-----|------------|
-| `brew services restart dolt` | Overwrites the custom plist | Use `launchctl unload`/`load` |
-| `brew upgrade dolt` | Does not reload the LaunchAgent | Manually `unload`/`load` after upgrade |
+| Using label `homebrew.mxcl.dolt` in your plist | `brew services` regenerates and overwrites it | Use label `local.dolt` in a separate `local.dolt.plist` |
+| Homebrew formula starts dolt without `--config` | Service block has no `--config` flag → falls back to port 3306 | Use the custom `local.dolt.plist` with explicit `--config` |
+| `brew services restart dolt` | Regenerates the plist, loses `--config` flag | Ignore `brew services` for dolt; use `launchctl unload`/`load` on `local.dolt.plist` |
+| `brew upgrade dolt` | Does not reload the LaunchAgent | `launchctl unload` / `load ~/Library/LaunchAgents/local.dolt.plist` after upgrade |
+| Orphan dolt processes on random ports | `bd` auto-starts per-project servers when it can't reach port 3307 | Before `bd init`, run `bd dolt killall` to clear orphans |
+| `.beads/dolt-server.port` has stale port | Created when `bd` auto-starts a per-project server; ignored once file is gone | `rm .beads/dolt-server.port` — beads will auto-detect 3307 on next run |
+| `bd init` says "workspace already initialized" with wrong port | Database exists on 3307 from a previous failed init; beads uses cached port | `bd init --force --server-port 3307 --prefix <name>` |
+| `.beads/dolt/config.yaml` has wrong port | `bd init` stores the port of the first server it connects to — even an orphan | After `bd init`, verify `listener.port` in `.beads/dolt/config.yaml` is 3307; fix with `sed -i '' 's/port: .*/port: 3307/' .beads/dolt/config.yaml` |
 | Running `bd dolt set database` after `bd init` | Creates a second empty DB, breaks schema link | Let `bd init --prefix` handle it |
 | `bd init --from-jsonl` | Creates schema only, does NOT import data | Use the Python import script above |
 | Looking for Dolt data in `~` | Data lives in `/opt/homebrew/var/dolt` | Always `cd` there for direct `dolt sql` |
