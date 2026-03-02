@@ -284,8 +284,8 @@ class TestCreateItem:
             assert "status/active" in item.labels
             assert "horizon/action" in item.labels
 
-    def test_create_item_adds_source_gtd_label(self, storage: BeadsStorage):
-        """All items created via GTD skill should have source:gtd label."""
+    def test_create_item_adds_gtd_label(self, storage: BeadsStorage):
+        """All items created via GTD skill should have gtd label."""
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
                 _mock_bd_result(stdout="GTD-abc\n"),
@@ -296,7 +296,7 @@ class TestCreateItem:
             cmd = create_call[0][0]
             labels_idx = cmd.index("--labels")
             labels_str = cmd[labels_idx + 1]
-            assert "source:gtd" in labels_str
+            assert "gtd" in labels_str.split(",")
 
 
 class TestGetItem:
@@ -1128,8 +1128,8 @@ class TestCreateMilestone:
             # Should only call bd once (get_milestone), not create
             assert mock_run.call_count == 1
 
-    def test_create_milestone_adds_source_gtd_label(self, storage: BeadsStorage):
-        """All epics created via GTD skill should have source:gtd label."""
+    def test_create_milestone_adds_gtd_label(self, storage: BeadsStorage):
+        """All epics created via GTD skill should have gtd label."""
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
                 _mock_bd_result(stdout=_bd_json([])),  # get_milestone: not found
@@ -1140,7 +1140,7 @@ class TestCreateMilestone:
             create_cmd = mock_run.call_args_list[1][0][0]  # index 1 = create call
             assert "--labels" in create_cmd
             labels_idx = create_cmd.index("--labels")
-            assert create_cmd[labels_idx + 1] == "source:gtd"
+            assert create_cmd[labels_idx + 1] == "gtd"
 
 
 class TestEnsureProject:

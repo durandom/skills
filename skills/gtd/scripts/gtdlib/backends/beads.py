@@ -272,7 +272,7 @@ class BeadsStorage(GTDStorage):
         beads_labels = self._labels_to_beads(labels)
         if project:
             beads_labels.append(f"project:{project}")
-        beads_labels.append("source:gtd")  # Mark as GTD-skill-managed
+        beads_labels.append("gtd")  # Mark as GTD-skill-managed
 
         args = ["create", title, "--labels", ",".join(beads_labels), "--silent"]
         if body:
@@ -696,7 +696,7 @@ class BeadsStorage(GTDStorage):
         if existing:
             return existing
 
-        args = ["create", title, "--type", "epic", "--labels", "source:gtd", "--silent"]
+        args = ["create", title, "--type", "epic", "--labels", "gtd", "--silent"]
         if description:
             args.extend(["--description", description])
 
