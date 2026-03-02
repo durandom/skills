@@ -913,9 +913,7 @@ class TestListMilestones:
 
     def test_list_open_milestones(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = _mock_bd_result(
-                stdout=_bd_json([SAMPLE_EPIC])
-            )
+            mock_run.return_value = _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC]))
             milestones = storage.list_milestones(state="open")
             assert len(milestones) == 1
             assert milestones[0]["title"] == "Ship Website v2"
@@ -954,9 +952,7 @@ class TestListMilestones:
 
     def test_closed_epic_has_state_closed(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = _mock_bd_result(
-                stdout=_bd_json([SAMPLE_EPIC_2])
-            )
+            mock_run.return_value = _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC_2]))
             milestones = storage.list_milestones(state="closed")
             assert milestones[0]["state"] == "closed"
 
@@ -966,9 +962,7 @@ class TestGetMilestone:
 
     def test_get_existing_milestone(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = _mock_bd_result(
-                stdout=_bd_json([SAMPLE_EPIC])
-            )
+            mock_run.return_value = _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC]))
             m = storage.get_milestone("Ship Website v2")
             assert m is not None
             assert m["title"] == "Ship Website v2"
@@ -995,8 +989,8 @@ class TestCreateMilestone:
     def test_create_milestone_uses_epic_type(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
-                _mock_bd_result(stdout=_bd_json([])),    # get_milestone: not found
-                _mock_bd_result(stdout="GTD-epic1\n"),          # bd create --silent
+                _mock_bd_result(stdout=_bd_json([])),  # get_milestone: not found
+                _mock_bd_result(stdout="GTD-epic1\n"),  # bd create --silent
                 _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd show
             ]
             m = storage.create_milestone("Ship Website v2")
@@ -1008,8 +1002,8 @@ class TestCreateMilestone:
     def test_create_milestone_with_description(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
-                _mock_bd_result(stdout=_bd_json([])),    # get_milestone: not found
-                _mock_bd_result(stdout="GTD-epic1\n"),          # bd create --silent
+                _mock_bd_result(stdout=_bd_json([])),  # get_milestone: not found
+                _mock_bd_result(stdout="GTD-epic1\n"),  # bd create --silent
                 _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd show
             ]
             storage.create_milestone("Ship Website v2", description="Relaunch project")
@@ -1022,9 +1016,7 @@ class TestCreateMilestone:
         """If epic with same title exists, return it without creating duplicate."""
         with patch("subprocess.run") as mock_run:
             # get_milestone (single call) returns existing epic
-            mock_run.return_value = _mock_bd_result(
-                stdout=_bd_json([SAMPLE_EPIC])
-            )
+            mock_run.return_value = _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC]))
             m = storage.create_milestone("Ship Website v2")
             assert m["title"] == "Ship Website v2"
             # Should only call bd once (get_milestone), not create
@@ -1036,9 +1028,7 @@ class TestEnsureProject:
 
     def test_ensure_project_returns_existing(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = _mock_bd_result(
-                stdout=_bd_json([SAMPLE_EPIC])
-            )
+            mock_run.return_value = _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC]))
             m = storage.ensure_project("Ship Website v2")
             assert m["title"] == "Ship Website v2"
 
@@ -1047,7 +1037,7 @@ class TestEnsureProject:
             mock_run.side_effect = [
                 _mock_bd_result(stdout=_bd_json([])),  # get_milestone: not found
                 _mock_bd_result(stdout=_bd_json([])),  # get_milestone inside create
-                _mock_bd_result(stdout="GTD-new\n"),   # bd create --silent
+                _mock_bd_result(stdout="GTD-new\n"),  # bd create --silent
                 _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd show
             ]
             m = storage.ensure_project("Ship Website v2")
@@ -1073,7 +1063,7 @@ class TestUpdateMilestone:
     def test_update_milestone_close_state(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
-                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),    # get_milestone
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # get_milestone
                 _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC_2])),  # bd close
                 _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC_2])),  # re-fetch
             ]
@@ -1097,7 +1087,7 @@ class TestDeleteMilestone:
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
                 _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # get_milestone
-                _mock_bd_result(returncode=0, stdout=""),          # bd close --force
+                _mock_bd_result(returncode=0, stdout=""),  # bd close --force
             ]
             result = storage.delete_milestone("Ship Website v2")
             assert result is True

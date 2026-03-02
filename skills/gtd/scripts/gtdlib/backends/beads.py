@@ -447,26 +447,28 @@ class BeadsStorage(GTDStorage):
         # Always send all metadata fields so callers can clear previously-set values.
         # Use --unset-metadata to remove a key, --set-metadata to set/update it.
         if metadata.waiting_for is not None:
-            args.extend([
-                "--set-metadata",
-                f"waiting_for={json.dumps(metadata.waiting_for)}",
-            ])
+            args.extend(
+                [
+                    "--set-metadata",
+                    f"waiting_for={json.dumps(metadata.waiting_for)}",
+                ]
+            )
         else:
             args.extend(["--unset-metadata", "waiting_for"])
 
         blocked_by = metadata.blocked_by or []
-        args.extend([
-            "--set-metadata",
-            f"blocked_by={json.dumps(blocked_by)}",
-        ])
+        args.extend(
+            [
+                "--set-metadata",
+                f"blocked_by={json.dumps(blocked_by)}",
+            ]
+        )
 
         # Empty string clears native due/defer fields in bd.
         due_value = metadata.due.isoformat() if metadata.due is not None else ""
         args.extend(["--due", due_value])
         defer_value = (
-            metadata.defer_until.isoformat()
-            if metadata.defer_until is not None
-            else ""
+            metadata.defer_until.isoformat() if metadata.defer_until is not None else ""
         )
         args.extend(["--defer", defer_value])
 
@@ -673,9 +675,16 @@ class BeadsStorage(GTDStorage):
             epic = data[0] if isinstance(data, list) and data else data
             return self._epic_to_milestone(epic)
         except (RuntimeError, json.JSONDecodeError, IndexError):
-            return {"id": epic_id, "title": title, "description": description or "",
-                    "state": "open", "open_issues": 0, "closed_issues": 0,
-                    "due_on": None, "url": None}
+            return {
+                "id": epic_id,
+                "title": title,
+                "description": description or "",
+                "state": "open",
+                "open_issues": 0,
+                "closed_issues": 0,
+                "due_on": None,
+                "url": None,
+            }
 
     def ensure_project(self, name: str) -> dict:
         """Ensure a GTD project exists as a Beads epic, creating if needed.
