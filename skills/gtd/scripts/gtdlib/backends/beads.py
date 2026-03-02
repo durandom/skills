@@ -10,17 +10,19 @@ Requirements:
 Architecture:
 - GTD labels map to Beads labels via gtd: prefix (context/focus -> gtd:context:focus)
 - Task descriptions are stored in the Beads note body
-- Projects are mapped to project:<name> labels (queryable via --label)
-- GTD metadata (due, defer, waiting_for) is not yet mapped to native bd fields;
-  use the body/description field for now
+- Projects are mapped to Beads epics (--type=epic), listed via bd list --type=epic
+- GTD metadata (due, defer) stored as native bd fields (--due, --defer)
+- GTD metadata (waiting_for, blocked_by) stored as bd --metadata JSON field
 """
 
 from __future__ import annotations
 
 import json
 import subprocess
+from datetime import date
 from typing import TYPE_CHECKING
 
+from ..metadata import GTDMetadata
 from ..storage import GTDItem, GTDStorage, StorageNotSetupError
 
 if TYPE_CHECKING:
@@ -129,6 +131,10 @@ class BeadsStorage(GTDStorage):
         - status (open/closed) -> state
         - labels with gtd: prefix -> labels
         - labels with project: prefix -> project
+        - due_at -> item.due (via injected _metadata)
+        - defer_until -> item.defer_until (via injected _metadata)
+        - metadata.waiting_for -> item.waiting_for (via injected _metadata)
+        - metadata.blocked_by -> item.blocked_by (via injected _metadata)
         - created_at -> created_at
         - closed_at -> closed_at
         """
@@ -140,7 +146,7 @@ class BeadsStorage(GTDStorage):
         status = data.get("status", "open")
         state = "closed" if status == "closed" else "open"
 
-        return GTDItem(
+        item = GTDItem(
             id=data["id"],
             title=data.get("title", ""),
             body=data.get("description") or None,
@@ -150,6 +156,50 @@ class BeadsStorage(GTDStorage):
             url=None,  # Beads has no URL concept
             created_at=data.get("created_at"),
             closed_at=data.get("closed_at"),
+        )
+
+        # Inject native due/defer/metadata fields directly into GTDMetadata
+        # to avoid YAML parsing and enable native bd filtering
+        native_metadata = self._extract_native_metadata(data)
+        if not native_metadata.is_empty():
+            item._metadata = native_metadata
+
+        return item
+
+    def _extract_native_metadata(self, data: dict) -> GTDMetadata:
+        """Build GTDMetadata from bd's native due_at, defer_until, and metadata fields."""
+        due: date | None = None
+        defer_until: date | None = None
+        waiting_for: dict | None = None
+        blocked_by: list[int] = []
+
+        # Native due_at field (ISO timestamp, e.g. "2026-03-15T00:00:00Z")
+        due_at = data.get("due_at")
+        if due_at:
+            try:
+                due = date.fromisoformat(due_at[:10])  # take YYYY-MM-DD part
+            except ValueError:
+                pass
+
+        # Native defer_until field
+        defer_raw = data.get("defer_until")
+        if defer_raw:
+            try:
+                defer_until = date.fromisoformat(defer_raw[:10])
+            except ValueError:
+                pass
+
+        # Native metadata JSON field (dict)
+        bd_metadata = data.get("metadata") or {}
+        if isinstance(bd_metadata, dict):
+            waiting_for = bd_metadata.get("waiting_for")
+            blocked_by = bd_metadata.get("blocked_by") or []
+
+        return GTDMetadata(
+            due=due,
+            defer_until=defer_until,
+            waiting_for=waiting_for,
+            blocked_by=blocked_by,
         )
 
     def _get_item_or_raise(self, item_id: str) -> GTDItem:
@@ -202,6 +252,8 @@ class BeadsStorage(GTDStorage):
         labels: list[str],
         body: str | None = None,
         project: str | None = None,
+        due: str | None = None,
+        defer_until: str | None = None,
     ) -> GTDItem:
         """Create a new GTD item in Beads.
 
@@ -210,6 +262,8 @@ class BeadsStorage(GTDStorage):
             labels: GTD labels (e.g., ["status/active", "context/focus"]).
             body: Optional description text.
             project: Optional project name (stored as project:<name> label).
+            due: Optional due date (YYYY-MM-DD or relative like "+2d", "tomorrow").
+            defer_until: Optional defer date (hides from ready until this date).
 
         Returns:
             Created GTDItem.
@@ -221,6 +275,10 @@ class BeadsStorage(GTDStorage):
         args = ["create", title, "--labels", ",".join(beads_labels), "--silent"]
         if body:
             args.extend(["--description", body])
+        if due:
+            args.extend(["--due", due])
+        if defer_until:
+            args.extend(["--defer", defer_until])
 
         # bd create --silent returns just the ID
         output = self._run_bd(args)
@@ -256,6 +314,8 @@ class BeadsStorage(GTDStorage):
         project: str | None = None,
         limit: int = 100,
         verbose: bool = False,
+        overdue: bool = False,
+        due_before: str | None = None,
     ) -> list[GTDItem]:
         """List items matching criteria.
 
@@ -265,6 +325,8 @@ class BeadsStorage(GTDStorage):
             project: Filter by project name.
             limit: Maximum number of results.
             verbose: If True, print debug output.
+            overdue: If True, filter to past-due unclosed issues (bd --overdue).
+            due_before: Filter to items due before this date (YYYY-MM-DD).
 
         Returns:
             List of matching GTDItems.
@@ -273,6 +335,11 @@ class BeadsStorage(GTDStorage):
 
         if state in ("open", "closed"):
             args.extend(["--status", state])
+
+        if overdue:
+            args.append("--overdue")
+        if due_before:
+            args.extend(["--due-before", due_before])
 
         # Build label filters
         all_labels: list[str] = []
@@ -304,6 +371,8 @@ class BeadsStorage(GTDStorage):
         body: str | None = None,
         labels: list[str] | None = None,
         project: str | None = None,
+        due: str | None = None,
+        defer_until: str | None = None,
     ) -> GTDItem:
         """Update an existing item.
 
@@ -313,6 +382,8 @@ class BeadsStorage(GTDStorage):
             body: New description (or None to keep current).
             labels: New complete label set (replaces all GTD labels).
             project: New project name (or None to keep current).
+            due: New due date (YYYY-MM-DD or relative).
+            defer_until: New defer date.
 
         Returns:
             Updated GTDItem.
@@ -323,6 +394,10 @@ class BeadsStorage(GTDStorage):
             args.extend(["--title", title])
         if body is not None:
             args.extend(["--description", body])
+        if due is not None:
+            args.extend(["--due", due])
+        if defer_until is not None:
+            args.extend(["--defer", defer_until])
 
         if labels is not None:
             beads_labels = self._labels_to_beads(labels)
@@ -352,6 +427,36 @@ class BeadsStorage(GTDStorage):
             if project:
                 updated_labels.append(f"project:{project}")
             args.extend(["--set-labels", ",".join(updated_labels)])
+
+        self._run_bd(args)
+        return self._get_item_or_raise(item_id)
+
+    def update_metadata(self, item_id: str, metadata: GTDMetadata) -> GTDItem:
+        """Update an item's GTD metadata using bd's native --set-metadata flag.
+
+        Args:
+            item_id: Beads issue ID.
+            metadata: New metadata (waiting_for, blocked_by, due, defer_until).
+
+        Returns:
+            Updated GTDItem.
+        """
+        args = ["update", item_id, "--json"]
+
+        if metadata.waiting_for is not None:
+            args.extend([
+                "--set-metadata",
+                f"waiting_for={json.dumps(metadata.waiting_for)}",
+            ])
+        if metadata.blocked_by:
+            args.extend([
+                "--set-metadata",
+                f"blocked_by={json.dumps(metadata.blocked_by)}",
+            ])
+        if metadata.due is not None:
+            args.extend(["--due", metadata.due.isoformat()])
+        if metadata.defer_until is not None:
+            args.extend(["--defer", metadata.defer_until.isoformat()])
 
         self._run_bd(args)
         return self._get_item_or_raise(item_id)
@@ -449,6 +554,182 @@ class BeadsStorage(GTDStorage):
             return data if isinstance(data, list) else []
         except (RuntimeError, json.JSONDecodeError):
             return []
+
+    # --- Epic / Project management ---
+    # Epics are GTD Projects: multi-action outcomes (horizon/project in GTD terms).
+    # Beads epics are returned as "milestone" dicts for compatibility with GitHub/
+    # Taskwarrior backends.
+
+    def _epic_to_milestone(self, data: dict) -> dict:
+        """Convert a bd epic JSON dict to a milestone-compatible dict."""
+        status = data.get("status", "open")
+        state = "closed" if status == "closed" else "open"
+        return {
+            "id": data.get("id"),
+            "title": data.get("title", ""),
+            "description": data.get("description") or "",
+            "due_on": None,
+            "open_issues": data.get("children_open", 0),
+            "closed_issues": data.get("children_closed", 0),
+            "state": state,
+            "url": None,
+        }
+
+    def _list_epics_raw(self, state: str = "open") -> list[dict]:
+        """Query bd for epics, return raw JSON dicts.
+
+        Args:
+            state: "open", "closed", or "all" (omits --status for all).
+        """
+        args = ["list", "--json", "--type", "epic", "--limit", "500"]
+        if state in ("open", "closed"):
+            args.extend(["--status", state])
+        # "all" → no --status flag, bd returns everything
+        output = self._run_bd(args, check=False)
+        if not output.strip():
+            return []
+        try:
+            data = json.loads(output)
+            return data if isinstance(data, list) else []
+        except json.JSONDecodeError:
+            return []
+
+    def list_milestones(self, state: str = "open") -> list[dict]:
+        """List GTD projects (Beads epics) as milestone dicts.
+
+        Args:
+            state: "open", "closed", or "all".
+
+        Returns:
+            List of milestone dicts with: id, title, description, state,
+            open_issues, closed_issues, due_on, url.
+        """
+        epics = self._list_epics_raw(state)
+        return [self._epic_to_milestone(e) for e in epics]
+
+    def get_milestone(self, title: str) -> dict | None:
+        """Get a GTD project (Beads epic) by title.
+
+        Uses a single bd list --type=epic call (no status filter) to find
+        the epic regardless of whether it is open or closed.
+
+        Args:
+            title: Project name to find.
+
+        Returns:
+            Milestone dict or None if not found.
+        """
+        epics = self._list_epics_raw("all")
+        for epic in epics:
+            if epic.get("title") == title:
+                return self._epic_to_milestone(epic)
+        return None
+
+    def create_milestone(
+        self,
+        title: str,
+        description: str | None = None,
+        due_on: str | None = None,
+    ) -> dict:
+        """Create a GTD project as a Beads epic.
+
+        If an epic with the same title already exists, returns it without
+        creating a duplicate.
+
+        Args:
+            title: Project name.
+            description: Optional project description.
+            due_on: Ignored (not yet supported in Beads epics).
+
+        Returns:
+            Milestone dict for the created (or existing) epic.
+        """
+        existing = self.get_milestone(title)
+        if existing:
+            return existing
+
+        args = ["create", title, "--type", "epic", "--silent"]
+        if description:
+            args.extend(["--description", description])
+
+        output = self._run_bd(args)
+        epic_id = output.strip()
+
+        try:
+            raw = self._run_bd(["show", epic_id, "--json"])
+            data = json.loads(raw)
+            epic = data[0] if isinstance(data, list) and data else data
+            return self._epic_to_milestone(epic)
+        except (RuntimeError, json.JSONDecodeError, IndexError):
+            return {"id": epic_id, "title": title, "description": description or "",
+                    "state": "open", "open_issues": 0, "closed_issues": 0,
+                    "due_on": None, "url": None}
+
+    def ensure_project(self, name: str) -> dict:
+        """Ensure a GTD project exists as a Beads epic, creating if needed.
+
+        Args:
+            name: Project name.
+
+        Returns:
+            Milestone dict.
+        """
+        existing = self.get_milestone(name)
+        if existing:
+            return existing
+        return self.create_milestone(name)
+
+    def update_milestone(
+        self,
+        title: str,
+        *,
+        description: str | None = None,
+        due_on: str | None = None,
+        state: str | None = None,
+    ) -> dict | None:
+        """Update a GTD project (Beads epic).
+
+        Args:
+            title: Project name to find.
+            description: New description (optional).
+            due_on: Ignored (not yet supported).
+            state: "open" or "closed" — closes/reopens the epic.
+
+        Returns:
+            Updated milestone dict, or None if not found.
+        """
+        milestone = self.get_milestone(title)
+        if not milestone:
+            return None
+
+        epic_id = milestone["id"]
+
+        if description is not None:
+            self._run_bd(["update", epic_id, "--description", description, "--json"])
+
+        if state == "closed" and milestone["state"] != "closed":
+            self._run_bd(["close", epic_id, "--json"], check=False)
+        elif state == "open" and milestone["state"] == "closed":
+            self._run_bd(["reopen", epic_id, "--json"], check=False)
+
+        return self.get_milestone(title) or milestone
+
+    def delete_milestone(self, title: str) -> bool:
+        """Delete a GTD project by closing its Beads epic.
+
+        Args:
+            title: Project name to delete.
+
+        Returns:
+            True if found and closed, False if not found.
+        """
+        milestone = self.get_milestone(title)
+        if not milestone:
+            return False
+
+        epic_id = milestone["id"]
+        self._run_bd(["close", epic_id, "--force"], check=False)
+        return True
 
     # --- Label introspection (inherited stubs) ---
 
