@@ -10,7 +10,8 @@ Requirements:
 Architecture:
 - GTD labels map to Beads labels via gtd: prefix (context/focus -> gtd:context:focus)
 - Task descriptions are stored in the Beads note body
-- Projects are mapped to Beads epics (--type=epic), listed via bd list --type=epic
+- Projects use a hybrid model: Beads epics (--type=epic) act as the project registry
+  and items are associated with projects via project:<name> labels (used for filtering).
 - GTD metadata (due, defer) stored as native bd fields (--due, --defer)
 - GTD metadata (waiting_for, blocked_by) stored as bd --metadata JSON field
 """
@@ -167,7 +168,7 @@ class BeadsStorage(GTDStorage):
         return item
 
     def _extract_native_metadata(self, data: dict) -> GTDMetadata:
-        """Build GTDMetadata from bd's native due_at, defer_until, and metadata fields."""
+        """Build GTDMetadata from bd's native due_at, defer_until, metadata fields."""
         due: date | None = None
         defer_until: date | None = None
         waiting_for: dict | None = None
@@ -443,20 +444,31 @@ class BeadsStorage(GTDStorage):
         """
         args = ["update", item_id, "--json"]
 
+        # Always send all metadata fields so callers can clear previously-set values.
+        # Use --unset-metadata to remove a key, --set-metadata to set/update it.
         if metadata.waiting_for is not None:
             args.extend([
                 "--set-metadata",
                 f"waiting_for={json.dumps(metadata.waiting_for)}",
             ])
-        if metadata.blocked_by:
-            args.extend([
-                "--set-metadata",
-                f"blocked_by={json.dumps(metadata.blocked_by)}",
-            ])
-        if metadata.due is not None:
-            args.extend(["--due", metadata.due.isoformat()])
-        if metadata.defer_until is not None:
-            args.extend(["--defer", metadata.defer_until.isoformat()])
+        else:
+            args.extend(["--unset-metadata", "waiting_for"])
+
+        blocked_by = metadata.blocked_by or []
+        args.extend([
+            "--set-metadata",
+            f"blocked_by={json.dumps(blocked_by)}",
+        ])
+
+        # Empty string clears native due/defer fields in bd.
+        due_value = metadata.due.isoformat() if metadata.due is not None else ""
+        args.extend(["--due", due_value])
+        defer_value = (
+            metadata.defer_until.isoformat()
+            if metadata.defer_until is not None
+            else ""
+        )
+        args.extend(["--defer", defer_value])
 
         self._run_bd(args)
         return self._get_item_or_raise(item_id)
@@ -705,7 +717,7 @@ class BeadsStorage(GTDStorage):
         epic_id = milestone["id"]
 
         if description is not None:
-            self._run_bd(["update", epic_id, "--description", description, "--json"])
+            self._run_bd(["update", epic_id, "--json", "--description", description])
 
         if state == "closed" and milestone["state"] != "closed":
             self._run_bd(["close", epic_id, "--json"], check=False)

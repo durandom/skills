@@ -794,6 +794,55 @@ class TestUpdateMetadata:
             cmd = mock_run.call_args_list[0][0][0]
             assert "--set-metadata" in cmd
 
+    def test_update_metadata_clears_waiting_for_when_none(self, storage: BeadsStorage):
+        """Setting waiting_for=None must send --unset-metadata to clear the field."""
+        from gtdlib.metadata import GTDMetadata
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                _mock_bd_result(stdout=_bd_json([SAMPLE_BEAD])),
+                _mock_bd_result(stdout=_bd_json([SAMPLE_BEAD])),
+            ]
+            metadata = GTDMetadata(waiting_for=None)
+            storage.update_metadata("GTD-abc", metadata)
+            cmd = mock_run.call_args_list[0][0][0]
+            assert "--unset-metadata" in cmd
+            idx = cmd.index("--unset-metadata")
+            assert cmd[idx + 1] == "waiting_for"
+
+    def test_update_metadata_clears_due_with_empty_string(self, storage: BeadsStorage):
+        """Setting due=None must send --due '' so bd clears the field."""
+        from gtdlib.metadata import GTDMetadata
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                _mock_bd_result(stdout=_bd_json([SAMPLE_BEAD])),
+                _mock_bd_result(stdout=_bd_json([SAMPLE_BEAD])),
+            ]
+            metadata = GTDMetadata(due=None)
+            storage.update_metadata("GTD-abc", metadata)
+            cmd = mock_run.call_args_list[0][0][0]
+            assert "--due" in cmd
+            assert cmd[cmd.index("--due") + 1] == ""
+
+    def test_update_metadata_always_sends_blocked_by(self, storage: BeadsStorage):
+        """Empty blocked_by [] must still be sent (not skipped) to clear the list."""
+        from gtdlib.metadata import GTDMetadata
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                _mock_bd_result(stdout=_bd_json([SAMPLE_BEAD])),
+                _mock_bd_result(stdout=_bd_json([SAMPLE_BEAD])),
+            ]
+            metadata = GTDMetadata(blocked_by=[])
+            storage.update_metadata("GTD-abc", metadata)
+            cmd = mock_run.call_args_list[0][0][0]
+            # Must include blocked_by=[] to clear previously-set value
+            assert "--set-metadata" in cmd
+            meta_indices = [i for i, x in enumerate(cmd) if x == "--set-metadata"]
+            meta_values = [cmd[i + 1] for i in meta_indices]
+            assert any("blocked_by" in v for v in meta_values)
+
 
 class TestParseMetadataFromBeadsJSON:
     """Test that bd's native metadata JSON populates GTDItem.waiting_for/blocked_by."""
@@ -946,9 +995,9 @@ class TestCreateMilestone:
     def test_create_milestone_uses_epic_type(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
-                _mock_bd_result(stdout=_bd_json([])),              # get_milestone (not found)
-                _mock_bd_result(stdout="GTD-epic1\n"),             # bd create --silent
-                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),   # bd show
+                _mock_bd_result(stdout=_bd_json([])),    # get_milestone: not found
+                _mock_bd_result(stdout="GTD-epic1\n"),          # bd create --silent
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd show
             ]
             m = storage.create_milestone("Ship Website v2")
             assert m["title"] == "Ship Website v2"
@@ -959,9 +1008,9 @@ class TestCreateMilestone:
     def test_create_milestone_with_description(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
-                _mock_bd_result(stdout=_bd_json([])),              # get_milestone (not found)
-                _mock_bd_result(stdout="GTD-epic1\n"),             # bd create --silent
-                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),   # bd show
+                _mock_bd_result(stdout=_bd_json([])),    # get_milestone: not found
+                _mock_bd_result(stdout="GTD-epic1\n"),          # bd create --silent
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd show
             ]
             storage.create_milestone("Ship Website v2", description="Relaunch project")
             create_cmd = mock_run.call_args_list[1][0][0]  # index 1 = create
@@ -996,9 +1045,9 @@ class TestEnsureProject:
     def test_ensure_project_creates_if_missing(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
-                _mock_bd_result(stdout=_bd_json([])),         # list_milestones (empty)
-                _mock_bd_result(stdout=_bd_json([])),         # get_milestone inside create_milestone
-                _mock_bd_result(stdout="GTD-new\n"),          # bd create --silent
+                _mock_bd_result(stdout=_bd_json([])),  # get_milestone: not found
+                _mock_bd_result(stdout=_bd_json([])),  # get_milestone inside create
+                _mock_bd_result(stdout="GTD-new\n"),   # bd create --silent
                 _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd show
             ]
             m = storage.ensure_project("Ship Website v2")
@@ -1011,9 +1060,9 @@ class TestUpdateMilestone:
     def test_update_milestone_description(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
-                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # get_milestone (find)
-                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd update --description
-                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # get_milestone (re-fetch)
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # get_milestone
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd update
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # re-fetch
             ]
             m = storage.update_milestone("Ship Website v2", description="New desc")
             assert m is not None
@@ -1024,9 +1073,9 @@ class TestUpdateMilestone:
     def test_update_milestone_close_state(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
-                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),    # get_milestone (find, state=open)
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),    # get_milestone
                 _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC_2])),  # bd close
-                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC_2])),  # get_milestone (re-fetch)
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC_2])),  # re-fetch
             ]
             m = storage.update_milestone("Ship Website v2", state="closed")
             assert m is not None
