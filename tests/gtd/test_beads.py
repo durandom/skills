@@ -789,6 +789,38 @@ class TestParseDueFromBeadsJSON:
             assert item.due is None
             assert item.defer_until is None
 
+    def test_due_at_utc_timestamp_converts_to_local_date(self, storage: BeadsStorage):
+        """due_at is converted to local date, not naively sliced as UTC string.
+
+        bd stores due_at in UTC. A user in UTC+1 (CET) setting "2026-03-03" causes
+        bd to store "2026-03-02T23:00:00Z". Naively taking [:10] yields "2026-03-02"
+        (wrong: one day off). We must convert to local date first.
+        """
+        from datetime import date as date_type, datetime
+
+        due_at_utc = "2026-03-02T23:00:00Z"
+        # Compute expected date via proper UTC→local conversion (same as the fix)
+        expected = (
+            datetime.fromisoformat("2026-03-02T23:00:00+00:00")
+            .astimezone(tz=None)
+            .date()
+        )
+        bead = {**SAMPLE_BEAD, "due_at": due_at_utc}
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = _mock_bd_result(stdout=_bd_json([bead]))
+            item = storage.get_item("GTD-abc")
+            assert item.due == expected
+            # In timezones > UTC, the local date must differ from naive UTC slice
+            import time
+
+            utc_offset_hours = -time.timezone / 3600
+            naive_slice = date_type.fromisoformat(due_at_utc[:10])  # "2026-03-02"
+            if utc_offset_hours > 0:
+                assert item.due != naive_slice, (
+                    "Timezone off-by-one bug: due date was naively sliced as UTC "
+                    f"({naive_slice}) instead of converted to local date ({expected})"
+                )
+
 
 class TestListItemsWithDueFilters:
     """Test list_items passes --overdue and --due-before flags."""

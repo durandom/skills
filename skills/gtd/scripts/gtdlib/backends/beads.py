@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING
 
 from ..metadata import GTDMetadata
@@ -175,19 +175,23 @@ class BeadsStorage(GTDStorage):
         blocked_by: list[int] = []
 
         # Native due_at field (ISO timestamp, e.g. "2026-03-15T00:00:00Z")
+        # bd stores due_at in UTC. We convert to local date so that a user setting
+        # "2026-03-03" in UTC+1 (CET) doesn't get shifted back to "2026-03-02".
         due_at = data.get("due_at")
         if due_at:
             try:
-                due = date.fromisoformat(due_at[:10])  # take YYYY-MM-DD part
-            except ValueError:
+                dt = datetime.fromisoformat(due_at.replace("Z", "+00:00"))
+                due = dt.astimezone(tz=None).date()  # local date
+            except (ValueError, AttributeError):
                 pass
 
-        # Native defer_until field
+        # Native defer_until field (same UTC→local conversion)
         defer_raw = data.get("defer_until")
         if defer_raw:
             try:
-                defer_until = date.fromisoformat(defer_raw[:10])
-            except ValueError:
+                dt = datetime.fromisoformat(defer_raw.replace("Z", "+00:00"))
+                defer_until = dt.astimezone(tz=None).date()  # local date
+            except (ValueError, AttributeError):
                 pass
 
         # Native metadata JSON field (dict)
