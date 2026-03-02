@@ -280,6 +280,9 @@ class BeadsStorage(GTDStorage):
             args.extend(["--due", due])
         if defer_until:
             args.extend(["--defer", defer_until])
+        if project:
+            milestone = self.ensure_project(project)
+            args.extend(["--parent", milestone["id"]])
 
         # bd create --silent returns just the ID
         output = self._run_bd(args)
@@ -389,6 +392,11 @@ class BeadsStorage(GTDStorage):
         Returns:
             Updated GTDItem.
         """
+        epic_id = None
+        if project:
+            milestone = self.ensure_project(project)
+            epic_id = milestone["id"]
+
         args = ["update", item_id, "--json"]
 
         if title is not None:
@@ -428,6 +436,9 @@ class BeadsStorage(GTDStorage):
             if project:
                 updated_labels.append(f"project:{project}")
             args.extend(["--set-labels", ",".join(updated_labels)])
+
+        if epic_id:
+            args.extend(["--parent", epic_id])
 
         self._run_bd(args)
         return self._get_item_or_raise(item_id)

@@ -73,7 +73,6 @@ SAMPLE_BEAD_CLOSED = {
     "close_reason": "Closed",
 }
 
-
 @pytest.fixture
 def storage() -> BeadsStorage:
     """Create a BeadsStorage instance for testing."""
@@ -217,11 +216,14 @@ class TestCreateItem:
 
     def test_create_item_with_project_label(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
+            website_epic = {**SAMPLE_EPIC, "id": "GTD-epic1", "title": "website"}
             bead_with_project = {
                 **SAMPLE_BEAD,
                 "labels": ["gtd:status:active", "project:website"],
             }
             mock_run.side_effect = [
+                # ensure_project → get_milestone → _list_epics_raw
+                _mock_bd_result(stdout=_bd_json([website_epic])),
                 _mock_bd_result(stdout="GTD-abc\n"),
                 _mock_bd_result(stdout=_bd_json([bead_with_project])),
             ]
@@ -230,10 +232,37 @@ class TestCreateItem:
                 labels=["status/active"],
                 project="website",
             )
-            create_call = mock_run.call_args_list[0]
+            create_call = mock_run.call_args_list[1]
             cmd = create_call[0][0]
             labels_idx = cmd.index("--labels")
             assert "project:website" in cmd[labels_idx + 1]
+
+    def test_create_item_with_project_sets_parent(self, storage: BeadsStorage):
+        """Creating an item with project must pass --parent <epic-id> to bd create."""
+        with patch("subprocess.run") as mock_run:
+            website_epic = {**SAMPLE_EPIC, "id": "GTD-epic1", "title": "website"}
+            bead_with_project = {
+                **SAMPLE_BEAD,
+                "labels": ["gtd:status:active", "project:website"],
+            }
+            mock_run.side_effect = [
+                # ensure_project → get_milestone → _list_epics_raw
+                _mock_bd_result(stdout=_bd_json([website_epic])),
+                # bd create --silent
+                _mock_bd_result(stdout="GTD-abc\n"),
+                # bd show (get_item)
+                _mock_bd_result(stdout=_bd_json([bead_with_project])),
+            ]
+            storage.create_item(
+                title="Write docs",
+                labels=["status/active"],
+                project="website",
+            )
+            create_call = mock_run.call_args_list[1]
+            cmd = create_call[0][0]
+            assert "--parent" in cmd
+            parent_idx = cmd.index("--parent")
+            assert cmd[parent_idx + 1] == "GTD-epic1"
 
     def test_create_item_with_multiple_labels(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
@@ -429,7 +458,10 @@ class TestUpdateItem:
                 **SAMPLE_BEAD,
                 "labels": ["gtd:status:someday", "project:newproj"],
             }
+            newproj_epic = {**SAMPLE_EPIC, "id": "GTD-epic2", "title": "newproj"}
             mock_run.side_effect = [
+                # ensure_project → get_milestone → _list_epics_raw
+                _mock_bd_result(stdout=_bd_json([newproj_epic])),
                 # _get_current_beads_labels
                 _mock_bd_result(stdout=_bd_json([current_bead])),
                 _mock_bd_result(stdout=_bd_json([updated_bead])),  # update
@@ -437,6 +469,32 @@ class TestUpdateItem:
             ]
             item = storage.update_item("GTD-abc", project="newproj")
             assert item.project == "newproj"
+
+    def test_update_project_sets_parent(self, storage: BeadsStorage):
+        """Updating project must pass --parent <epic-id> to bd update."""
+        with patch("subprocess.run") as mock_run:
+            current_bead = {**SAMPLE_BEAD, "labels": ["gtd:status:someday"]}
+            updated_bead = {
+                **SAMPLE_BEAD,
+                "labels": ["gtd:status:someday", "project:newproj"],
+            }
+            newproj_epic = {**SAMPLE_EPIC, "id": "GTD-epic2", "title": "newproj"}
+            mock_run.side_effect = [
+                # ensure_project → get_milestone → _list_epics_raw
+                _mock_bd_result(stdout=_bd_json([newproj_epic])),
+                # _get_current_beads_labels
+                _mock_bd_result(stdout=_bd_json([current_bead])),
+                # bd update
+                _mock_bd_result(stdout=_bd_json([updated_bead])),
+                # _get_item_or_raise (show)
+                _mock_bd_result(stdout=_bd_json([updated_bead])),
+            ]
+            storage.update_item("GTD-abc", project="newproj")
+            update_call = mock_run.call_args_list[2]
+            cmd = update_call[0][0]
+            assert "--parent" in cmd
+            parent_idx = cmd.index("--parent")
+            assert cmd[parent_idx + 1] == "GTD-epic2"
 
 
 class TestAddRemoveLabels:
