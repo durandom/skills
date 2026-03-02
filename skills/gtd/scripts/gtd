@@ -1976,27 +1976,25 @@ def cmd_project_show(args) -> int:
         due = milestone["due_on"][:10]
         print(f"\nDue: {due}")
 
-    # Progress
-    open_issues = milestone.get("open_issues", 0)
-    closed_issues = milestone.get("closed_issues", 0)
-    total = open_issues + closed_issues
+    # Fetch items first so progress counts are accurate
+    items = storage.list_items(project=title, state="all", limit=50)
+    open_items = [i for i in items if i.state == "open"]
+    closed_items = [i for i in items if i.state == "closed"]
 
+    # Progress (derived from actual items, not the milestone dict which may be stale)
+    total = len(open_items) + len(closed_items)
     if total > 0:
-        pct = int((closed_issues / total) * 100)
+        pct = int((len(closed_items) / total) * 100)
         bar_len = 20
-        filled = int(bar_len * closed_issues / total)
+        filled = int(bar_len * len(closed_items) / total)
         bar = "█" * filled + "░" * (bar_len - filled)
-        print(f"\nProgress: [{bar}] {pct}% ({closed_issues}/{total})")
+        print(f"\nProgress: [{bar}] {pct}% ({len(closed_items)}/{total})")
     else:
         print("\nNo actions yet")
 
     # List actions in this project
     print(f"\n{BOLD}Actions:{NC}")
-    items = storage.list_items(project=title, state="all", limit=50)
     if items:
-        open_items = [i for i in items if i.state == "open"]
-        closed_items = [i for i in items if i.state == "closed"]
-
         if open_items:
             print(f"\n  {YELLOW}Open ({len(open_items)}):{NC}")
             for item in open_items:
