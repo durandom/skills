@@ -971,16 +971,50 @@ class TestListMilestones:
 
     def test_list_open_milestones(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC]))
+            mock_run.side_effect = [
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd list
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd show GTD-epic1
+            ]
             milestones = storage.list_milestones(state="open")
             assert len(milestones) == 1
             assert milestones[0]["title"] == "Ship Website v2"
-            # Verify bd list --type=epic --status=open was called
-            cmd = mock_run.call_args[0][0]
+            # Verify bd list --type=epic --status=open was the first call
+            cmd = mock_run.call_args_list[0][0][0]
             assert "--type" in cmd
             assert cmd[cmd.index("--type") + 1] == "epic"
             assert "--status" in cmd
             assert cmd[cmd.index("--status") + 1] == "open"
+
+    def test_list_milestones_calls_show_per_epic(self, storage: BeadsStorage):
+        """list_milestones calls bd show for each epic to fetch dependents."""
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd list
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd show GTD-epic1
+            ]
+            storage.list_milestones()
+            assert mock_run.call_count == 2
+            show_cmd = mock_run.call_args_list[1][0][0]
+            assert show_cmd[:3] == ["bd", "show", "GTD-epic1"]
+
+    def test_list_milestones_counts_children_from_dependents(self, storage: BeadsStorage):
+        """list_milestones counts open/closed children from the dependents array."""
+        epic_detailed = {
+            **SAMPLE_EPIC,
+            "dependents": [
+                {"id": "GTD-task1", "status": "open", "dependency_type": "parent-child"},
+                {"id": "GTD-task2", "status": "open", "dependency_type": "parent-child"},
+                {"id": "GTD-task3", "status": "closed", "dependency_type": "parent-child"},
+            ],
+        }
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),       # bd list
+                _mock_bd_result(stdout=_bd_json([epic_detailed])),      # bd show
+            ]
+            milestones = storage.list_milestones()
+            assert milestones[0]["open_issues"] == 2
+            assert milestones[0]["closed_issues"] == 1
 
     def test_list_all_milestones(self, storage: BeadsStorage):
         with patch("subprocess.run") as mock_run:

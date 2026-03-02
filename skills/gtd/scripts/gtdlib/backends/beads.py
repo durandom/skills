@@ -589,13 +589,25 @@ class BeadsStorage(GTDStorage):
         """Convert a bd epic JSON dict to a milestone-compatible dict."""
         status = data.get("status", "open")
         state = "closed" if status == "closed" else "open"
+
+        # Count children from dependents array when available (bd show provides this).
+        # Fall back to children_open/children_closed for lightweight bd list records.
+        dependents = data.get("dependents", [])
+        children = [d for d in dependents if d.get("dependency_type") == "parent-child"]
+        if children:
+            open_count = sum(1 for c in children if c.get("status") != "closed")
+            closed_count = sum(1 for c in children if c.get("status") == "closed")
+        else:
+            open_count = data.get("children_open", 0)
+            closed_count = data.get("children_closed", 0)
+
         return {
             "id": data.get("id"),
             "title": data.get("title", ""),
             "description": data.get("description") or "",
             "due_on": None,
-            "open_issues": data.get("children_open", 0),
-            "closed_issues": data.get("children_closed", 0),
+            "open_issues": open_count,
+            "closed_issues": closed_count,
             "state": state,
             "url": None,
         }
@@ -630,7 +642,17 @@ class BeadsStorage(GTDStorage):
             open_issues, closed_issues, due_on, url.
         """
         epics = self._list_epics_raw(state)
-        return [self._epic_to_milestone(e) for e in epics]
+        result = []
+        for epic in epics:
+            epic_id = epic.get("id")
+            try:
+                raw = self._run_bd(["show", epic_id, "--json"])
+                data = json.loads(raw)
+                detailed = data[0] if isinstance(data, list) and data else data
+                result.append(self._epic_to_milestone(detailed))
+            except (RuntimeError, json.JSONDecodeError, IndexError):
+                result.append(self._epic_to_milestone(epic))
+        return result
 
     def get_milestone(self, title: str) -> dict | None:
         """Get a GTD project (Beads epic) by title.
