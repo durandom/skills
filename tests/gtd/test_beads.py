@@ -73,6 +73,7 @@ SAMPLE_BEAD_CLOSED = {
     "close_reason": "Closed",
 }
 
+
 @pytest.fixture
 def storage() -> BeadsStorage:
     """Create a BeadsStorage instance for testing."""
@@ -796,7 +797,8 @@ class TestParseDueFromBeadsJSON:
         bd to store "2026-03-02T23:00:00Z". Naively taking [:10] yields "2026-03-02"
         (wrong: one day off). We must convert to local date first.
         """
-        from datetime import date as date_type, datetime
+        from datetime import date as date_type
+        from datetime import datetime
 
         due_at_utc = "2026-03-02T23:00:00Z"
         # Compute expected date via proper UTC→local conversion (same as the fix)
@@ -1043,20 +1045,34 @@ class TestListMilestones:
             show_cmd = mock_run.call_args_list[1][0][0]
             assert show_cmd[:3] == ["bd", "show", "GTD-epic1"]
 
-    def test_list_milestones_counts_children_from_dependents(self, storage: BeadsStorage):
+    def test_list_milestones_counts_children_from_dependents(
+        self, storage: BeadsStorage
+    ):
         """list_milestones counts open/closed children from the dependents array."""
         epic_detailed = {
             **SAMPLE_EPIC,
             "dependents": [
-                {"id": "GTD-task1", "status": "open", "dependency_type": "parent-child"},
-                {"id": "GTD-task2", "status": "open", "dependency_type": "parent-child"},
-                {"id": "GTD-task3", "status": "closed", "dependency_type": "parent-child"},
+                {
+                    "id": "GTD-task1",
+                    "status": "open",
+                    "dependency_type": "parent-child",
+                },
+                {
+                    "id": "GTD-task2",
+                    "status": "open",
+                    "dependency_type": "parent-child",
+                },
+                {
+                    "id": "GTD-task3",
+                    "status": "closed",
+                    "dependency_type": "parent-child",
+                },
             ],
         }
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
-                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),       # bd list
-                _mock_bd_result(stdout=_bd_json([epic_detailed])),      # bd show
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd list
+                _mock_bd_result(stdout=_bd_json([epic_detailed])),  # bd show
             ]
             milestones = storage.list_milestones()
             assert milestones[0]["open_issues"] == 2

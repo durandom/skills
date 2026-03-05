@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
-import sys
-from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -83,7 +81,7 @@ class TestCmdProjectShow:
         milestone = _make_milestone(
             "Test Project",
             description="My project",
-            open_issues=0,   # stale — bd list never populates this
+            open_issues=0,  # stale — bd list never populates this
             closed_issues=0,
         )
         open_item = _make_item("GTD-task1", "Write something", state="open")

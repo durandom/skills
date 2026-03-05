@@ -15,3 +15,6 @@ dist/
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+
+# beads issue tracker local data (not part of repo)
+.beads/
