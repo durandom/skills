@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
-import sys
-from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
