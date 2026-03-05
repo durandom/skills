@@ -9,7 +9,7 @@ description: Design, audit, and improve Claude Code skills (SKILL.md files). Hel
   for issues, asking what architecture to use, fixing a skill that never triggers,
   adding a component to an existing skill, or improving any aspect of a skill.
 allowed-tools: Skill(skill-creator)
-compatibility: Requires skill-creator to be installed as a project skill in .claude/skills/skill-creator/. Designed for Claude Code.
+compatibility: skill-creator recommended for creation and description optimization workflows. Audit, upgrade, and add-component workflows work without it. Designed for Claude Code.
 ---
 
 <essential_principles>
@@ -43,11 +43,12 @@ What would you like to do?
 
 1. **Choose architecture** — decide between simple, router, or domain-expertise pattern
 2. **Create a new skill** — gather intent, choose architecture, delegate to skill-creator
-3. **Audit an existing skill** — check against spec, generate report, offer fixes
-4. **Add a component** — add a workflow, reference, template, or script to an existing skill
-5. **Upgrade to router** — convert a simple skill to router pattern
-6. **Optimize description** — improve triggering accuracy via skill-creator's eval loop
-7. **Get guidance** — help with a specific question about skill design or best practices
+3. **Create a domain expertise skill** — full lifecycle (build/debug/test/optimize/ship)
+4. **Audit an existing skill** — check against spec, generate report, offer fixes
+5. **Add a component** — add a workflow, reference, template, or script to an existing skill
+6. **Upgrade to router** — convert a simple skill to router pattern
+7. **Optimize description** — improve triggering accuracy via skill-creator's eval loop
+8. **Get guidance** — help with a specific question about skill design or best practices
 
 **Wait for response before proceeding.**
 </intake>
@@ -58,11 +59,12 @@ What would you like to do?
 |----------|----------|
 | 1, "architecture", "which pattern", "what kind" | `workflows/choose-architecture.md` |
 | 2, "create", "new", "build", "make" | `workflows/create-skill.md` |
-| 3, "audit", "check", "review", "analyze" | `workflows/audit-skill.md` |
-| 4, "add", "component", "workflow", "reference", "template", "script" | `workflows/add-component.md` |
-| 5, "upgrade", "router", "convert", "refactor" | `workflows/upgrade-to-router.md` |
-| 6, "optimize", "description", "triggering", "discovery", "CSO" | `workflows/optimize-description.md` |
-| 7, "guidance", "help", "question", "advice" | Answer from references — read `references/writing-philosophy.md` and `references/architecture-patterns.md` |
+| 3, "domain", "expertise", "lifecycle", "full lifecycle" | `workflows/create-domain-expertise.md` |
+| 4, "audit", "check", "review", "analyze" | `workflows/audit-skill.md` |
+| 5, "add", "component", "workflow", "reference", "template", "script" | `workflows/add-component.md` |
+| 6, "upgrade", "router", "convert", "refactor" | `workflows/upgrade-to-router.md` |
+| 7, "optimize", "description", "triggering", "discovery", "CSO" | `workflows/optimize-description.md` |
+| 8, "guidance", "help", "question", "advice" | Answer from references — read `references/writing-philosophy.md` and `references/architecture-patterns.md` |
 
 **Intent-based routing (if the user provides clear intent without selecting a menu item):**
 

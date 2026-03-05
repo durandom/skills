@@ -145,12 +145,11 @@ Or in SKILL.md text, explain that script paths are relative to the SKILL.md file
 Run `skills-ref validate` to check your skill against all spec rules:
 
 ```bash
-# Setup (first time)
-cd ~/src/durandom/skills/agentskills/skills-ref
-uv sync && source .venv/bin/activate
-
-# Validate
+# If skills-ref is on your PATH:
 skills-ref validate path/to/my-skill
+
+# Or via uvx (no install needed):
+uvx skills-ref validate path/to/my-skill
 ```
 
 What it checks:

@@ -120,10 +120,11 @@ Read any referenced workflow and reference files that are relevant.
 ## Step 5: Run Automated Validation
 
 ```bash
-# If skills-ref is available:
-cd ~/src/durandom/skills/agentskills/skills-ref
-source .venv/bin/activate
+# If skills-ref is on your PATH:
 skills-ref validate {skill-path}
+
+# Or via uvx (no install needed):
+uvx skills-ref validate {skill-path}
 ```
 
 Include any validation errors in the report.

@@ -209,16 +209,13 @@ import sys
 
 List the script and its path resolution:
 
-```markdown
-## Available scripts
+    ## Available scripts
 
-- **`scripts/my-script.py`** — [What it does]
+    - **`scripts/my-script.py`** — [What it does]
 
-Script paths are relative to this SKILL.md file. Run with:
-```bash
-uv run scripts/my-script.py --help
-```
-```
+    Script paths are relative to this SKILL.md file. Run with:
+
+        uv run scripts/my-script.py --help
 
 Update the relevant workflow to use the script.
 

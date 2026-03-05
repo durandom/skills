@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from ..metadata import GTDMetadata

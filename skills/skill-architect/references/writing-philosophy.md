@@ -101,7 +101,7 @@ Keep references one level deep from SKILL.md. Avoid deeply nested reference chai
 
 ## Description = Discovery
 
-The `description` field is the **only** thing Claude reads at discovery time. It determines whether the skill is ever used. This is the "CSO problem" (Context Selection Optimization): a great skill that never triggers is useless.
+The `description` field is the **only** thing Claude reads at discovery time. It determines whether the skill is ever used. This is the "CSO problem" (Context Selection Omission): a great skill that never triggers is useless.
 
 Key rules for descriptions:
 - **Third person** — "Audits and improves skills" not "I help you audit skills"
