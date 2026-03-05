@@ -1,7 +1,7 @@
 ---
-description: Create or edit Claude Code skills with expert guidance on structure and best practices
-allowed-tools: Skill(create-agent-skills)
-argument-hint: [skill description or requirements]
+description: Design, audit, and improve Claude Code skills with expert architecture guidance
+allowed-tools: Skill(skill-architect)
+argument-hint: [create / audit / architecture / optimize / add component]
 ---
 
-Invoke the create-agent-skills skill for: $ARGUMENTS
+Invoke the skill-architect skill for: $ARGUMENTS
