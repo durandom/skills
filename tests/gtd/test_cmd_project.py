@@ -81,7 +81,7 @@ class TestCmdProjectShow:
         milestone = _make_milestone(
             "Test Project",
             description="My project",
-            open_issues=0,   # stale — bd list never populates this
+            open_issues=0,  # stale — bd list never populates this
             closed_issues=0,
         )
         open_item = _make_item("GTD-task1", "Write something", state="open")

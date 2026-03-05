@@ -73,6 +73,7 @@ SAMPLE_BEAD_CLOSED = {
     "close_reason": "Closed",
 }
 
+
 @pytest.fixture
 def storage() -> BeadsStorage:
     """Create a BeadsStorage instance for testing."""
@@ -1070,8 +1071,8 @@ class TestListMilestones:
         }
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
-                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),       # bd list
-                _mock_bd_result(stdout=_bd_json([epic_detailed])),      # bd show
+                _mock_bd_result(stdout=_bd_json([SAMPLE_EPIC])),  # bd list
+                _mock_bd_result(stdout=_bd_json([epic_detailed])),  # bd show
             ]
             milestones = storage.list_milestones()
             assert milestones[0]["open_issues"] == 2
