@@ -33,60 +33,18 @@ cm --version     # expect: cass-memory 0.x.x (optional)
 
 <setup>
 
-## Install cass
-
-**macOS (recommended):**
 ```bash
+# Install cass (session indexer)
 brew install dicklesworthstone/tap/cass
-```
+cass index --full   # ~2 min first run
 
-**macOS / Linux (binary download):**
-```bash
-# macOS Apple Silicon
-curl -fsSL "https://github.com/Dicklesworthstone/coding_agent_session_search/releases/latest/download/cass-darwin-arm64.tar.gz" \
-  | tar xz -C ~/.local/bin/
+# Install cm / cass-memory (reflection pipeline) — optional
+brew install dicklesworthstone/tap/cm
+# or one-liner: curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/cass_memory_system/main/install.sh" | bash -s -- --easy-mode --verify
 
-# Linux x86_64
-curl -fsSL "https://github.com/Dicklesworthstone/coding_agent_session_search/releases/latest/download/cass-linux-amd64.tar.gz" \
-  | tar xz -C ~/.local/bin/
-```
-
-> Note: `cargo install cass` does NOT work — build requires unpublished local path dependencies.
-
-**First index (required after install):**
-```bash
-cass index --full   # ~2 min for ~9k sessions
-cass health         # should print: Healthy
-```
-
-**Enable semantic search (optional, requires model download ~90MB):**
-```bash
-cass models install
-cass index --semantic
-```
-
----
-
-## Install cass-memory (`cm`) — optional
-
-`cm` turns raw sessions into a persistent playbook of procedural rules via LLM reflection. It calls `cass` as a subprocess.
-
-```bash
-# Requires Bun runtime: https://bun.sh
-git clone https://github.com/Dicklesworthstone/cass_memory_system
-cd cass_memory_system
-bun install
-bun run build
-cp dist/cass-memory ~/.local/bin/cm
-
-# Configure LLM provider (one of):
+# Configure LLM provider for cm (one of):
 export ANTHROPIC_API_KEY=sk-ant-...
-# export OPENAI_API_KEY=sk-...
-# export GOOGLE_GENERATIVE_AI_API_KEY=...
-
-# Initialize
-cm init        # creates ~/.cass-memory/config.json
-cm doctor      # verify: cass OK + LLM OK
+cm init && cm doctor   # verify cass + LLM OK
 ```
 
 </setup>
