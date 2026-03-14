@@ -71,7 +71,7 @@ Output fields in `--fields summary`: `source_path`, `line_number`, `agent`, `tit
 
 ```bash
 # Export to stdout (review inline)
-cass export ~/.claude/projects/<encoded-path>/<session-id>.jsonl
+cass export ~/.claude/projects/<workspace-encoded>/<session-id>.jsonl
 
 # Export to file
 cass export <path-to-session.jsonl> -o /tmp/session.md
@@ -126,7 +126,7 @@ cass expand <path-to-session.jsonl> --line <line_number>
 - Use `--workspace $(pwd)` to scope to the current project.
 - `cass search --robot-format sessions` outputs paths only — useful for piping into export or chained searches.
 - For semantic search (finds conceptually related content): `cass search "topic" --mode semantic`
-- Session paths follow this pattern: `~/.claude/projects/<dir-path-with-dashes>/<uuid>.jsonl`
+- Session paths follow this pattern: `~/.claude/projects/<workspace-encoded>/<uuid>.jsonl`
 
 </process>
 
