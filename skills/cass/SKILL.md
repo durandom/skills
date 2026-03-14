@@ -2,16 +2,94 @@
 name: cass
 description: >
   Searches, indexes, and exports Claude Code sessions using the cass CLI (Coding Agent Session
-  Search). Use when the user wants to find past sessions, search conversation history, look up
-  prior work on a topic, export a session to markdown, discover related sessions for a file, or
-  check session activity timelines. Triggers on: "search my sessions", "find past work on X",
-  "export session", "look in my history", "what sessions do I have about", "find related sessions",
-  "when did I work on".
+  Search), and optionally runs the cass-memory (cm) reflection pipeline to distill sessions into
+  persistent playbook rules. Use when the user wants to install cass or cass-memory, find past
+  sessions, search conversation history, look up prior work on a topic, export a session to
+  markdown, discover related sessions for a file, check session activity timelines, or reflect on
+  past sessions to build procedural memory. Triggers on: "search my sessions", "find past work on
+  X", "export session", "look in my history", "what sessions do I have about", "find related
+  sessions", "when did I work on", "install cass", "setup cass-memory", "reflect on sessions",
+  "build playbook", "cm reflect".
 ---
 
 <objective>
-Help the user search, explore, and export their Claude Code sessions using the `cass` CLI.
+Help the user install, search, explore, and export their Claude Code sessions using the `cass` CLI and the optional `cass-memory` (`cm`) reflection pipeline.
 </objective>
+
+<requirements>
+Two tools — independent, loosely coupled:
+
+| Tool | Role | Required |
+|------|------|----------|
+| `cass` | Infrastructure: index, search, export sessions | Yes |
+| `cm` (`cass-memory`) | Intelligence: reflect on sessions, build playbook rules | Optional |
+
+Check if installed:
+```bash
+cass --version   # expect: cass 0.x.x
+cm --version     # expect: cass-memory 0.x.x (optional)
+```
+</requirements>
+
+<setup>
+
+## Install cass
+
+**macOS (recommended):**
+```bash
+brew install dicklesworthstone/tap/cass
+```
+
+**macOS / Linux (binary download):**
+```bash
+# macOS Apple Silicon
+curl -fsSL "https://github.com/Dicklesworthstone/coding_agent_session_search/releases/latest/download/cass-darwin-arm64.tar.gz" \
+  | tar xz -C ~/.local/bin/
+
+# Linux x86_64
+curl -fsSL "https://github.com/Dicklesworthstone/coding_agent_session_search/releases/latest/download/cass-linux-amd64.tar.gz" \
+  | tar xz -C ~/.local/bin/
+```
+
+> Note: `cargo install cass` does NOT work — build requires unpublished local path dependencies.
+
+**First index (required after install):**
+```bash
+cass index --full   # ~2 min for ~9k sessions
+cass health         # should print: Healthy
+```
+
+**Enable semantic search (optional, requires model download ~90MB):**
+```bash
+cass models install
+cass index --semantic
+```
+
+---
+
+## Install cass-memory (`cm`) — optional
+
+`cm` turns raw sessions into a persistent playbook of procedural rules via LLM reflection. It calls `cass` as a subprocess.
+
+```bash
+# Requires Bun runtime: https://bun.sh
+git clone https://github.com/Dicklesworthstone/cass_memory_system
+cd cass_memory_system
+bun install
+bun run build
+cp dist/cass-memory ~/.local/bin/cm
+
+# Configure LLM provider (one of):
+export ANTHROPIC_API_KEY=sk-ant-...
+# export OPENAI_API_KEY=sk-...
+# export GOOGLE_GENERATIVE_AI_API_KEY=...
+
+# Initialize
+cm init        # creates ~/.cass-memory/config.json
+cm doctor      # verify: cass OK + LLM OK
+```
+
+</setup>
 
 <quick_start>
 1. Check index freshness: `cass status --json`
@@ -108,6 +186,31 @@ When `cass search` returns a `line_number`, use `expand` to see surrounding mess
 cass expand <path-to-session.jsonl> --line <line_number>
 ```
 
+### Reflect on sessions with cass-memory (`cm`)
+
+```bash
+# Preview what would be processed (dry run)
+cm reflect --days 7 --max-sessions 3 --dry-run
+
+# Run reflection: exports sessions → LLM diary → playbook rules
+cm reflect --days 7 --max-sessions 5
+
+# View current playbook rules
+cm playbook
+
+# Get context snippets for current workspace
+cm context --workspace $(pwd)
+
+# Check what cm knows about a topic
+cm search "rate limiting"
+
+# Health check (verifies cass + LLM connection)
+cm doctor
+
+# Daily cron: index + reflect on yesterday's sessions
+# 0 8 * * * cass index && cm reflect --days 1
+```
+
 ---
 
 ## Step 3: Present Results
@@ -136,4 +239,10 @@ Session search/exploration is complete when:
 - [ ] Index freshness verified (and refreshed if needed)
 - [ ] User's sessions found or confirmed absent
 - [ ] Relevant session content surfaced (exported/expanded as needed)
+
+cass-memory reflection is complete when:
+
+- [ ] `cm doctor` shows cass: OK and LLM: OK
+- [ ] `cm reflect` ran without errors
+- [ ] `cm playbook` shows updated rules
 </success_criteria>
