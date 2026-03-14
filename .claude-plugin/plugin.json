@@ -1,7 +1,7 @@
 {
   "name": "ds",
   "description": "Claude Code skills collection - code mapping, GTD, knowledge management, and more",
-  "version": "3.5.0",
+  "version": "3.6.0",
   "author": {
     "name": "durandom"
   },
@@ -16,6 +16,7 @@
     "crawl4ai",
     "meeting-notes",
     "jira",
+    "cass",
     "skills"
   ]
 }
