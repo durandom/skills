@@ -432,40 +432,56 @@ scripts/helper.py
 
 ## YAML Frontmatter Requirements
 
-Per the [Agent Skills Specification](https://agentskills.io/specification):
+Two specifications apply. **Read the source before authoring non-trivial skills** — Claude Code's feature set moves faster than this recipe:
+
+- **Portable baseline** — [agentskills.io/specification](https://agentskills.io/specification). Works across any agentskills-compatible tool.
+- **Claude Code extensions** — [code.claude.com/docs/en/skills#frontmatter-reference](https://code.claude.com/docs/en/skills#frontmatter-reference). Adds invocation control, subagent execution, dynamic context. **Also applies to `.claude/commands/*.md`** — custom commands have been merged into skills (a `commands/deploy.md` and `skills/deploy/SKILL.md` both produce `/deploy`).
+
+### Portable baseline (agentskills.io)
 
 ```yaml
 ---
-name: skill-name              # Required. lowercase-with-hyphens, max 64 chars
+name: skill-name              # Required. lowercase + hyphens, max 64 chars, must match dir name
 description: ...              # Required. Max 1024 chars, non-empty, third person
 license: Apache-2.0           # Optional. License name or reference to bundled file
 compatibility: Requires git   # Optional. Max 500 chars. Environment requirements
 allowed-tools: Bash(git:*) Read  # Optional (experimental). Space-delimited pre-approved tools
-metadata:                     # Optional. Arbitrary key-value pairs for client-specific data
+metadata:                     # Optional. String-to-string key-value pairs
   author: example-org
   version: "1.0"
 ---
 ```
 
-| Field | Required | Constraints |
-|-------|----------|-------------|
-| `name` | Yes | Max 64 chars. Lowercase letters, numbers, hyphens. Must match parent directory name. |
-| `description` | Yes | Max 1024 chars. Non-empty. What + when to use. |
-| `license` | No | License name or reference to bundled license file. |
-| `compatibility` | No | Max 500 chars. Intended product, system packages, network access, etc. |
-| `allowed-tools` | No | Space-delimited list of pre-approved tools. (Experimental) |
-| `metadata` | No | String-to-string key-value mapping for additional properties. |
+Name rules: `a-z`, `0-9`, `-` only. No leading/trailing `-`, no `--`. Must match parent directory name.
 
-### Name validation rules
+Naming conventions: `create-*`, `manage-*`, `setup-*`, `generate-*`, `build-*`, or gerund form (`processing-pdfs`, `analyzing-spreadsheets`).
 
-- Only Unicode lowercase alphanumeric characters and hyphens (`a-z`, `0-9`, `-`)
-- Cannot start or end with `-`
-- No consecutive hyphens (`--`)
-- **Must match the parent directory name** (e.g., `name: pdf-processing` requires the directory to be `pdf-processing/`)
+### Claude Code extensions
 
-**Naming conventions:** `create-*`, `manage-*`, `setup-*`, `generate-*`, `build-*`
+Claude Code relaxes the baseline: `name` is optional (defaults to directory name), and all fields are technically optional (only `description` is recommended). It also adds these fields:
 
-Or gerund form: `processing-pdfs`, `analyzing-spreadsheets`, `testing-code`
+| Field | Purpose |
+|-------|---------|
+| `when_to_use` | Extra trigger context. Appended to `description` in the skill listing. |
+| `argument-hint` | Autocomplete hint, e.g. `[issue-number]`. |
+| `disable-model-invocation` | `true` = only the user can invoke. Use for `/commit`, `/deploy`. |
+| `user-invocable` | `false` = hidden from the `/` menu; only Claude invokes. |
+| `model` | Override model while skill is active. |
+| `effort` | `low` / `medium` / `high` / `max` (Opus 4.6 only). Overrides session effort. |
+| `context` | `fork` runs the skill in a forked subagent context. |
+| `agent` | Subagent type when `context: fork` (e.g. `Explore`, `Plan`, `general-purpose`). |
+| `hooks` | Lifecycle hooks scoped to this skill. |
+| `paths` | Glob patterns limiting auto-activation to matching files. |
+| `shell` | `bash` (default) or `powershell` for `` !`command` `` and ` ```! ` blocks. |
+
+For full semantics of any extension field (especially `context: fork`, `hooks`, `paths`), open the official page rather than guessing.
+
+### Description budget
+
+- agentskills.io caps `description` at **1024 chars**.
+- Claude Code caps the combined `description` + `when_to_use` at **1,536 chars** per entry in the skill listing. The overall listing budget scales at 1% of the context window (fallback 8,000 chars), tunable via `SLASH_COMMAND_TOOL_CHAR_BUDGET`.
+
+Front-load the key use case — trailing text gets truncated first.
 
 ---
 
