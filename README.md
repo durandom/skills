@@ -40,13 +40,13 @@ Hierarchical documentation with **4 zoom levels**:
 
 ```bash
 # 🔧 Generate code maps from source
-uv run python skills/codebase/code-mapping/scripts/code_map.py generate src/ docs/map/
+uv run python skills/code/code-mapping/scripts/code_map.py generate src/ docs/map/
 
 # ✅ Validate existing maps
-uv run python skills/codebase/code-mapping/scripts/code_map.py validate docs/map/
+uv run python skills/code/code-mapping/scripts/code_map.py validate docs/map/
 ```
 
-📚 [Full Documentation →](skills/codebase/code-mapping/SKILL.md)
+📚 [Full Documentation →](skills/code/code-mapping/SKILL.md)
 
 ---
 
@@ -184,7 +184,7 @@ Reusable patterns for better development — now a proper skill with router and 
 | 📦 **Distribution** | Claude Plugin Authoring |
 | 🏗️ **Architecture** | Python Project Architecture, Keyring Credential Storage |
 
-📚 [Full Documentation →](skills/codebase/recipes/SKILL.md)
+📚 [Full Documentation →](skills/dev-tools/recipes/SKILL.md)
 
 ---
 
@@ -235,13 +235,14 @@ uv run pytest
 ```
 skills/
 ├── 📂 skills/                 # 🧠 Core skills (bucketed for skills.sh discovery)
-│   ├── codebase/              # 🗺️ Code understanding & patterns
-│   │   ├── code-mapping/      # Hierarchical code navigation
-│   │   └── recipes/           # Development patterns and guides
-│   ├── dev-tools/             # 🛠️ External developer tool CLIs
+│   ├── code/                  # 🗺️ Code comprehension
+│   │   └── code-mapping/      # Hierarchical code navigation
+│   ├── dev-tools/             # 🛠️ Developer workflow tools
 │   │   ├── github/            # GitHub CLI operations
-│   │   ├── jira/              # Jira issue management
+│   │   ├── recipes/           # Development patterns and guides
 │   │   └── cass/              # Claude Code session search
+│   ├── integrations/          # 🔌 Third-party SaaS integrations
+│   │   └── jira/              # Jira issue management
 │   ├── knowledge/             # 📚 Personal knowledge & task mgmt
 │   │   ├── gtd/               # GTD task management
 │   │   ├── para/              # PARA organization

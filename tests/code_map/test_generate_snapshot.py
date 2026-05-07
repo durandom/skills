@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Path to code_map.py CLI
 _REPO_ROOT = Path(__file__).parent.parent.parent
-CODE_MAP_CLI = _REPO_ROOT / "skills/codebase/code-mapping/scripts/code_map.py"
+CODE_MAP_CLI = _REPO_ROOT / "skills/code/code-mapping/scripts/code_map.py"
 
 # Get the path to our test fixtures
 FIXTURES_DIR = Path(__file__).parent.parent.parent / "fixtures"
