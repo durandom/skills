@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 
 # Add gtdlib to import path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "skills/gtd/scripts"))
+_GTD_SCRIPTS = Path(__file__).parent.parent.parent / "skills/knowledge/gtd/scripts"
+sys.path.insert(0, str(_GTD_SCRIPTS))
 
 
 @pytest.fixture

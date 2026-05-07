@@ -19,7 +19,8 @@ class TestScriptPathResolution:
 
     def test_gtd_script_has_explicit_path_setup(self):
         """The gtd script must use __file__ to set up sys.path."""
-        script = Path(__file__).parent.parent.parent / "skills/gtd/scripts/gtd"
+        repo = Path(__file__).parent.parent.parent
+        script = repo / "skills/knowledge/gtd/scripts/gtd"
         content = script.read_text()
         assert "__file__" in content
         assert "sys.path" in content

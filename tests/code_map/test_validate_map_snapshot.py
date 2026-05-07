@@ -8,9 +8,8 @@ import sys
 from pathlib import Path
 
 # Path to code_map.py CLI
-CODE_MAP_CLI = (
-    Path(__file__).parent.parent.parent / "skills/code-mapping/scripts/code_map.py"
-)
+_REPO_ROOT = Path(__file__).parent.parent.parent
+CODE_MAP_CLI = _REPO_ROOT / "skills/codebase/code-mapping/scripts/code_map.py"
 
 
 def run_code_map(*args: str, cwd: Path | None = None) -> tuple[str, str, int]:

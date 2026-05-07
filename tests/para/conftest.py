@@ -14,7 +14,7 @@ def _import_para():
     The para script has no .py extension (it's an executable CLI), so we use
     importlib with an explicit SourceFileLoader to load it as a module.
     """
-    script = Path(__file__).parent.parent.parent / "skills/para/scripts/para"
+    script = Path(__file__).parent.parent.parent / "skills/knowledge/para/scripts/para"
     loader = importlib.machinery.SourceFileLoader("para_cli", str(script))
     spec = importlib.util.spec_from_file_location("para_cli", script, loader=loader)
     mod = importlib.util.module_from_spec(spec)

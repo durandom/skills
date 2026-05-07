@@ -48,7 +48,7 @@ Count and celebrate these wins!
 
 ### 3. Review Higher Horizons (H4/H5 — HORIZONS.md)
 
-Open `HORIZONS.md` at your **vault root** (not the template in skills/gtd/references/).
+Open `HORIZONS.md` at your **vault root** (not the template in skills/knowledge/gtd/references/).
 
 **Purpose & Principles (H5):**
 

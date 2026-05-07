@@ -40,13 +40,13 @@ Hierarchical documentation with **4 zoom levels**:
 
 ```bash
 # 🔧 Generate code maps from source
-uv run python skills/code-mapping/scripts/code_map.py generate src/ docs/map/
+uv run python skills/codebase/code-mapping/scripts/code_map.py generate src/ docs/map/
 
 # ✅ Validate existing maps
-uv run python skills/code-mapping/scripts/code_map.py validate docs/map/
+uv run python skills/codebase/code-mapping/scripts/code_map.py validate docs/map/
 ```
 
-📚 [Full Documentation →](skills/code-mapping/SKILL.md)
+📚 [Full Documentation →](skills/codebase/code-mapping/SKILL.md)
 
 ---
 
@@ -71,16 +71,16 @@ A CLI-based task management system following the **GTD methodology**:
 
 ```bash
 # 📥 Capture a new task
-./skills/gtd/scripts/gtd capture "Review PR #42"
+./skills/knowledge/gtd/scripts/gtd capture "Review PR #42"
 
 # 📋 List tasks by context
-./skills/gtd/scripts/gtd list --context focus --energy high
+./skills/knowledge/gtd/scripts/gtd list --context focus --energy high
 
 # 🌅 Start your daily review
-./skills/gtd/scripts/gtd daily
+./skills/knowledge/gtd/scripts/gtd daily
 ```
 
-📚 [Full Documentation →](skills/gtd/SKILL.md)
+📚 [Full Documentation →](skills/knowledge/gtd/SKILL.md)
 
 ---
 
@@ -99,7 +99,7 @@ The PARA method for organizing notes into four categories based on **when you'll
 
 Standalone knowledge organization with CLI for project management, folder structure, and archiving.
 
-📚 [Full Documentation →](skills/para/SKILL.md)
+📚 [Full Documentation →](skills/knowledge/para/SKILL.md)
 
 ---
 
@@ -114,7 +114,7 @@ GitHub CLI operations using `gh`:
 - 🚀 **CI Monitoring** — check pipeline status
 - 🤖 **Copilot Iteration** — track Copilot-assisted workflows
 
-📚 [Full Documentation →](skills/github/SKILL.md)
+📚 [Full Documentation →](skills/dev-tools/github/SKILL.md)
 
 ---
 
@@ -124,7 +124,7 @@ GitHub CLI operations using `gh`:
 
 Web crawling and data extraction using the `crwl` CLI. Handles static sites, JavaScript-rendered SPAs, and structured data extraction.
 
-📚 [Full Documentation →](skills/crawl4ai/SKILL.md)
+📚 [Full Documentation →](skills/web/crawl4ai/SKILL.md)
 
 ---
 
@@ -134,7 +134,7 @@ Web crawling and data extraction using the `crwl` CLI. Handles static sites, Jav
 
 Syncs Google Calendar meetings with Gemini transcripts, organizing them into a meetings directory with tag-based categorization.
 
-📚 [Full Documentation →](skills/meeting-notes/SKILL.md)
+📚 [Full Documentation →](skills/knowledge/meeting-notes/SKILL.md)
 
 ---
 
@@ -184,7 +184,7 @@ Reusable patterns for better development — now a proper skill with router and 
 | 📦 **Distribution** | Claude Plugin Authoring |
 | 🏗️ **Architecture** | Python Project Architecture, Keyring Credential Storage |
 
-📚 [Full Documentation →](skills/recipes/SKILL.md)
+📚 [Full Documentation →](skills/codebase/recipes/SKILL.md)
 
 ---
 
@@ -234,14 +234,22 @@ uv run pytest
 
 ```
 skills/
-├── 📂 skills/           # 🧠 Core skills
-│   ├── code-mapping/    # 🗺️ Hierarchical code navigation
-│   ├── gtd/             # ✅ Task management
-│   ├── para/            # 📂 PARA organization
-│   ├── github/          # 🐙 GitHub CLI operations
-│   ├── crawl4ai/        # 🕷️ Web crawling
-│   ├── meeting-notes/   # 📝 Meeting transcript sync
-│   └── recipes/         # 📖 Development patterns and guides
+├── 📂 skills/                 # 🧠 Core skills (bucketed for skills.sh discovery)
+│   ├── codebase/              # 🗺️ Code understanding & patterns
+│   │   ├── code-mapping/      # Hierarchical code navigation
+│   │   └── recipes/           # Development patterns and guides
+│   ├── dev-tools/             # 🛠️ External developer tool CLIs
+│   │   ├── github/            # GitHub CLI operations
+│   │   ├── jira/              # Jira issue management
+│   │   └── cass/              # Claude Code session search
+│   ├── knowledge/             # 📚 Personal knowledge & task mgmt
+│   │   ├── gtd/               # GTD task management
+│   │   ├── para/              # PARA organization
+│   │   └── meeting-notes/     # Meeting transcript sync
+│   ├── meta/                  # 🧰 Authoring skills/agents
+│   │   └── skill-architect/   # Design & audit skills
+│   └── web/                   # 🕷️ Web extraction
+│       └── crawl4ai/          # Web crawling
 ├── 📂 commands/         # ⚡ Slash commands
 ├── 📂 agents/           # 🤖 Subagents
 ├── 📂 fixtures/         # 🧪 Test fixtures

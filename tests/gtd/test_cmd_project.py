@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 # Load the gtd script (no .py extension) as a module
-_GTD_SCRIPT = Path(__file__).parent.parent.parent / "skills/gtd/scripts/gtd"
+_GTD_SCRIPT = Path(__file__).parent.parent.parent / "skills/knowledge/gtd/scripts/gtd"
 
 
 def _load_gtd_module():
