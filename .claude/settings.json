@@ -2,7 +2,6 @@
   "enabledPlugins": {
     "essentials@essentials-claude-code": true,
     "tcrd@tcrd": true,
-    "beads@beads-marketplace": true,
     "ds@durandom": true
   }
 }

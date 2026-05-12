@@ -9,12 +9,6 @@ dist/
 .envrc
 .claude/settings.local.json
 
-# bv (beads viewer) local config and caches
-.bv/
-
-# Dolt database files (added by bd init)
+# Dolt database files
 .dolt/
 *.db
-
-# beads issue tracker local data (not part of repo)
-.beads/
