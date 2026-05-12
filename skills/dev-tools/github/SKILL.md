@@ -48,7 +48,8 @@ Available scripts:
 - [pr-workflow.md](references/pr-workflow.md) - End-to-end PR shipping workflow
 - [triage-workflow.md](references/triage-workflow.md) - Full triage workflow
 - [review-checklist.md](references/review-checklist.md) - Code review standards
-- [copilot-workflow.md](references/copilot-workflow.md) - Copilot iteration patterns
+- [copilot-workflow.md](references/copilot-workflow.md) - Copilot Coding Agent iteration patterns
+- [copilot-review.md](references/copilot-review.md) - Triggering Copilot as a PR reviewer
 </reference_guides>
 
 <actions>
